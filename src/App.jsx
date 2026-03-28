@@ -794,7 +794,7 @@ function AuthScreen({ onLogin }) {
           </div>
           <Btn full variant="ghost" onClick={() => setMode("provider")}>Register my business</Btn>
           <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Provider sign in</Btn>
-          <Btn full variant="ghost" onClick={() => onLogin({ name: "Admin", email: "admin@fixitnow.co.za", role: "admin" })}>Admin Portal</Btn>
+          <Btn full variant="ghost" onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }}}>Admin Portal</Btn>
         </div>
       </div>
     </div>

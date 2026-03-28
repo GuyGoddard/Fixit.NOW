@@ -746,7 +746,20 @@ function AuthScreen({ onLogin }) {
   const [mode, setMode] = useState("welcome");
   const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", address: "", suburb: "", city: "", province: "" });
   const [locating, setLocating] = useState(false);
+  const [adminCode, setAdminCode] = useState("");
+  const [adminError, setAdminError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const ADMIN_PASSWORD = "Significantpursuit#32";
+
+  const tryAdminLogin = () => {
+    if (adminCode === ADMIN_PASSWORD) {
+      onLogin({ name: "Admin", email: "admin@fixitnow.co.za", role: "admin" });
+    } else {
+      setAdminError("Incorrect access code. Please try again.");
+      setAdminCode("");
+    }
+  };
 
   const gps = () => {
     setLocating(true);
@@ -794,9 +807,36 @@ function AuthScreen({ onLogin }) {
           </div>
           <Btn full variant="ghost" onClick={() => setMode("provider")}>Register my business</Btn>
           <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Provider sign in</Btn>
-          <Btn full variant="ghost" onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }}}>Admin Portal</Btn>
+          <Btn full variant="ghost" onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }}>Admin Portal</Btn>
         </div>
       </div>
+    </div>
+  );
+
+  if (mode === "adminLogin") return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+        <Logo size={36} />
+        <Wordmark size={20} showTagline />
+      </div>
+      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 24, color: "#F1F5F9", marginBottom: 6 }}>Admin Portal</h2>
+      <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Enter your access code to continue.</p>
+
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>Access Code</label>
+        <input
+          type="password"
+          value={adminCode}
+          onChange={e => { setAdminCode(e.target.value); setAdminError(""); }}
+          onKeyDown={e => e.key === "Enter" && tryAdminLogin()}
+          placeholder="Enter access code"
+          style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1.5px solid ${adminError ? "#EF4444" : "rgba(255,255,255,0.08)"}`, borderRadius: 11, padding: "12px 14px", color: "#E2E8F0", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none" }}
+        />
+        {adminError && <div style={{ color: "#EF4444", fontSize: 12, marginTop: 6, fontFamily: "'DM Sans',sans-serif" }}>{adminError}</div>}
+      </div>
+
+      <Btn full onClick={tryAdminLogin} style={{ marginTop: 8 }}>Access Admin Portal →</Btn>
     </div>
   );
 
@@ -2667,6 +2707,64 @@ function AdminDashboard({ onLogout }) {
                 </div>
               );
             })}
+        </div>
+      )}
+
+      {tab === "pending" && (
+        <div>
+          {pending.length === 0 ? (
+            <div style={{ textAlign: "center", color: "#475569", marginTop: 40 }}>
+              <div style={{ marginBottom: 12 }}><Icon name="check" size={40} color="#10B981" strokeWidth={1.4} /></div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 15 }}>All clear</div>
+              <div style={{ fontSize: 12, marginTop: 6, color: "#334155" }}>No pending applications right now.</div>
+            </div>
+          ) : pending.map(p => (
+            <div key={p.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{p.bizName}</div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{p.contactName}</div>
+                </div>
+                <Badge color="#F59E0B">Pending</Badge>
+              </div>
+
+              {/* Contact details */}
+              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 10 }}>
+                {[
+                  ["Email",    p.email],
+                  ["Phone",    p.phone],
+                  ["Location", `${p.suburb}, ${p.city}`],
+                  ["Reg No.",  p.regNum],
+                ].filter(([,v]) => v).map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", gap: 10, padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <span style={{ fontSize: 11, color: "#475569", minWidth: 64, flexShrink: 0 }}>{k}</span>
+                    <span style={{ fontSize: 11, color: "#94A3B8", wordBreak: "break-all" }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Services + plan */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+                {p.services?.map(s => { const svc = SERVICES.find(sv => sv.id === s); return svc ? <Badge key={s} color={svc.color}>{svc.label}</Badge> : null; })}
+                {p.emergency && <Badge color="#EF4444">24hr Emergency</Badge>}
+                <Badge color={PLANS.find(pl => pl.id === p.plan)?.color || "#64748B"}>{PLANS.find(pl => pl.id === p.plan)?.label || p.plan}</Badge>
+              </div>
+
+              {/* Description */}
+              {p.description && (
+                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.6, background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
+                  "{p.description}"
+                </div>
+              )}
+
+              {/* Approve / Reject */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn small variant="green"  onClick={() => updateStatus(p.id, "approved")} style={{ flex: 1 }}>Approve</Btn>
+                <Btn small variant="danger" onClick={() => updateStatus(p.id, "rejected")} style={{ flex: 1 }}>Reject</Btn>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

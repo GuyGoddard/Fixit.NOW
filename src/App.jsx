@@ -750,7 +750,7 @@ function AuthScreen({ onLogin }) {
   const [adminError, setAdminError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const ADMIN_PASSWORD = "Significantpursuit#32";
+  const ADMIN_PASSWORD = "1234";
 
   const tryAdminLogin = () => {
     if (adminCode === ADMIN_PASSWORD) {
@@ -774,9 +774,41 @@ function AuthScreen({ onLogin }) {
     }, () => setLocating(false));
   };
 
-  const doLogin  = () => onLogin({ name: form.name || "User", email: form.email, address: form.address, suburb: form.suburb, city: form.city, province: form.province, phone: form.phone, role: "customer" });
-  const doSignup = () => onLogin({ name: form.name, email: form.email, address: form.address, suburb: form.suburb, city: form.city, province: form.province, phone: form.phone, role: "customer" });
-  const doProviderLogin = () => onLogin({ email: form.email, role: "provider" });
+  const doSignup = async () => {
+    if (!form.name.trim()) { return alert("Please enter your name."); }
+    if (!form.email.trim()) { return alert("Please enter your email."); }
+    if (!form.password || form.password.length < 6) { return alert("Password must be at least 6 characters."); }
+    // Save customer to storage
+    const raw = await store.get("customers");
+    const customers = raw ? JSON.parse(raw.value) : [];
+    if (customers.find(c => c.email.toLowerCase() === form.email.toLowerCase())) {
+      return alert("An account with this email already exists. Please sign in.");
+    }
+    const newCustomer = { name: form.name, email: form.email, password: form.password, phone: form.phone, address: form.address, suburb: form.suburb, city: form.city, province: form.province, role: "customer", joinDate: new Date().toISOString() };
+    customers.push(newCustomer);
+    await store.set("customers", customers);
+    onLogin(newCustomer);
+  };
+
+  const doLogin = async () => {
+    if (!form.email.trim() || !form.password.trim()) { return alert("Please enter your email and password."); }
+    const raw = await store.get("customers");
+    const customers = raw ? JSON.parse(raw.value) : [];
+    const match = customers.find(c => c.email.toLowerCase() === form.email.toLowerCase());
+    if (!match) { return alert("No account found with that email. Please sign up first."); }
+    if (match.password !== form.password) { return alert("Incorrect password. Please try again."); }
+    onLogin(match);
+  };
+
+  const doProviderLogin = async () => {
+    if (!form.email.trim() || !form.password.trim()) { return alert("Please enter your email and password."); }
+    const raw = await store.get("providers");
+    const providers = raw ? JSON.parse(raw.value) : [];
+    const match = providers.find(p => p.email.toLowerCase() === form.email.toLowerCase());
+    if (!match) { return alert("No provider account found with that email. Please register your business first."); }
+    if (match.password !== form.password) { return alert("Incorrect password. Please try again."); }
+    onLogin({ ...match, role: "provider" });
+  };
 
   if (mode === "welcome") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", background: "#060A14" }}>
@@ -798,16 +830,26 @@ function AuthScreen({ onLogin }) {
         <p style={{ color: "#334155", fontSize: 12, lineHeight: "1.6", marginBottom: 36 }}>Plumbers · Electricians · Security · Handymen · 24/7</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <Btn full onClick={() => setMode("signup")}>I need a home service</Btn>
+          {/* Customer lane */}
+          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>I need a service</div>
+          <Btn full onClick={() => setMode("signup")}>Sign up — find pros near me</Btn>
           <Btn full variant="ghost" onClick={() => setMode("login")}>Sign in to my account</Btn>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
-            <span style={{ color: "#475569", fontSize: 11 }}>Are you a service provider?</span>
+            <span style={{ color: "#334155", fontSize: 11 }}>or</span>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
           </div>
+
+          {/* Provider lane */}
+          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>I'm a service provider</div>
           <Btn full variant="ghost" onClick={() => setMode("provider")}>Register my business</Btn>
-          <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Provider sign in</Btn>
-          <Btn full variant="ghost" onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }}>Admin Portal</Btn>
+          <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Business dashboard</Btn>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
+            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.04)" }} />
+          </div>
+          <button onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }} style={{ background: "none", border: "none", color: "#1E293B", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "center", padding: "4px 0" }}>Admin</button>
         </div>
       </div>
     </div>
@@ -912,7 +954,7 @@ function AuthScreen({ onLogin }) {
 // ─── PROVIDER REGISTRATION ──────────────────────────────────────────────────────
 function ProviderRegistration({ onBack, onDone }) {
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ bizName: "", contactName: "", email: "", phone: "", address: "", suburb: "", city: "", province: "", services: [], serviceAreas: {}, emergency: false, plan: "featured", regNum: "", description: "" });
+  const [form, setForm] = useState({ bizName: "", contactName: "", email: "", phone: "", password: "", address: "", suburb: "", city: "", province: "", services: [], serviceAreas: {}, emergency: false, plan: "featured", regNum: "", description: "" });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const [expandedService, setExpandedService] = useState(null);
   const [showAllAreas, setShowAllAreas] = useState({});
@@ -1003,15 +1045,20 @@ function ProviderRegistration({ onBack, onDone }) {
         <>
           <Input label="Business Name" value={form.bizName} onChange={v => set("bizName", v)} placeholder="Joe's Plumbing Services" />
           <Input label="Contact Person" value={form.contactName} onChange={v => set("contactName", v)} placeholder="Joe Dlamini" />
-          <Input label="Business Email" value={form.email} onChange={v => set("email", v)} placeholder="joe@bizname.co.za" />
+          <Input label="Business Email" value={form.email} onChange={v => set("email", v)} placeholder="joe@bizname.co.za" type="email" />
           <Input label="WhatsApp / Phone" value={form.phone} onChange={v => set("phone", v)} placeholder="+27 82 000 0000" />
+          <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="Min. 6 characters" type="password" />
           <Input label="Business Registration No." value={form.regNum} onChange={v => set("regNum", v)} placeholder="Optional" />
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>Short Description</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="Tell customers what makes you great..." rows={3}
               style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 11, padding: "12px 14px", color: "#E2E8F0", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "vertical" }} />
           </div>
-          <Btn full onClick={() => setStep(2)} disabled={!form.bizName || !form.email || !form.phone}>Continue →</Btn>
+          <Btn full onClick={() => {
+            if (!form.bizName || !form.email || !form.phone) return alert("Please fill in all required fields.");
+            if (!form.password || form.password.length < 6) return alert("Please set a password of at least 6 characters.");
+            setStep(2);
+          }}>Continue →</Btn>
         </>
       )}
 
@@ -2107,9 +2154,18 @@ function CustomerHome({ user, onLogout }) {
     getSearchHistory(user.email).then(setSearchHistory);
 
     const storedRaw = await store.get("providers");
-    const registeredProviders = storedRaw
-      ? JSON.parse(storedRaw.value).filter(p => p.status === "approved" && p.services.includes(selectedService))
-      : [];
+    const allApproved = storedRaw ? JSON.parse(storedRaw.value).filter(p => p.status === "approved") : [];
+
+    // Match providers who offer this service AND cover the searched location
+    const searchLower = location.toLowerCase();
+    const registeredProviders = allApproved.filter(p => {
+      if (!p.services?.includes(selectedService)) return false;
+      const sa = p.serviceAreas?.[selectedService];
+      if (!sa) return true; // no area restriction = show everywhere
+      if (sa.allKZN) return true; // covers all of KZN
+      // Check if any of their areas appear in the search string
+      return (sa.areas || []).some(area => searchLower.includes(area.toLowerCase()) || area.toLowerCase().includes(searchLower.split(",")[0].trim().toLowerCase()));
+    });
 
     const prompt = `Generate 5 realistic mock ${svc.label} service providers near "${location}" in South Africa. Return ONLY a JSON array, no markdown. Each object: {"name":"string","rating":number 3.5-5.0,"reviewCount":integer 8-300,"vicinity":"street near ${location}","phone":"SA mobile number","emergency":boolean,"openNow":boolean,"serviceType":"${selectedService}","plan":"basic","description":"one sentence"}`;
 

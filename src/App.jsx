@@ -155,6 +155,7 @@ const SERVICES = [
   { id: "handyman",    label: "Handyman",     icon: "🛠️", color: "#10B981", emergency: false, desc: "General repairs & maintenance" },
   { id: "security",    label: "Security",     icon: "🔒", color: "#8B5CF6", emergency: true,  desc: "Alarms, CCTV, access control" },
   { id: "gate_repair", label: "Gate Repair",  icon: "🚪", color: "#EF4444", emergency: true,  desc: "Gate motors, intercoms" },
+  { id: "technology",  label: "Technology",   icon: "📺", color: "#06B6D4", emergency: false, desc: "TVs, sound systems, smart home" },
 ];
 
 const PLANS = [
@@ -212,7 +213,152 @@ const updateJobStatus = async (jobId, status, note = "") => {
   } catch { return []; }
 };
 
-// ─── RESPONSE SPEED ──────────────────────────────────────────────────────────────
+// ─── SMS / NOTIFICATION HELPERS ─────────────────────────────────────────────────
+// Clickatell API — replace with your API key from portal.clickatell.com
+const CLICKATELL_API_KEY = "YOUR_CLICKATELL_API_KEY";
+
+const sendSMS = async (phone, message) => {
+  try {
+    // Format SA number: strip spaces/dashes, ensure starts with 27
+    const cleaned = phone.replace(/[\s\-()+]/g, "");
+    const formatted = cleaned.startsWith("0") ? "27" + cleaned.slice(1) : cleaned.startsWith("27") ? cleaned : "27" + cleaned;
+    await fetch("https://platform.clickatell.com/messages/http/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": CLICKATELL_API_KEY },
+      body: JSON.stringify({ messages: [{ channel: "sms", to: formatted, content: message }] }),
+    });
+  } catch {}
+};
+
+// Send notification via SMS or WhatsApp based on user preference
+const sendNotification = async (user, message, jobId = null) => {
+  if (!user) return;
+  const pref = user.notifPreference || "whatsapp";
+  if (pref === "sms" && user.phone) {
+    await sendSMS(user.phone, message);
+  } else if (user.phone) {
+    // WhatsApp deep link — opens WhatsApp with pre-filled message
+    // (In a real app this would be sent server-side via WhatsApp Business API)
+    // For now we log it; provider-side WA is already handled via buttons
+  }
+  // Always push in-app notification too
+  if (user.email) {
+    await pushNotif(user.email, {
+      title: message.split(".")[0],
+      body: message,
+      type: jobId ? "booking" : "default",
+      jobId,
+    });
+  }
+};
+
+// ─── ADDRESS BOOK HELPERS ────────────────────────────────────────────────────────
+const saveAddress = async (customerId, address) => {
+  try {
+    const key = `addresses:${customerId}`;
+    const raw = await store.get(key);
+    const addresses = raw ? JSON.parse(raw.value) : [];
+    // Deduplicate by label
+    const filtered = addresses.filter(a => a.label !== address.label);
+    filtered.unshift({ ...address, id: `addr-${Date.now()}` });
+    await store.set(key, filtered.slice(0, 10));
+  } catch {}
+};
+
+const getAddresses = async (customerId) => {
+  try {
+    const raw = await store.get(`addresses:${customerId}`);
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+// ─── CHAT HELPERS ────────────────────────────────────────────────────────────────
+const sendChatMessage = async (jobId, senderId, senderName, senderRole, message) => {
+  try {
+    const key = `chat:${jobId}`;
+    const raw = await store.get(key);
+    const messages = raw ? JSON.parse(raw.value) : [];
+    messages.push({
+      id:         `msg-${Date.now()}`,
+      senderId, senderName, senderRole, message,
+      ts:         new Date().toISOString(),
+      timeLabel:  new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }),
+    });
+    await store.set(key, messages.slice(-100)); // keep last 100 messages
+  } catch {}
+};
+
+const getChatMessages = async (jobId) => {
+  try {
+    const raw = await store.get(`chat:${jobId}`);
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+// ─── QUOTE HELPERS ───────────────────────────────────────────────────────────────
+const saveQuoteRequest = async (request) => {
+  try {
+    const raw = await store.get("quote_requests");
+    const requests = raw ? JSON.parse(raw.value) : [];
+    requests.unshift(request);
+    await store.set("quote_requests", requests.slice(0, 200));
+  } catch {}
+};
+
+const getQuoteRequests = async (providerId) => {
+  try {
+    const raw = await store.get("quote_requests");
+    const all = raw ? JSON.parse(raw.value) : [];
+    return all.filter(r => !r.assignedProviders || r.assignedProviders.includes(providerId));
+  } catch { return []; }
+};
+
+const submitQuote = async (requestId, providerId, providerName, amount, note) => {
+  try {
+    const raw = await store.get("quote_requests");
+    const requests = raw ? JSON.parse(raw.value) : [];
+    const updated = requests.map(r => {
+      if (r.id !== requestId) return r;
+      const quotes = r.quotes || [];
+      quotes.push({ providerId, providerName, amount, note, ts: new Date().toISOString() });
+      return { ...r, quotes };
+    });
+    await store.set("quote_requests", updated);
+  } catch {}
+};
+
+// ─── GPS LOCATION HELPERS ────────────────────────────────────────────────────────
+const updateProviderLocation = async (providerId, lat, lng) => {
+  try {
+    await store.set(`location:${providerId}`, { lat, lng, ts: new Date().toISOString() });
+  } catch {}
+};
+
+const getProviderLocation = async (providerId) => {
+  try {
+    const raw = await store.get(`location:${providerId}`);
+    return raw ? JSON.parse(raw.value) : null;
+  } catch { return null; }
+};
+
+// ─── VERIFICATION BADGE HELPERS ──────────────────────────────────────────────────
+const submitVerification = async (providerId, docType, docNumber) => {
+  try {
+    const raw = await store.get("providers");
+    const providers = raw ? JSON.parse(raw.value) : [];
+    const updated = providers.map(p => p.id !== providerId ? p : {
+      ...p,
+      verification: {
+        docType, docNumber,
+        status: "pending",
+        submittedAt: new Date().toISOString(),
+      }
+    });
+    await store.set("providers", updated);
+  } catch {}
+};
+
+
 // Calculates average hours between job created → accepted from a provider's job log
 const getResponseSpeed = (providerJobs = []) => {
   const accepted = providerJobs.filter(j =>
@@ -615,6 +761,7 @@ const ICON_PATHS = {
   handyman:   "M10.5 2.5L9 1L7.5 2.5L9 4L7 6H5C4.4 6 4 6.4 4 7V9L2 11L3 12L5 10H7C7.6 10 8 9.6 8 9V7L10 5L11.5 6.5L13 5L10.5 2.5Z",
   security:   "M6 1L1 3V7C1 9.8 3.2 12.3 6 13 8.8 12.3 11 9.8 11 7V3L6 1Z M4.5 6.5L5.5 7.5L7.5 5.5",
   gate_repair:"M2 2H4V10H2V2Z M8 2H10V10H8V10Z M4 5H8 M4 3H5 M7 3H8 M4 7H5 M7 7H8",
+  technology: "M1 2H13V10H1V2Z M4 10V12 M10 10V12 M3 12H11 M5 5H9 M5 7H8",
   // Actions
   phone:      "M4.5 1C3.7 1 3 1.7 3 2.5C3 7.2 6.8 11 11.5 11C12.3 11 13 10.3 13 9.5V8C13 7.3 12.5 6.7 11.8 6.5L10.2 6.1C9.6 5.9 9 6.2 8.7 6.7L8.3 7.4C7.2 6.9 6.1 5.8 5.6 4.7L6.3 4.3C6.8 4 7.1 3.4 6.9 2.8L6.5 1.2C6.3 0.5 5.7 0 5 0L4.5 1Z",
   whatsapp:   "M7 1C3.7 1 1 3.7 1 7C1 8.1 1.3 9.2 1.9 10.1L1 13L4 12.1C4.9 12.7 5.9 13 7 13C10.3 13 13 10.3 13 7S10.3 1 7 1Z M5 5.5C5.2 5.5 5.4 5.5 5.5 5.5L6 6.8L5.5 7.3C5.7 7.8 6.2 8.4 6.7 8.7L7.2 8.2L8.5 8.7C8.5 8.8 8.5 9.1 8.4 9.3C8.1 9.6 7.3 9.8 6.8 9.5C6 9.1 4.9 8 4.5 7.2C4.2 6.7 4.4 5.8 5 5.5Z",
@@ -784,7 +931,7 @@ function AuthScreen({ onLogin }) {
     if (customers.find(c => c.email.toLowerCase() === form.email.toLowerCase())) {
       return alert("An account with this email already exists. Please sign in.");
     }
-    const newCustomer = { name: form.name, email: form.email, password: form.password, phone: form.phone, address: form.address, suburb: form.suburb, city: form.city, province: form.province, role: "customer", joinDate: new Date().toISOString() };
+    const newCustomer = { name: form.name, email: form.email, password: form.password, phone: form.phone, address: form.address, suburb: form.suburb, city: form.city, province: form.province, role: "customer", notifPreference: form.notifPreference || "whatsapp", joinDate: new Date().toISOString() };
     customers.push(newCustomer);
     await store.set("customers", customers);
     onLogin(newCustomer);
@@ -910,6 +1057,19 @@ function AuthScreen({ onLogin }) {
       <Input label="Email" value={form.email} onChange={v => set("email", v)} placeholder="you@email.com" type="email" />
       <Input label="Phone" value={form.phone} onChange={v => set("phone", v)} placeholder="+27 82 000 0000" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
+
+      {/* Notification preference */}
+      <div style={{ marginBottom: 14 }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 8, fontFamily: "'DM Sans',sans-serif" }}>How should we notify you?</label>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[["whatsapp","WhatsApp"],["sms","SMS"]].map(([id, label]) => (
+            <button key={id} onClick={() => set("notifPreference", id)}
+              style={{ flex: 1, padding: "9px 8px", borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s", background: (form.notifPreference||"whatsapp") === id ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${(form.notifPreference||"whatsapp") === id ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, color: (form.notifPreference||"whatsapp") === id ? "#38BDF8" : "#64748B" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.15)", borderRadius: 12, padding: 16, marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#0EA5E9", fontFamily: "'DM Sans',sans-serif" }}>Your Home Address</span>
@@ -1679,6 +1839,347 @@ function DiscountWallet({ customerId }) {
   );
 }
 
+// ─── CHAT MODAL ──────────────────────────────────────────────────────────────────
+function ChatModal({ job, user, userRole, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput]       = useState("");
+  const [sending, setSending]   = useState(false);
+  const bottomRef = useRef(null);
+
+  const load = async () => {
+    const msgs = await getChatMessages(job.id);
+    setMessages(msgs);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 5000); // poll every 5s
+    return () => clearInterval(interval);
+  }, [job.id]);
+
+  const send = async () => {
+    if (!input.trim() || sending) return;
+    setSending(true);
+    const name = userRole === "provider" ? (user.bizName || user.contactName) : user.name;
+    await sendChatMessage(job.id, user.email || user.id, name, userRole, input.trim());
+    setInput("");
+    await load();
+    setSending(false);
+  };
+
+  const otherName = userRole === "provider" ? job.customerName : job.providerName;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, height: "75vh", display: "flex", flexDirection: "column" }}>
+        {/* Header */}
+        <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="message" size={16} color="white" strokeWidth={1.8} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{otherName}</div>
+            <div style={{ fontSize: 11, color: "#475569" }}>{job.serviceName}</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#475569", fontSize: 20, cursor: "pointer" }}>×</button>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {messages.length === 0 && (
+            <div style={{ textAlign: "center", color: "#334155", fontSize: 12, marginTop: 24 }}>No messages yet. Say hi!</div>
+          )}
+          {messages.map(m => {
+            const isMe = m.senderRole === userRole;
+            return (
+              <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }}>
+                <div style={{ maxWidth: "78%", background: isMe ? "linear-gradient(135deg,#0EA5E9,#6366F1)" : "rgba(255,255,255,0.07)", borderRadius: isMe ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "9px 13px" }}>
+                  <div style={{ fontSize: 13, color: "#F1F5F9", lineHeight: 1.5 }}>{m.message}</div>
+                </div>
+                <div style={{ fontSize: 9, color: "#334155", marginTop: 3 }}>{m.timeLabel}</div>
+              </div>
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div style={{ padding: "12px 16px 32px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8 }}>
+          <input value={input} onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && send()}
+            placeholder="Type a message…"
+            style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 11, padding: "10px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+          <button onClick={send} disabled={!input.trim() || sending}
+            style={{ width: 42, height: 42, borderRadius: 11, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: !input.trim() ? 0.4 : 1 }}>
+            <Icon name="send" size={16} color="white" strokeWidth={2} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── QUOTE REQUEST MODAL ─────────────────────────────────────────────────────────
+function QuoteRequestModal({ user, onClose, onDone }) {
+  const [step, setStep]           = useState(1);
+  const [serviceId, setServiceId] = useState(null);
+  const [location, setLocation]   = useState(user.suburb ? `${user.suburb}, ${user.city}` : "");
+  const [description, setDescription] = useState("");
+  const [urgency, setUrgency]     = useState("normal");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const svc = SERVICES.find(s => s.id === serviceId);
+
+  const submit = async () => {
+    setSubmitting(true);
+    // AI match: find best 3 providers for this job
+    const storedRaw = await store.get("providers");
+    const allProviders = storedRaw ? JSON.parse(storedRaw.value) : [];
+    const eligible = allProviders.filter(p => p.status === "approved" && p.services?.includes(serviceId));
+
+    // Score and pick top 3
+    const scored = eligible.map(p => ({ ...p, _score: rankScore(p) })).sort((a,b) => b._score - a._score).slice(0, 3);
+
+    const request = {
+      id:                `qr-${Date.now()}`,
+      customerId:        user.email,
+      customerName:      user.name,
+      customerPhone:     user.phone,
+      serviceId, location, description, urgency,
+      assignedProviders: scored.map(p => p.id),
+      quotes:            [],
+      ts:                new Date().toISOString(),
+      dateLabel:         new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" }),
+      status:            "open",
+    };
+
+    await saveQuoteRequest(request);
+
+    // Notify each matched provider
+    for (const p of scored) {
+      await pushNotif(p.id, {
+        title:  "New quote request",
+        body:   `${user.name} needs a ${svc?.label} in ${location}. Tap to submit your quote.`,
+        type:   "booking",
+        jobId:  request.id,
+      });
+    }
+
+    setSubmitting(false);
+    setSubmitted(true);
+  };
+
+  if (submitted) return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "32px 20px 48px", textAlign: "center" }}>
+        <div style={{ marginBottom: 16 }}><Icon name="check" size={48} color="#10B981" strokeWidth={1.4} /></div>
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#F1F5F9", marginBottom: 8 }}>Quote request sent!</div>
+        <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7, marginBottom: 24 }}>
+          We've matched you with the top {svc?.label?.toLowerCase()} providers near {location}. You'll get quotes within the hour.
+        </div>
+        <Btn full onClick={() => { onDone && onDone(); onClose(); }}>View in My Jobs</Btn>
+      </div>
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Get quotes from pros</div>
+        <div style={{ fontSize: 12, color: "#475569", marginBottom: 20 }}>We'll match you with the top 3 providers and they'll send you their best price.</div>
+
+        {step === 1 && (
+          <>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>What do you need?</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+              {SERVICES.map(s => (
+                <div key={s.id} onClick={() => setServiceId(s.id)}
+                  style={{ background: serviceId === s.id ? `${s.color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${serviceId === s.id ? s.color+"55" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, transition: "all 0.15s" }}>
+                  <ServiceIcon serviceId={s.id} size={22} color={serviceId === s.id ? s.color : "#475569"} />
+                  <div style={{ fontSize: 11, fontWeight: 600, color: serviceId === s.id ? "#F1F5F9" : "#64748B", textAlign: "center" }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Describe the problem</label>
+              <textarea value={description} onChange={e => setDescription(e.target.value)}
+                placeholder="e.g. My geyser burst, water leaking in kitchen ceiling…"
+                rows={3}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+            </div>
+
+            <Input label="Your location" value={location} onChange={setLocation} placeholder="Suburb, Durban" />
+
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Urgency</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {[["normal","Normal","I can wait a day or two"],["urgent","Urgent","Today if possible"],["emergency","Emergency","Right now!"]].map(([id, label, sub]) => (
+                  <div key={id} onClick={() => setUrgency(id)}
+                    style={{ flex: 1, background: urgency === id ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${urgency === id ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, padding: "10px 8px", cursor: "pointer", textAlign: "center" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: urgency === id ? "#38BDF8" : "#64748B" }}>{label}</div>
+                    <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Btn full onClick={submit} disabled={!serviceId || !description.trim() || !location.trim() || submitting}>
+              {submitting ? "Matching providers…" : "Get Quotes from Top Pros →"}
+            </Btn>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── ADDRESS BOOK MODAL ──────────────────────────────────────────────────────────
+function AddressBookModal({ user, onSelect, onClose }) {
+  const [addresses, setAddresses] = useState([]);
+  const [adding, setAdding]       = useState(false);
+  const [newAddr, setNewAddr]     = useState({ label: "", street: "", suburb: "", city: "" });
+
+  useEffect(() => {
+    getAddresses(user.email).then(setAddresses);
+    // Pre-populate with home address if no saved addresses
+  }, []);
+
+  const save = async () => {
+    if (!newAddr.label || !newAddr.suburb) return;
+    await saveAddress(user.email, newAddr);
+    const updated = await getAddresses(user.email);
+    setAddresses(updated);
+    setAdding(false);
+    setNewAddr({ label: "", street: "", suburb: "", city: "" });
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 110, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "80vh", overflowY: "auto" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 16 }}>Saved addresses</div>
+
+        {/* Home address always first */}
+        {user.suburb && (
+          <div onClick={() => onSelect(`${user.address || ""} ${user.suburb}, ${user.city}`.trim())}
+            style={{ background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="home" size={16} color="#0EA5E9" strokeWidth={1.8} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>Home</div>
+              <div style={{ fontSize: 11, color: "#475569" }}>{user.suburb}, {user.city}</div>
+            </div>
+          </div>
+        )}
+
+        {addresses.map(a => (
+          <div key={a.id} onClick={() => onSelect(`${a.street ? a.street + ", " : ""}${a.suburb}, ${a.city}`)}
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+            <Icon name="pin" size={16} color="#64748B" strokeWidth={1.8} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>{a.label}</div>
+              <div style={{ fontSize: 11, color: "#475569" }}>{a.suburb}, {a.city}</div>
+            </div>
+          </div>
+        ))}
+
+        {adding ? (
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+            <Input label="Label (e.g. Work, Rental)" value={newAddr.label} onChange={v => setNewAddr(a => ({...a, label:v}))} placeholder="Work" />
+            <Input label="Street (optional)" value={newAddr.street} onChange={v => setNewAddr(a => ({...a, street:v}))} placeholder="123 Smith St" />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Input label="Suburb" value={newAddr.suburb} onChange={v => setNewAddr(a => ({...a, suburb:v}))} placeholder="Umhlanga" />
+              <Input label="City" value={newAddr.city} onChange={v => setNewAddr(a => ({...a, city:v}))} placeholder="Durban" />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn variant="ghost" small onClick={() => setAdding(false)}>Cancel</Btn>
+              <Btn full small onClick={save}>Save Address</Btn>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setAdding(true)}
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px dashed rgba(255,255,255,0.12)", borderRadius: 12, padding: "12px 14px", color: "#64748B", fontSize: 13, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            + Add new address
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── GPS TRACKER (Customer view) ─────────────────────────────────────────────────
+function GPSTrackerModal({ job, onClose }) {
+  const [location, setLocation] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const loc = await getProviderLocation(job.providerId);
+      if (loc) { setLocation(loc); setLastUpdate(new Date(loc.ts)); }
+    };
+    fetch();
+    const interval = setInterval(fetch, 10000);
+    return () => clearInterval(interval);
+  }, [job.providerId]);
+
+  const mapsUrl = location
+    ? `https://www.google.com/maps?q=${location.lat},${location.lng}`
+    : `https://www.google.com/maps/search/${encodeURIComponent(job.providerName + " " + (job.providerSuburb || "Durban"))}`;
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 48px" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(16,185,129,0.15)", border: "1.5px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="location" size={20} color="#10B981" strokeWidth={1.8} />
+          </div>
+          <div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Track {job.providerName}</div>
+            <div style={{ fontSize: 12, color: "#475569" }}>{job.status === "inprogress" ? "On the way to you" : "Provider location"}</div>
+          </div>
+        </div>
+
+        {/* Map placeholder — links to Google Maps */}
+        <div onClick={() => window.open(mapsUrl, "_blank")}
+          style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 14, padding: 24, marginBottom: 16, textAlign: "center", cursor: "pointer" }}>
+          <div style={{ marginBottom: 10 }}><Icon name="location" size={36} color="#10B981" strokeWidth={1.4} /></div>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#34D399", marginBottom: 4 }}>
+            {location ? "Live location available" : "View on Google Maps"}
+          </div>
+          {lastUpdate && <div style={{ fontSize: 11, color: "#065F46" }}>Updated {lastUpdate.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>}
+          {!location && <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Provider hasn't shared location yet</div>}
+          <div style={{ marginTop: 12, fontSize: 12, color: "#10B981", fontWeight: 600 }}>Tap to open in Maps →</div>
+        </div>
+
+        <Btn full variant="ghost" onClick={onClose}>Close</Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── VERIFICATION BADGE COMPONENT ────────────────────────────────────────────────
+function VerificationBadge({ verification, compact = false }) {
+  if (!verification) return null;
+  const { status } = verification;
+  const color = status === "verified" ? "#10B981" : status === "pending" ? "#F59E0B" : "#64748B";
+  const label = status === "verified" ? "Verified" : status === "pending" ? "Pending" : "Unverified";
+  if (compact) return (
+    <span style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: "2px 7px", background: `${color}20`, border: `1px solid ${color}44`, color, display: "inline-flex", alignItems: "center", gap: 3 }}>
+      <Icon name="check" size={8} color={color} strokeWidth={2.5} />{label}
+    </span>
+  );
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: `${color}10`, border: `1px solid ${color}30`, borderRadius: 8, padding: "6px 10px" }}>
+      <Icon name="check" size={12} color={color} strokeWidth={2} />
+      <span style={{ fontSize: 11, fontWeight: 600, color }}>{label} ID</span>
+    </div>
+  );
+}
+
 // ─── BOOKING MODAL ───────────────────────────────────────────────────────────────
 function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
   const svc = SERVICES.find(s => s.id === serviceType) || SERVICES[0];
@@ -1686,19 +2187,31 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
   const fmtDate = (d) => d.toISOString().slice(0, 10);
 
   const [form, setForm] = useState({
-    description: "",
-    date: fmtDate(tomorrow),
-    time: "09:00",
-    address: user.address ? `${user.address}, ${user.suburb}, ${user.city}` : "",
-    isEmergency: provider.emergency && false,
+    description:    "",
+    date:           fmtDate(tomorrow),
+    time:           "09:00",
+    address:        user.address ? `${user.address}, ${user.suburb}, ${user.city}` : "",
+    isEmergency:    provider.emergency && false,
     estimatedValue: "",
+    recurring:      "once",   // once | weekly | monthly
   });
-  const [step, setStep] = useState(1); // 1=details 2=confirm 3=done
+  const [step, setStep]         = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [showAddrBook, setShowAddrBook] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const fee    = form.estimatedValue ? Math.round(parseFloat(form.estimatedValue) * PLATFORM_FEE_PCT) : 0;
-  const canSubmit = form.description.trim().length > 10 && form.address.trim().length > 5;
+  const fee      = form.estimatedValue ? Math.round(parseFloat(form.estimatedValue) * PLATFORM_FEE_PCT) : 0;
+  const canSubmit = form.description.trim().length > 5 && form.address.trim().length > 5;
+
+  // Quick problem description starters per service
+  const quickDesc = {
+    plumber:     ["My geyser burst", "Pipe is leaking", "Blocked drain", "No hot water", "Toilet won't flush"],
+    electrician: ["Power trip / no electricity", "Lights not working", "Need new plug points", "DB board issue", "Outdoor lighting"],
+    handyman:    ["Door won't close/lock", "Shelves need fitting", "Tile is cracked", "Ceiling needs repair", "General maintenance"],
+    security:    ["Alarm keeps triggering", "Need CCTV installed", "Electric fence issue", "Access control not working"],
+    gate_repair: ["Gate motor not working", "Gate won't open/close", "Intercom broken", "Remote not working"],
+    technology:  ["TV needs wall mounting", "Sound system setup", "Smart home device install", "DSTV installation", "WiFi / networking"],
+  }[serviceType] || [];
 
   const submit = async () => {
     setSubmitting(true);
@@ -1707,6 +2220,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
       providerId:     provider.providerId || null,
       providerName:   provider.name,
       providerPhone:  provider.phone || "",
+      providerSuburb: provider.vicinity || "",
       customerId:     user.email,
       customerName:   user.name,
       customerPhone:  user.phone || "",
@@ -1717,6 +2231,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
       preferredDate:  form.date,
       preferredTime:  form.time,
       isEmergency:    form.isEmergency,
+      recurring:      form.recurring,
       estimatedValue: form.estimatedValue ? parseFloat(form.estimatedValue) : null,
       platformFee:    fee,
       status:         "pending",
@@ -1727,17 +2242,14 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
       timeLabel:      new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }),
     };
     await saveJob(job);
-    // Track as a lead event
     await trackEvent({ providerId: provider.providerId || null, providerName: provider.name, type: "booking", serviceType, searchArea: form.address, searchQuery: form.description, plan: provider.plan });
-    // Notify the provider of the new booking
     if (provider.providerId) {
       await pushNotif(provider.providerId, {
         title: "New job request!",
-        body:  `${user.name} has requested a ${svc.label} job on ${form.date} at ${form.time}.`,
+        body:  `${user.name} needs a ${svc.label}: "${form.description.slice(0,60)}"`,
         type:  "booking", jobId: job.id,
       });
     }
-    // Notify customer that request was sent
     await pushNotif(user.email, {
       title: "Job request sent",
       body:  `Your ${svc.label} request was sent to ${provider.name}. Waiting for confirmation.`,
@@ -1750,31 +2262,46 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
 
   const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" };
 
-  // Overlay wrapper — full-screen over existing content
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "92vh", overflowY: "auto", padding: "24px 20px 40px" }}>
-
-        {/* Handle bar */}
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
 
         {step === 1 && (
           <>
-            {/* Header */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 11, background: `${svc.color}18`, border: `1.5px solid ${svc.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><ServiceIcon serviceId={svc.id} size={22} color={svc.color} /></div>
+              <div style={{ width: 44, height: 44, borderRadius: 11, background: `${svc.color}18`, border: `1.5px solid ${svc.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ServiceIcon serviceId={svc.id} size={22} color={svc.color} />
+              </div>
               <div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Request a job</div>
                 <div style={{ fontSize: 12, color: "#475569" }}>{provider.name} · {svc.label}</div>
               </div>
             </div>
 
+            {/* Quick problem picks */}
+            {quickDesc.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>What's the problem?</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {quickDesc.map(q => (
+                    <button key={q} onClick={() => set("description", q)}
+                      style={{ fontSize: 11, fontWeight: 600, borderRadius: 20, padding: "5px 11px", cursor: "pointer", transition: "all 0.15s", background: form.description === q ? `${svc.color}20` : "rgba(255,255,255,0.05)", border: `1.5px solid ${form.description === q ? svc.color+"55" : "rgba(255,255,255,0.08)"}`, color: form.description === q ? svc.color : "#64748B", fontFamily: "'DM Sans',sans-serif" }}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>What needs doing?</label>
-              <textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder={`Describe your ${svc.label.toLowerCase()} problem…`} rows={3}
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                {quickDesc.length > 0 ? "Add more detail (optional)" : "Describe the problem"}
+              </label>
+              <textarea value={form.description} onChange={e => set("description", e.target.value)}
+                placeholder={`e.g. My geyser burst overnight, water is leaking from the ceiling…`} rows={3}
                 style={{ ...inputStyle, resize: "none" }} />
-              <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{form.description.length}/300 · minimum 10 characters</div>
             </div>
 
             {/* Date + time row */}
@@ -1793,24 +2320,42 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               </div>
             </div>
 
-            {/* Address */}
+            {/* Recurring */}
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Job address</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 8 }}>How often?</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["once","Once off"],["weekly","Weekly"],["monthly","Monthly"]].map(([id, label]) => (
+                  <button key={id} onClick={() => set("recurring", id)}
+                    style={{ flex: 1, padding: "8px 4px", borderRadius: 9, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s", background: form.recurring === id ? "rgba(14,165,233,0.18)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${form.recurring === id ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, color: form.recurring === id ? "#38BDF8" : "#64748B" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Address with address book */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase" }}>Job address</label>
+                <button onClick={() => setShowAddrBook(true)}
+                  style={{ fontSize: 10, fontWeight: 600, color: "#0EA5E9", background: "none", border: "none", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
+                  <Icon name="home" size={11} color="#0EA5E9" strokeWidth={2} />Saved addresses
+                </button>
+              </div>
               <input value={form.address} onChange={e => set("address", e.target.value)} placeholder="123 Oak St, Berea, Durban" style={inputStyle} />
             </div>
 
-            {/* Estimated value (optional) */}
+            {/* Estimated value */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Estimated job value (optional)</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#475569", fontWeight: 600 }}>R</span>
-                <input type="number" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} placeholder="e.g. 800"
-                  style={{ ...inputStyle, paddingLeft: 26 }} />
+                <input type="number" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} placeholder="e.g. 800" style={{ ...inputStyle, paddingLeft: 26 }} />
               </div>
               {fee > 0 && <div style={{ fontSize: 10, color: "#0EA5E9", marginTop: 4 }}>Platform fee: R{fee} (8% of R{form.estimatedValue})</div>}
             </div>
 
-            {/* Emergency toggle (only if provider offers 24hr) */}
+            {/* Emergency toggle */}
             {provider.emergency && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 11, padding: "11px 14px", marginBottom: 16 }}>
                 <div>
@@ -1824,6 +2369,14 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
             )}
 
             <Btn full onClick={() => setStep(2)} disabled={!canSubmit}>Review & Send Request →</Btn>
+
+            {showAddrBook && (
+              <AddressBookModal
+                user={user}
+                onSelect={addr => { set("address", addr); setShowAddrBook(false); }}
+                onClose={() => setShowAddrBook(false)}
+              />
+            )}
           </>
         )}
 
@@ -1966,6 +2519,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
             {provider.emergency && <Badge color="#EF4444">24hr</Badge>}
             {provider.plan === "premium"  && <Badge color="#F59E0B">Premium</Badge>}
             {provider.plan === "featured" && <Badge color="#0EA5E9">Featured</Badge>}
+            {provider.verification?.status === "verified" && <VerificationBadge verification={provider.verification} compact />}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             <StarRating rating={provider.liveRating || provider.rating} />
@@ -2108,6 +2662,9 @@ function CustomerHome({ user, onLogout }) {
   const [searchHistory, setSearchHistory] = useState([]);
   const [showNotifs, setShowNotifs]       = useState(false);
   const [reviewJob, setReviewJob]         = useState(null);
+  const [chatJob, setChatJob]             = useState(null);
+  const [gpsJob, setGpsJob]              = useState(null);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [completionNotif, setCompletionNotif] = useState(null); // sales moment popup
   const resultsRef = useRef(null);
 
@@ -2347,6 +2904,11 @@ function CustomerHome({ user, onLogout }) {
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{filtered.length} Providers Found</div>
                   <div style={{ color: "#475569", fontSize: 11, marginTop: 2 }}>Near {location}</div>
+                  <button onClick={() => setShowQuoteModal(true)}
+                    style={{ marginTop: 10, width: "100%", background: "rgba(99,102,241,0.12)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "10px 14px", color: "#A5B4FC", fontSize: 12, fontWeight: 700, fontFamily: "'Syne',sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <Icon name="send" size={13} color="#A5B4FC" strokeWidth={2} />
+                    Get quotes from top 3 AI-matched pros
+                  </button>
                 </div>
                 {/* Sort / filter chips */}
                 <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14, scrollbarWidth: "none" }}>
@@ -2481,17 +3043,29 @@ function CustomerHome({ user, onLogout }) {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", gap: 8 }}>
-                  {job.providerPhone && (
-                    <button onClick={() => window.open(`https://wa.me/${job.providerPhone.replace(/[\s-()+]/g,"")}?text=Hi ${job.providerName}, following up on my job request #${job.id.slice(-6)}`)}
-                      style={{ flex: 1, background: "linear-gradient(135deg,#25D366,#128C7E)", color: "white", border: "none", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Message</button>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {/* In-app chat */}
+                  {job.providerId && (
+                    <button onClick={() => setChatJob(job)}
+                      style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <Icon name="message" size={11} color="#A5B4FC" strokeWidth={2} />Chat
+                    </button>
+                  )}
+                  {/* GPS tracking — show when in progress */}
+                  {job.status === "inprogress" && job.providerId && (
+                    <button onClick={() => setGpsJob(job)}
+                      style={{ flex: 1, minWidth: 70, background: "rgba(16,185,129,0.12)", color: "#34D399", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <Icon name="location" size={11} color="#34D399" strokeWidth={2} />Track
+                    </button>
                   )}
                   {job.status === "completed" && !job.reviewed && (
                     <button onClick={() => setReviewJob(job)}
-                      style={{ flex: 1, background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>⭐ Rate job</button>
+                      style={{ flex: 1, minWidth: 70, background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                      Rate
+                    </button>
                   )}
                   {job.status === "completed" && job.reviewed && (
-                    <div style={{ fontSize: 11, color: "#10B981", padding: "8px 10px" }}>✓ Review submitted</div>
+                    <div style={{ fontSize: 11, color: "#10B981", padding: "8px 10px" }}>✓ Reviewed</div>
                   )}
                 </div>
               </div>
@@ -2502,6 +3076,10 @@ function CustomerHome({ user, onLogout }) {
 
       {/* Notifications panel */}
       {showNotifs && <NotificationsPanel userId={user.email} onClose={() => setShowNotifs(false)} />}
+
+      {chatJob && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
+      {gpsJob  && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
+      {showQuoteModal && <QuoteRequestModal user={user} onClose={() => setShowQuoteModal(false)} onDone={() => { setShowQuoteModal(false); loadMyJobs(); setTab("jobs"); }} />}
 
       {completionNotif && (
         <CompletionPopup
@@ -2900,6 +3478,91 @@ function ProviderStatusScreen({ provider, onLogout }) {
   );
 }
 
+// ─── PROVIDER VERIFICATION SECTION ──────────────────────────────────────────────
+function ProviderVerificationSection({ provider, onUpdated }) {
+  const [docType, setDocType]     = useState("id");
+  const [docNumber, setDocNumber] = useState("");
+  const [saving, setSaving]       = useState(false);
+  const [saved, setSaved]         = useState(false);
+  const v = provider.verification;
+
+  const submit = async () => {
+    if (!docNumber.trim()) return;
+    setSaving(true);
+    await submitVerification(provider.id, docType, docNumber);
+    setSaving(false);
+    setSaved(true);
+    if (onUpdated) onUpdated({ ...provider, verification: { docType, docNumber, status: "pending", submittedAt: new Date().toISOString() } });
+  };
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#64748B" }}>ID Verification</div>
+        {v && <VerificationBadge verification={v} compact />}
+      </div>
+      {v?.status === "verified" ? (
+        <div style={{ fontSize: 12, color: "#10B981", lineHeight: 1.6 }}>Your identity has been verified. A verified badge appears on your listing.</div>
+      ) : v?.status === "pending" ? (
+        <div style={{ fontSize: 12, color: "#F59E0B", lineHeight: 1.6 }}>Your documents are under review. We'll notify you within 24 hours.</div>
+      ) : (
+        <>
+          <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, marginBottom: 12 }}>Submit your ID or CIPC registration to get a verified badge on your listing. Verified providers get more bookings.</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {[["id","SA ID"],["passport","Passport"],["cipc","CIPC Reg"]].map(([id, label]) => (
+              <button key={id} onClick={() => setDocType(id)}
+                style={{ flex: 1, padding: "7px 4px", borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", background: docType === id ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${docType === id ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, color: docType === id ? "#38BDF8" : "#64748B" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <input value={docNumber} onChange={e => setDocNumber(e.target.value)}
+            placeholder={docType === "id" ? "SA ID number" : docType === "passport" ? "Passport number" : "CIPC registration number"}
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", marginBottom: 10 }} />
+          <Btn small full onClick={submit} disabled={!docNumber.trim() || saving}>
+            {saved ? "Submitted ✓" : saving ? "Submitting…" : "Submit for verification"}
+          </Btn>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── GPS SHARE TOGGLE (Provider) ─────────────────────────────────────────────────
+function GPSShareToggle({ providerId }) {
+  const [sharing, setSharing] = useState(false);
+  const [watchId, setWatchId] = useState(null);
+
+  const toggleShare = () => {
+    if (sharing) {
+      if (watchId !== null) navigator.geolocation?.clearWatch(watchId);
+      setSharing(false);
+      setWatchId(null);
+    } else {
+      if (!navigator.geolocation) return alert("Geolocation not supported on this device.");
+      const id = navigator.geolocation.watchPosition(
+        pos => updateProviderLocation(providerId, pos.coords.latitude, pos.coords.longitude),
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      );
+      setWatchId(id);
+      setSharing(true);
+    }
+  };
+
+  return (
+    <div style={{ background: sharing ? "rgba(16,185,129,0.07)" : "rgba(255,255,255,0.03)", border: `1px solid ${sharing ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: sharing ? "#6EE7B7" : "#64748B", marginBottom: 3 }}>Share live location</div>
+        <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.5 }}>Customers can track you when you're on the way. Only active when toggled on.</div>
+      </div>
+      <div onClick={toggleShare} style={{ width: 42, height: 23, borderRadius: 12, background: sharing ? "#10B981" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0, marginLeft: 12 }}>
+        <div style={{ position: "absolute", top: 3, left: sharing ? 22 : 3, width: 17, height: 17, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
+      </div>
+    </div>
+  );
+}
+
 // ─── NOTIF TOGGLES ───────────────────────────────────────────────────────────────
 // Extracted into its own component so useState hooks are called at the top level
 function NotifToggles() {
@@ -3032,7 +3695,8 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
     if (tab === "jobs") { loadProviderJobs(); setJobsBadge(0); }
   }, [tab]);
 
-  const [salesJob, setSalesJob] = useState(null); // job awaiting sales moment completion
+  const [salesJob, setSalesJob] = useState(null);
+  const [providerChatJob, setProviderChatJob] = useState(null);
 
   const handleJobAction = async (jobId, newStatus, note = "") => {
     // Intercept "completed" — show sales moment modal first
@@ -3586,10 +4250,16 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             </div>
 
             {/* Notifications */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#64748B", marginBottom: 12 }}>Notifications</div>
               <NotifToggles />
             </div>
+
+            {/* ID Verification */}
+            <ProviderVerificationSection provider={provider} onUpdated={(updated) => setProvider(p => ({ ...p, verification: updated.verification }))} />
+
+            {/* GPS location sharing */}
+            <GPSShareToggle providerId={provider.id} />
 
             <Btn full variant="ghost" onClick={onLogout}>Sign Out</Btn>
           </div>
@@ -3649,10 +4319,11 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                     {job.status === "inprogress" && (
                       <Btn small variant="green" onClick={() => handleJobAction(job.id, "completed")} style={{ flex: 1 }}>Mark Complete</Btn>
                     )}
-                    {job.customerPhone && (
-                      <button onClick={() => window.open(`https://wa.me/${job.customerPhone.replace(/[\s-()+]/g,"")}?text=Hi ${job.customerName}, this is ${provider.bizName} regarding your job request.`)}
-                        style={{ flex: 1, minWidth: 80, background: "linear-gradient(135deg,#25D366,#128C7E)", color: "white", border: "none", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Message</button>
-                    )}
+                    {/* In-app chat */}
+                    <button onClick={() => setProviderChatJob(job)}
+                      style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <Icon name="message" size={11} color="#A5B4FC" strokeWidth={2} />Chat
+                    </button>
                   </div>
                 </div>
               );
@@ -3663,6 +4334,15 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
       </div>
 
       {showNotifs && <NotificationsPanel userId={provider.id} onClose={() => setShowNotifs(false)} />}
+
+      {providerChatJob && (
+        <ChatModal
+          job={providerChatJob}
+          user={{ email: provider.id, name: provider.bizName, ...provider }}
+          userRole="provider"
+          onClose={() => setProviderChatJob(null)}
+        />
+      )}
 
       {salesJob && (
         <SalesMomentModal

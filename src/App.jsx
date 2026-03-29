@@ -3039,54 +3039,86 @@ function CustomerHome({ user, onLogout }) {
     if (!selectedService || !location.trim()) { setError(!selectedService ? "Select a service type." : "Enter your location."); return; }
     setError(""); setLoading(true); setProviders([]); setSearchDone(false);
     const svc = SERVICES.find(s => s.id === selectedService);
-    // Save to search history
+
     await saveSearch(user.email, { serviceId: selectedService, location });
     getSearchHistory(user.email).then(setSearchHistory);
 
+    // ── Step 1: Load registered providers immediately (never fails) ──────────
     const storedRaw = await store.get("providers");
     const allApproved = storedRaw ? JSON.parse(storedRaw.value).filter(p => p.status === "approved") : [];
-
-    // Match providers who offer this service AND cover the searched location
     const searchLower = location.toLowerCase();
+    const searchSuburb = searchLower.split(",")[0].trim();
+
     const registeredProviders = allApproved.filter(p => {
       if (!p.services?.includes(selectedService)) return false;
       const sa = p.serviceAreas?.[selectedService];
-      if (!sa) return true; // no area restriction = show everywhere
-      if (sa.allKZN) return true; // covers all of KZN
-      // Check if any of their areas appear in the search string
-      return (sa.areas || []).some(area => searchLower.includes(area.toLowerCase()) || area.toLowerCase().includes(searchLower.split(",")[0].trim().toLowerCase()));
+      if (!sa) return true;             // no restriction = shows everywhere
+      if (sa.allKZN) return true;       // covers all KZN
+      return (sa.areas || []).some(area =>
+        searchLower.includes(area.toLowerCase()) ||
+        area.toLowerCase().includes(searchSuburb)
+      );
+    }).map(p => {
+      const avgHrs = getResponseSpeed(p.jobs || []);
+      return {
+        name: p.bizName,
+        rating: p.liveRating || 4.5,
+        reviewCount: p.liveReviewCount || 0,
+        vicinity: `${p.suburb}, ${p.city}`,
+        phone: p.phone,
+        emergency: p.emergency,
+        openNow: true,
+        serviceType: selectedService,
+        plan: p.plan,
+        description: p.description,
+        tagline: p.tagline,
+        yearsInBusiness: p.yearsInBusiness,
+        priceRangeMin: p.priceRangeMin,
+        certifications: p.certifications,
+        logoUrl: p.logoUrl,
+        insuranceConfirmed: p.insuranceConfirmed,
+        verification: p.verification,
+        serviceAreas: p.serviceAreas || {},
+        providerId: p.id,
+        liveRating: p.liveRating,
+        liveReviewCount: p.liveReviewCount,
+        avgResponseHrs: avgHrs,
+      };
     });
 
-    const prompt = `Generate 5 realistic mock ${svc.label} service providers near "${location}" in South Africa. Return ONLY a JSON array, no markdown. Each object: {"name":"string","rating":number 3.5-5.0,"reviewCount":integer 8-300,"vicinity":"street near ${location}","phone":"SA mobile number","emergency":boolean,"openNow":boolean,"serviceType":"${selectedService}","plan":"basic","description":"one sentence"}`;
+    // Show registered providers right away — don't wait for AI
+    if (registeredProviders.length > 0) {
+      setProviders(registeredProviders);
+      setSearchDone(true);
+      setLoading(false);
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    }
+
+    // ── Step 2: Try to load AI-generated extras (optional, may fail silently) ─
+    const prompt = `Generate 4 realistic mock ${svc.label} service providers near "${location}" in KwaZulu-Natal, South Africa. Return ONLY a JSON array, no markdown. Each object: {"name":"string","rating":number 3.8-4.9,"reviewCount":integer 12-180,"vicinity":"suburb near ${location}","phone":"SA mobile starting with 0","emergency":boolean,"openNow":boolean,"serviceType":"${selectedService}","plan":"basic","description":"one sentence about their specialty"}`;
 
     try {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, messages: [{ role: "user", content: prompt }] })
       });
-      const data = await resp.json();
-      const text = data.content?.map(i => i.text || "").join("") || "";
-      const clean = text.replace(/```json|```/g,"").trim();
-      const aiProviders = JSON.parse(clean);
-      const combined = [
-        ...registeredProviders.map(p => {
-          const avgHrs = getResponseSpeed(p.jobs || []);
-          return {
-            name: p.bizName, rating: p.liveRating || 4.5,
-            reviewCount: p.liveReviewCount || 23,
-            vicinity: `${p.suburb}, ${p.city}`,
-            phone: p.phone, emergency: p.emergency, openNow: true,
-            serviceType: selectedService, plan: p.plan,
-            description: p.description, serviceAreas: p.serviceAreas || {},
-            providerId: p.id, liveRating: p.liveRating, liveReviewCount: p.liveReviewCount,
-            avgResponseHrs: avgHrs,
-          };
-        }),
-        ...aiProviders,
-      ];
-      setProviders(combined); setSearchDone(true);
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-    } catch { setError("Couldn't load results. Try again."); }
+      if (resp.ok) {
+        const data = await resp.json();
+        const text = data.content?.map(i => i.text || "").join("") || "";
+        const clean = text.replace(/```json|```/g, "").trim();
+        const aiProviders = JSON.parse(clean);
+        // Registered providers always first, AI fills in the rest
+        setProviders([...registeredProviders, ...aiProviders]);
+      }
+    } catch {
+      // AI failed — that's fine, registered providers are already showing
+    }
+
+    // If no registered providers and AI also failed, show helpful message
+    if (registeredProviders.length === 0) {
+      setSearchDone(true);
+      setError("");
+    }
     setLoading(false);
   };
 
@@ -3270,8 +3302,11 @@ function CustomerHome({ user, onLogout }) {
             {searchDone && filtered.length === 0 && (
               <div style={{ textAlign: "center", marginTop: 40, color: "#475569" }}>
                 <div style={{ marginBottom: 10 }}><Icon name="search" size={36} color="#475569" strokeWidth={1.4} /></div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 15 }}>No providers found</div>
-                <div style={{ fontSize: 12, marginTop: 6 }}>Try removing the emergency filter.</div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 15 }}>No providers found nearby</div>
+                <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7, color: "#334155", maxWidth: 260, margin: "8px auto 0" }}>
+                  No registered {SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase() || "service"} providers in {location} yet.
+                  Try removing the emergency filter, or use the quote request above to reach providers directly.
+                </div>
               </div>
             )}
           </div>

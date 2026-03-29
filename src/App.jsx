@@ -438,8 +438,65 @@ const rankScore = (p) => {
     (p.emergency ? 5 : 0)
   );
 };
-const STRIKE_THRESHOLD = 2;
+// ─── AVAILABILITY & DEALS HELPERS ───────────────────────────────────────────────
+
+const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+// Save provider's available days for the current week
+const saveAvailability = async (providerId, days, slotsLeft) => {
+  try {
+    await store.set(`avail:${providerId}`, {
+      days,        // e.g. ["Mon","Tue","Wed"]
+      slotsLeft,   // number: 0-10
+      updatedAt: new Date().toISOString(),
+    });
+  } catch {}
+};
+
+const getAvailability = async (providerId) => {
+  try {
+    const raw = await store.get(`avail:${providerId}`);
+    return raw ? JSON.parse(raw.value) : null;
+  } catch { return null; }
+};
+
+// Check if provider is available today
+const isAvailableToday = (avail) => {
+  if (!avail) return true; // no data = assume available
+  if (avail.slotsLeft === 0) return false;
+  const today = DAY_NAMES[new Date().getDay()];
+  return avail.days?.includes(today) ?? true;
+};
+
+// Save a provider's weekly deal
+const saveDeal = async (providerId, deal) => {
+  try {
+    const raw = await store.get("deals");
+    const deals = raw ? JSON.parse(raw.value) : [];
+    const filtered = deals.filter(d => d.providerId !== providerId); // replace existing
+    filtered.unshift({ ...deal, providerId, id: `deal-${Date.now()}`, ts: new Date().toISOString() });
+    await store.set("deals", filtered.slice(0, 100));
+  } catch {}
+};
+
+const getDeals = async () => {
+  try {
+    const raw = await store.get("deals");
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+const deleteDeal = async (providerId) => {
+  try {
+    const raw = await store.get("deals");
+    const deals = raw ? JSON.parse(raw.value) : [];
+    await store.set("deals", deals.filter(d => d.providerId !== providerId));
+  } catch {}
+};
+
+
 const MAX_STRIKES      = 3;
+const STRIKE_THRESHOLD = 2; // ratings at or below this trigger a strike
 
 // ─── DISCOUNT HELPERS ────────────────────────────────────────────────────────────
 const saveDiscount = async ({ customerId, providerId, providerName, bizName, discountPct, jobId }) => {
@@ -3266,7 +3323,8 @@ function CustomerHome({ user, onLogout }) {
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [emergencyOnly, setEmergencyOnly] = useState(false);
-  const [sortBy, setSortBy] = useState("best");   // best | rating | speed | reviews
+  const [sortBy, setSortBy] = useState("best");   // best | rating | speed | reviews | available
+  const [deals, setDeals]         = useState([]);
   const [searchDone, setSearchDone] = useState(false);
   const [error, setError] = useState("");
   const [myJobs, setMyJobs]       = useState([]);
@@ -3322,6 +3380,9 @@ function CustomerHome({ user, onLogout }) {
     await saveSearch(user.email, { serviceId: selectedService, location });
     getSearchHistory(user.email).then(setSearchHistory);
 
+    // Load deals for this service
+    getDeals().then(all => setDeals(all.filter(d => !d.serviceId || d.serviceId === selectedService)));
+
     // ── Step 1: Load registered providers immediately (never fails) ──────────
     const storedRaw = await store.get("providers");
     const allApproved = storedRaw ? JSON.parse(storedRaw.value).filter(p => p.status === "approved") : [];
@@ -3337,8 +3398,12 @@ function CustomerHome({ user, onLogout }) {
         searchLower.includes(area.toLowerCase()) ||
         area.toLowerCase().includes(searchSuburb)
       );
-    }).map(p => {
+    });
+
+    // Load availability for all providers in parallel
+    const registeredProviders = await Promise.all(eligible.map(async p => {
       const avgMins = getResponseSpeed(p.jobs || []);
+      const avail   = await getAvailability(p.id);
       return {
         name: p.bizName,
         rating: p.liveRating || 4.5,
@@ -3362,8 +3427,10 @@ function CustomerHome({ user, onLogout }) {
         liveRating: p.liveRating,
         liveReviewCount: p.liveReviewCount,
         avgResponseMins: avgMins,
+        joinDate: p.joinDate,
+        avail,
       };
-    });
+    }));
 
     // Show registered providers right away — don't wait for AI
     if (registeredProviders.length > 0) {
@@ -3403,10 +3470,18 @@ function CustomerHome({ user, onLogout }) {
 
   const filtered = providers
     .filter(p => !emergencyOnly || p.emergency)
-    .map(p => ({ ...p, _score: rankScore(p) }))
+    .filter(p => sortBy === "available" ? isAvailableToday(p.avail) : true)
+    .map(p => ({
+      ...p,
+      _score:     rankScore(p),
+      _available: isAvailableToday(p.avail),
+    }))
     .sort((a, b) => {
-      // Plan always boosts registered providers above AI-mocks on same sort
-      if (sortBy === "best") return b._score - a._score;
+      // Unavailable providers always sort below available ones (unless filtering by available)
+      if (sortBy !== "available") {
+        if (a._available !== b._available) return a._available ? -1 : 1;
+      }
+      if (sortBy === "best" || sortBy === "available") return b._score - a._score;
       if (sortBy === "rating") {
         const ra = a.liveRating || a.rating || 0;
         const rb = b.liveRating || b.rating || 0;
@@ -3414,7 +3489,6 @@ function CustomerHome({ user, onLogout }) {
         return b._score - a._score;
       }
       if (sortBy === "speed") {
-        // null (no data) sorts last
         const sa = a.avgResponseMins ?? 99999;
         const sb = b.avgResponseMins ?? 99999;
         if (sa !== sb) return sa - sb;
@@ -3428,6 +3502,14 @@ function CustomerHome({ user, onLogout }) {
       }
       return b._score - a._score;
     });
+
+  // Fresh picks: registered providers with <10 reviews, <90 days old, available
+  const freshPicks = providers.filter(p =>
+    p.providerId &&
+    (p.liveReviewCount || 0) < 10 &&
+    p._available !== false &&
+    p.joinDate && (Date.now() - new Date(p.joinDate).getTime()) < 90 * 86400000
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto" }}>
@@ -3557,25 +3639,84 @@ function CustomerHome({ user, onLogout }) {
                 {/* Sort / filter chips */}
                 <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14, scrollbarWidth: "none" }}>
                   {[
-                    { id: "best",    label: "Best match" },
-                    { id: "rating",  label: "⭐ Top rated"  },
-                    { id: "speed",   label: "⚡ Fastest"    },
-                    { id: "reviews", label: "Most reviewed" },
+                    { id: "best",      label: "Best match"     },
+                    { id: "available", label: "🟢 Available today" },
+                    { id: "rating",    label: "⭐ Top rated"   },
+                    { id: "speed",     label: "⚡ Fastest"     },
+                    { id: "reviews",   label: "Most reviewed"  },
                   ].map(({ id, label }) => (
                     <button key={id} onClick={() => setSortBy(id)}
                       style={{
                         flexShrink: 0,
                         padding: "6px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600,
                         fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "all 0.15s",
-                        background: sortBy === id ? "rgba(14,165,233,0.2)"    : "rgba(255,255,255,0.05)",
-                        border:     sortBy === id ? "1.5px solid #0EA5E9"     : "1px solid rgba(255,255,255,0.1)",
-                        color:      sortBy === id ? "#38BDF8"                 : "#64748B",
+                        background: sortBy === id ? "rgba(14,165,233,0.2)"  : "rgba(255,255,255,0.05)",
+                        border:     sortBy === id ? "1.5px solid #0EA5E9"   : "1px solid rgba(255,255,255,0.1)",
+                        color:      sortBy === id ? "#38BDF8"               : "#64748B",
                       }}>
                       {label}
                     </button>
                   ))}
                 </div>
-                {filtered.map((p,i) => <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}><ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label || ""} near ${location}`} user={user} onBooked={(job) => { loadMyJobs(); setJobsBadge(b => b+1); }} /></div>)}
+
+                {/* ── DEALS BOARD ── */}
+                {deals.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F59E0B" }}>🏷️ Deals this week</div>
+                      <div style={{ flex: 1, height: 1, background: "rgba(245,158,11,0.2)" }} />
+                    </div>
+                    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+                      {deals.map(deal => (
+                        <div key={deal.id} style={{ flexShrink: 0, width: 220, background: "linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05))", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 14, padding: 14 }}>
+                          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#F59E0B", marginBottom: 4 }}>{deal.headline}</div>
+                          <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.5, marginBottom: 8 }}>{deal.description}</div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div style={{ fontSize: 11, color: "#64748B" }}>{deal.providerName}</div>
+                            {deal.slotsLeft > 0 && <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", borderRadius: 6, padding: "2px 7px" }}>{deal.slotsLeft} slots left</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── FRESH PICKS — New providers ── */}
+                {freshPicks.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>✨ New to FixIt Now</div>
+                      <div style={{ flex: 1, height: 1, background: "rgba(16,185,129,0.2)" }} />
+                    </div>
+                    <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 14, padding: "12px 14px", marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, marginBottom: 10 }}>
+                        These providers are new to the platform. Give them a shot — your review could be their first.
+                      </div>
+                      {freshPicks.slice(0, 3).map((p, i) => (
+                        <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
+                          <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label || ""} near ${location}`} user={user} onBooked={(job) => { loadMyJobs(); setJobsBadge(b => b+1); }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 14 }} />
+                  </div>
+                )}
+
+                {/* ── MAIN RESULTS ── */}
+                {filtered.filter(p => !freshPicks.find(fp => fp.providerId === p.providerId)).map((p,i) => (
+                  <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
+                    {/* Booked out badge */}
+                    {!p._available && (
+                      <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "12px 12px 0 0", padding: "6px 14px", marginBottom: -1, display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#EF4444" }} />
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#FCA5A5" }}>
+                          {p.avail?.slotsLeft === 0 ? "Fully booked this week — enquire anyway" : "Limited availability this week"}
+                        </span>
+                      </div>
+                    )}
+                    <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label || ""} near ${location}`} user={user} onBooked={(job) => { loadMyJobs(); setJobsBadge(b => b+1); }} />
+                  </div>
+                ))}
               </div>
             )}
             {searchDone && filtered.length === 0 && (
@@ -4308,6 +4449,175 @@ function ProviderReviews({ providerId }) {
           <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{r.dateLabel}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── AVAILABILITY MANAGER ────────────────────────────────────────────────────────
+function AvailabilityManager({ providerId }) {
+  const [avail, setAvail]       = useState(null);
+  const [saving, setSaving]     = useState(false);
+  const [saved, setSaved]       = useState(false);
+  const [selectedDays, setSelectedDays] = useState([]);
+  const [slotsLeft, setSlotsLeft] = useState(5);
+
+  useEffect(() => {
+    getAvailability(providerId).then(a => {
+      if (a) { setAvail(a); setSelectedDays(a.days || []); setSlotsLeft(a.slotsLeft ?? 5); }
+    });
+  }, [providerId]);
+
+  const toggleDay = (d) => setSelectedDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+
+  const save = async () => {
+    setSaving(true);
+    await saveAvailability(providerId, selectedDays, slotsLeft);
+    setSaving(false); setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const today = DAY_NAMES[new Date().getDay()];
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>Weekly availability</div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Customers see when you're free. Full weeks sort you higher.</div>
+        </div>
+        {avail && isAvailableToday(avail)
+          ? <div style={{ fontSize: 10, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 20, padding: "3px 10px" }}>Open today</div>
+          : <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 20, padding: "3px 10px" }}>Unavailable today</div>
+        }
+      </div>
+
+      {/* Day picker */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {DAY_NAMES.map(d => {
+          const isToday   = d === today;
+          const selected  = selectedDays.includes(d);
+          return (
+            <button key={d} onClick={() => toggleDay(d)}
+              style={{ flex: 1, padding: "8px 0", borderRadius: 9, fontSize: 10, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s",
+                background: selected ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.04)",
+                border: `1.5px solid ${selected ? "#0EA5E9" : isToday ? "rgba(245,158,11,0.4)" : "rgba(255,255,255,0.08)"}`,
+                color: selected ? "#38BDF8" : isToday ? "#F59E0B" : "#475569" }}>
+              {d}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Slots left */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <span style={{ fontSize: 11, color: "#64748B" }}>Job slots available this week</span>
+          <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: slotsLeft === 0 ? "#EF4444" : "#10B981" }}>{slotsLeft}</span>
+        </div>
+        <input type="range" min={0} max={10} value={slotsLeft} onChange={e => setSlotsLeft(Number(e.target.value))}
+          style={{ width: "100%", accentColor: slotsLeft === 0 ? "#EF4444" : "#0EA5E9" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#334155", marginTop: 2 }}>
+          <span>Fully booked</span><span>10 slots open</span>
+        </div>
+      </div>
+
+      <Btn small full onClick={save} disabled={saving}>
+        {saved ? "✓ Saved!" : saving ? "Saving…" : "Save availability"}
+      </Btn>
+    </div>
+  );
+}
+
+// ─── DEALS MANAGER ───────────────────────────────────────────────────────────────
+function DealsManager({ provider }) {
+  const [currentDeal, setCurrentDeal] = useState(null);
+  const [form, setForm]     = useState({ headline: "", description: "", serviceId: provider.services?.[0] || "", slotsLeft: 3 });
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    getDeals().then(all => {
+      const mine = all.find(d => d.providerId === provider.id);
+      if (mine) { setCurrentDeal(mine); }
+    });
+  }, [provider.id]);
+
+  const save = async () => {
+    if (!form.headline.trim() || !form.description.trim()) return;
+    setSaving(true);
+    const deal = {
+      ...form,
+      providerId:   provider.id,
+      providerName: provider.bizName,
+      expiresAt:    new Date(Date.now() + 7 * 86400000).toISOString(), // 7 days
+    };
+    await saveDeal(provider.id, deal);
+    setCurrentDeal(deal);
+    setAdding(false);
+    setSaving(false);
+  };
+
+  const remove = async () => {
+    await deleteDeal(provider.id);
+    setCurrentDeal(null);
+  };
+
+  return (
+    <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.18)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>Weekly deal</div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Offer a discount or special to appear in the Deals section of search.</div>
+        </div>
+        <Icon name="star" size={18} color="#F59E0B" strokeWidth={1.8} />
+      </div>
+
+      {currentDeal && !adding ? (
+        <div>
+          <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "12px 14px", marginBottom: 10 }}>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: "#F59E0B", marginBottom: 4 }}>{currentDeal.headline}</div>
+            <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5, marginBottom: 6 }}>{currentDeal.description}</div>
+            <div style={{ fontSize: 10, color: "#64748B" }}>{currentDeal.slotsLeft} slots · Expires {new Date(currentDeal.expiresAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn small onClick={() => { setForm({ headline: currentDeal.headline, description: currentDeal.description, serviceId: currentDeal.serviceId || provider.services?.[0], slotsLeft: currentDeal.slotsLeft }); setAdding(true); }} style={{ flex: 1 }}>Edit deal</Btn>
+            <Btn small variant="danger" onClick={remove} style={{ flex: 1 }}>Remove</Btn>
+          </div>
+        </div>
+      ) : adding ? (
+        <div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Headline</label>
+            <input value={form.headline} onChange={e => set("headline", e.target.value)} placeholder="e.g. 20% off gate repairs this week" maxLength={50}
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Details</label>
+            <textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="e.g. Free callout fee + 20% off parts for any gate motor repair booked this week." rows={2}
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+              <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase" }}>Available slots</label>
+              <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F59E0B" }}>{form.slotsLeft}</span>
+            </div>
+            <input type="range" min={1} max={10} value={form.slotsLeft} onChange={e => set("slotsLeft", Number(e.target.value))}
+              style={{ width: "100%", accentColor: "#F59E0B" }} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn small variant="ghost" onClick={() => setAdding(false)} style={{ flex: 1 }}>Cancel</Btn>
+            <Btn small onClick={save} disabled={saving || !form.headline.trim()} style={{ flex: 1, background: "linear-gradient(135deg,#F59E0B,#D97706)", border: "none" }}>
+              {saving ? "Posting…" : "Post deal"}
+            </Btn>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => setAdding(true)}
+          style={{ width: "100%", background: "rgba(245,158,11,0.08)", border: "1.5px dashed rgba(245,158,11,0.3)", borderRadius: 10, padding: "12px", fontSize: 12, fontWeight: 600, color: "#F59E0B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+          + Post a deal for this week
+        </button>
+      )}
     </div>
   );
 }
@@ -5059,6 +5369,13 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
 
             {/* Live reviews from customers */}
             <ProviderReviews providerId={provider.id} />
+
+            {/* Availability & deals — discovery tools */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Availability & deals</div>
+              <AvailabilityManager providerId={provider.id} />
+              <DealsManager provider={provider} />
+            </div>
           </div>
         )}
         {tab === "account" && (

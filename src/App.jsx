@@ -189,12 +189,15 @@ const PLANS = [
 
 // ─── BOOKING HELPERS ────────────────────────────────────────────────────────────
 const JOB_STATUS = {
-  pending:     { label: "Pending",     color: "#F59E0B", desc: "Waiting for provider to respond" },
-  accepted:    { label: "Accepted",    color: "#0EA5E9", desc: "Provider has accepted your job" },
-  inprogress:  { label: "In Progress", color: "#8B5CF6", desc: "Work is underway" },
-  completed:   { label: "Completed",   color: "#10B981", desc: "Job marked as complete" },
-  declined:    { label: "Declined",    color: "#EF4444", desc: "Provider couldn't take this job" },
+  pending:    { label: "Pending",     color: "#F59E0B", desc: "Waiting for provider to respond" },
+  accepted:   { label: "Accepted",    color: "#0EA5E9", desc: "Provider has accepted your job" },
+  onroute:    { label: "On the Way",  color: "#8B5CF6", desc: "Provider is on their way to you" },
+  inprogress: { label: "In Progress", color: "#06B6D4", desc: "Work is underway" },
+  completed:  { label: "Completed",   color: "#10B981", desc: "Job marked as complete" },
+  declined:   { label: "Declined",    color: "#EF4444", desc: "Provider couldn't take this job" },
 };
+
+const JOB_PROGRESS_STEPS = ["pending", "accepted", "onroute", "inprogress", "completed"];
 
 const PLATFORM_FEE_PCT = 0.08; // 8% booking commission
 
@@ -945,7 +948,7 @@ function SpeedBadge({ avgResponseMins }) {
 // Status badge for job lifecycle
 function StatusBadge({ status }) {
   const st = JOB_STATUS[status] || JOB_STATUS.pending;
-  const iconName = status === "completed" ? "check" : status === "declined" ? "cross" : status === "inprogress" ? "lightning" : status === "accepted" ? "check" : "pending";
+  const iconName = status === "completed" ? "check" : status === "declined" ? "cross" : status === "inprogress" ? "lightning" : status === "accepted" ? "check" : status === "onroute" ? "location" : "pending";
   return (
     <span style={{
       fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "3px 10px",
@@ -2721,15 +2724,31 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
     address:        user.address ? `${user.address}, ${user.suburb}, ${user.city}` : "",
     isEmergency:    provider.emergency && false,
     estimatedValue: "",
-    recurring:      "once",   // once | weekly | monthly
+    recurring:      "once",
   });
-  const [step, setStep]         = useState(1);
+  const [step, setStep]             = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [showAddrBook, setShowAddrBook] = useState(false);
+  const [activeDiscount, setActiveDiscount] = useState(null); // discount from wallet for this provider
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const fee      = form.estimatedValue ? Math.round(parseFloat(form.estimatedValue) * PLATFORM_FEE_PCT) : 0;
-  const canSubmit = form.description.trim().length > 5 && form.address.trim().length > 5;
+  // On mount, check if customer has an active discount for this provider
+  useEffect(() => {
+    if (user?.email && provider?.providerId) {
+      getDiscounts(user.email).then(discounts => {
+        const match = discounts.find(d => d.providerId === provider.providerId && !d.redeemed);
+        if (match) setActiveDiscount(match);
+      });
+    }
+  }, []);
+
+  const baseValue  = form.estimatedValue ? parseFloat(form.estimatedValue) : 0;
+  const discounted = activeDiscount && baseValue > 0
+    ? baseValue * (1 - activeDiscount.discountPct / 100)
+    : baseValue;
+  const fee        = discounted > 0 ? Math.round(discounted * PLATFORM_FEE_PCT) : 0;
+  const saving     = activeDiscount && baseValue > 0 ? baseValue - discounted : 0;
+  const canSubmit  = form.description.trim().length > 5 && form.address.trim().length > 5;
 
   // Quick problem description starters per service
   const quickDesc = {
@@ -2744,43 +2763,53 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
   const submit = async () => {
     setSubmitting(true);
     const job = {
-      id:             `job-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
-      providerId:     provider.providerId || null,
-      providerName:   provider.name,
-      providerPhone:  provider.phone || "",
-      providerSuburb: provider.vicinity || "",
-      customerId:     user.email,
-      customerName:   user.name,
-      customerPhone:  user.phone || "",
+      id:              `job-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+      providerId:      provider.providerId || null,
+      providerName:    provider.name,
+      providerPhone:   provider.phone || "",
+      providerSuburb:  provider.vicinity || "",
+      customerId:      user.email,
+      customerName:    user.name,
+      customerPhone:   user.phone || "",
       serviceType,
-      serviceName:    svc.label,
-      description:    form.description,
-      address:        form.address,
-      preferredDate:  form.date,
-      preferredTime:  form.time,
-      isEmergency:    form.isEmergency,
-      recurring:      form.recurring,
-      estimatedValue: form.estimatedValue ? parseFloat(form.estimatedValue) : null,
-      platformFee:    fee,
-      status:         "pending",
-      statusNote:     "",
-      createdAt:      new Date().toISOString(),
-      updatedAt:      new Date().toISOString(),
-      dateLabel:      new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" }),
-      timeLabel:      new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }),
+      serviceName:     svc.label,
+      description:     form.description,
+      address:         form.address,
+      preferredDate:   form.date,
+      preferredTime:   form.time,
+      isEmergency:     form.isEmergency,
+      recurring:       form.recurring,
+      estimatedValue:  baseValue || null,
+      discountApplied: activeDiscount ? activeDiscount.discountPct : 0,
+      discountedValue: discounted || null,
+      platformFee:     fee,
+      status:          "pending",
+      statusNote:      "",
+      createdAt:       new Date().toISOString(),
+      updatedAt:       new Date().toISOString(),
+      dateLabel:       new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" }),
+      timeLabel:       new Date().toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }),
     };
     await saveJob(job);
+
+    // Mark discount as redeemed in customer wallet
+    if (activeDiscount) {
+      await redeemDiscount(user.email, activeDiscount.id);
+    }
+
     await trackEvent({ providerId: provider.providerId || null, providerName: provider.name, type: "booking", serviceType, searchArea: form.address, searchQuery: form.description, plan: provider.plan });
+
     if (provider.providerId) {
+      const discountNote = activeDiscount ? ` ⚡ ${activeDiscount.discountPct}% loyalty discount applied — customer is a returning client.` : "";
       await pushNotif(provider.providerId, {
         title: "New job request!",
-        body:  `${user.name} needs a ${svc.label}: "${form.description.slice(0,60)}"`,
+        body:  `${user.name} needs a ${svc.label}: "${form.description.slice(0,50)}"${discountNote}`,
         type:  "booking", jobId: job.id,
       });
     }
     await pushNotif(user.email, {
       title: "Job request sent",
-      body:  `Your ${svc.label} request was sent to ${provider.name}. Waiting for confirmation.`,
+      body:  `Your ${svc.label} request was sent to ${provider.name}. Waiting for confirmation.${activeDiscount ? ` Your ${activeDiscount.discountPct}% discount has been applied.` : ""}`,
       type:  "booking", jobId: job.id,
     });
     setSubmitting(false);
@@ -2873,6 +2902,19 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               <input value={form.address} onChange={e => set("address", e.target.value)} placeholder="123 Oak St, Berea, Durban" style={inputStyle} />
             </div>
 
+            {/* Active discount banner */}
+            {activeDiscount && (
+              <div style={{ background: "linear-gradient(135deg,rgba(16,185,129,0.12),rgba(14,165,233,0.08))", border: "1.5px solid rgba(16,185,129,0.35)", borderRadius: 12, padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name="star" size={18} color="#10B981" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34D399" }}>{activeDiscount.discountPct}% loyalty discount applied!</div>
+                  <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Earned from your previous booking with {provider.name}. Applied automatically.</div>
+                </div>
+              </div>
+            )}
+
             {/* Estimated value */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Estimated job value (optional)</label>
@@ -2880,7 +2922,13 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#475569", fontWeight: 600 }}>R</span>
                 <input type="number" value={form.estimatedValue} onChange={e => set("estimatedValue", e.target.value)} placeholder="e.g. 800" style={{ ...inputStyle, paddingLeft: 26 }} />
               </div>
-              {fee > 0 && <div style={{ fontSize: 10, color: "#0EA5E9", marginTop: 4 }}>Platform fee: R{fee} (8% of R{form.estimatedValue})</div>}
+              {baseValue > 0 && activeDiscount && (
+                <div style={{ marginTop: 6, background: "rgba(16,185,129,0.08)", borderRadius: 8, padding: "6px 10px" }}>
+                  <div style={{ fontSize: 10, color: "#34D399" }}>Original: R{baseValue.toLocaleString()} → After {activeDiscount.discountPct}% discount: <strong>R{discounted.toLocaleString("en-ZA", {maximumFractionDigits:0})}</strong></div>
+                  <div style={{ fontSize: 10, color: "#065F46", marginTop: 2 }}>You save R{saving.toLocaleString("en-ZA", {maximumFractionDigits:0})} · Platform fee: R{fee}</div>
+                </div>
+              )}
+              {baseValue > 0 && !activeDiscount && <div style={{ fontSize: 10, color: "#0EA5E9", marginTop: 4 }}>Platform fee: R{fee} (8%)</div>}
             </div>
 
             {/* Emergency toggle */}
@@ -2913,19 +2961,39 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 4 }}>Confirm your request</div>
             <div style={{ fontSize: 12, color: "#475569", marginBottom: 20 }}>Review the details before sending to {provider.name}.</div>
 
+            {/* Discount confirmation banner */}
+            {activeDiscount && (
+              <div style={{ background: "linear-gradient(135deg,rgba(16,185,129,0.15),rgba(16,185,129,0.06))", border: "1.5px solid rgba(16,185,129,0.4)", borderRadius: 12, padding: "12px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+                <Icon name="star" size={20} color="#10B981" strokeWidth={1.8} />
+                <div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#34D399" }}>{activeDiscount.discountPct}% loyalty discount applied</div>
+                  <div style={{ fontSize: 11, color: "#065F46", marginTop: 1 }}>This discount is included in your request. {provider.name} will see it on their end.</div>
+                </div>
+              </div>
+            )}
+
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, padding: 16, marginBottom: 16 }}>
               {[
                 ["Service",  svc.label],
                 ["Provider", provider.name],
                 ["Date",     `${form.date} at ${form.time}`],
+                ["Recurring", form.recurring === "once" ? "Once off" : form.recurring === "weekly" ? "Weekly" : "Monthly"],
                 ["Address",  form.address],
                 ["Job",      form.description],
-                ...(form.estimatedValue ? [["Est. value", `R${parseFloat(form.estimatedValue).toLocaleString()}`], ["Platform fee", `R${fee} (8%)`]] : []),
+                ...(baseValue > 0 && activeDiscount ? [
+                  ["Original",  `R${baseValue.toLocaleString()}`],
+                  ["Discount",  `${activeDiscount.discountPct}% off = R${saving.toLocaleString("en-ZA",{maximumFractionDigits:0})} saving`],
+                  ["You pay",   `R${discounted.toLocaleString("en-ZA",{maximumFractionDigits:0})}`],
+                  ["Platform fee", `R${fee} (8%)`],
+                ] : baseValue > 0 ? [
+                  ["Est. value", `R${baseValue.toLocaleString()}`],
+                  ["Platform fee", `R${fee} (8%)`],
+                ] : []),
                 ...(form.isEmergency ? [["Priority", "Emergency"]] : []),
               ].map(([k, v]) => (
                 <div key={k} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span style={{ fontSize: 11, color: "#475569", minWidth: 80, flexShrink: 0 }}>{k}</span>
-                  <span style={{ fontSize: 12, color: "#C4CDD8", lineHeight: 1.5, wordBreak: "break-word" }}>{v}</span>
+                  <span style={{ fontSize: 11, color: k === "You pay" ? "#34D399" : "#475569", minWidth: 80, flexShrink: 0, fontWeight: k === "You pay" ? 700 : 400 }}>{k}</span>
+                  <span style={{ fontSize: 12, color: k === "You pay" ? "#34D399" : k === "Discount" ? "#10B981" : "#C4CDD8", lineHeight: 1.5, wordBreak: "break-word", fontWeight: k === "You pay" ? 700 : 400 }}>{v}</span>
                 </div>
               ))}
             </div>
@@ -3613,9 +3681,8 @@ function CustomerHome({ user, onLogout }) {
 
                 {/* Status progress bar */}
                 <div style={{ display: "flex", gap: 3, marginBottom: 10 }}>
-                  {["pending","accepted","inprogress","completed"].map((s, idx) => {
-                    const statuses = ["pending","accepted","inprogress","completed"];
-                    const currentIdx = statuses.indexOf(job.status);
+                  {JOB_PROGRESS_STEPS.map((s, idx) => {
+                    const currentIdx = JOB_PROGRESS_STEPS.indexOf(job.status);
                     const filled = job.status === "declined" ? false : idx <= currentIdx;
                     const isCurrent = idx === currentIdx && job.status !== "declined";
                     return (
@@ -3630,7 +3697,14 @@ function CustomerHome({ user, onLogout }) {
                   <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{job.description}</div>
                   <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.8} /> {job.address}</div>
                   <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}><Icon name="calendar" size={11} color="#475569" strokeWidth={1.8} /> {job.preferredDate} at {job.preferredTime}{job.isEmergency ? " · Emergency" : ""}</div>
-                  {job.estimatedValue && <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee R{job.platformFee}</div>}
+                  {job.discountApplied > 0 && job.estimatedValue ? (
+                    <div style={{ fontSize: 11, color: "#34D399", marginTop: 4, fontWeight: 600 }}>
+                      {job.discountApplied}% loyalty discount applied · You pay R{parseFloat(job.discountedValue || job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}
+                      <span style={{ color: "#475569", fontWeight: 400 }}> (was R{parseFloat(job.estimatedValue).toLocaleString()})</span>
+                    </div>
+                  ) : job.estimatedValue ? (
+                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee R{job.platformFee}</div>
+                  ) : null}
                 </div>
 
                 {/* Actions */}
@@ -3642,11 +3716,11 @@ function CustomerHome({ user, onLogout }) {
                       <Icon name="message" size={11} color="#A5B4FC" strokeWidth={2} />Chat
                     </button>
                   )}
-                  {/* GPS tracking — show when in progress */}
-                  {job.status === "inprogress" && job.providerId && (
+                  {/* GPS tracking — show when provider is on route OR in progress */}
+                  {(job.status === "onroute" || job.status === "inprogress") && job.providerId && (
                     <button onClick={() => setGpsJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: "rgba(16,185,129,0.12)", color: "#34D399", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                      <Icon name="location" size={11} color="#34D399" strokeWidth={2} />Track
+                      style={{ flex: 1, minWidth: 70, background: job.status === "onroute" ? "rgba(139,92,246,0.15)" : "rgba(16,185,129,0.12)", color: job.status === "onroute" ? "#C4B5FD" : "#34D399", border: `1px solid ${job.status === "onroute" ? "rgba(139,92,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <Icon name="location" size={11} color={job.status === "onroute" ? "#C4B5FD" : "#34D399"} strokeWidth={2} />{job.status === "onroute" ? "Track (On the way)" : "Track"}
                     </button>
                   )}
                   {job.status === "completed" && !job.reviewed && (
@@ -3708,7 +3782,7 @@ function CustomerHome({ user, onLogout }) {
 
 // ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────────
 function AdminDashboard({ onLogout }) {
-  const [tab, setTab]         = useState("overview");
+  const [tab, setTab]         = useState("jobs");
   const [providers, setProviders] = useState([]);
   const [events, setEvents]   = useState([]);
 
@@ -3787,7 +3861,7 @@ function AdminDashboard({ onLogout }) {
 
       <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 4, marginBottom: 22, gap: 4 }}>
         {[
-          ["overview", "Overview"],
+          ["dashboard", "Dashboard"],
           ["providers", "Providers"],
           ["pending",  "Pending" + (pending.length ? ` (${pending.length})` : "")],
           ["reviews",  "Reviews"],
@@ -3796,7 +3870,7 @@ function AdminDashboard({ onLogout }) {
         ))}
       </div>
 
-      {tab === "overview" && (
+      {tab === "dashboard" && (
         <div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
             <StatCard iconName="chart"   label="Subscription revenue" value={`R${totalRevenue.toLocaleString()}`} sub="Active subscriptions" color="#10B981" />
@@ -4240,7 +4314,7 @@ function ProviderReviews({ providerId }) {
 
 // ─── PROVIDER DASHBOARD ───────────────────────────────────────────────────────────
 function ProviderDashboard({ provider: initialProvider, onLogout }) {
-  const [tab, setTab]         = useState("overview");
+  const [tab, setTab]         = useState("jobs");
   const [provider, setProvider] = useState(initialProvider);
   const [available, setAvailable] = useState(true);
   const [leads, setLeads]     = useState([]);
@@ -4292,7 +4366,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
 
   useEffect(() => { loadLeads(); loadProviderJobs(); }, [provider.id]);
   useEffect(() => {
-    if (tab === "leads" || tab === "overview") loadLeads();
+    if (tab === "dashboard") loadLeads();
     if (tab === "jobs") { loadProviderJobs(); setJobsBadge(0); }
   }, [tab]);
 
@@ -4307,11 +4381,36 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
     }
     await updateJobStatus(jobId, newStatus, note);
     const job = providerJobs.find(j => j.id === jobId);
+
+    // Auto-start GPS when provider taps "On My Way"
+    if (newStatus === "onroute" && provider.id) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          pos => updateProviderLocation(provider.id, pos.coords.latitude, pos.coords.longitude),
+          () => {}
+        );
+        // Start watching position
+        if (!window._gpsWatchId) {
+          window._gpsWatchId = navigator.geolocation.watchPosition(
+            pos => updateProviderLocation(provider.id, pos.coords.latitude, pos.coords.longitude),
+            () => {},
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+          );
+        }
+      }
+    }
+    // Stop GPS when job is completed or declined
+    if (["completed","declined"].includes(newStatus) && window._gpsWatchId) {
+      navigator.geolocation?.clearWatch(window._gpsWatchId);
+      window._gpsWatchId = null;
+    }
+
     if (job?.customerId) {
       const messages = {
         accepted:   { title: "Job accepted! ✅", body: `${provider.bizName} accepted your ${job.serviceName} request for ${job.preferredDate}.` },
-        declined:   { title: "Job declined",     body: `${provider.bizName} couldn't take your ${job.serviceName} request. Try another provider.` },
+        onroute:    { title: "Provider on the way! 🚗", body: `${provider.bizName} is on their way to you. You can track their location in My Jobs.` },
         inprogress: { title: "Work has started 🔧", body: `${provider.bizName} has started work on your ${job.serviceName} job.` },
+        declined:   { title: "Job declined", body: `${provider.bizName} couldn't take your ${job.serviceName} request. Try another provider.` },
         completed:  { title: "Job complete! 🎉", body: `${provider.bizName} has marked your ${job.serviceName} job as complete. Please leave a review.` },
       };
       const msg = messages[newStatus];
@@ -4473,113 +4572,136 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
       <div style={{ padding: "0 18px 100px" }}>
 
         {/* ── OVERVIEW ── */}
-        {tab === "overview" && (
+        {tab === "dashboard" && (
           <div className="fadeUp">
 
-            {/* ── STRIKE BANNER ── shown whenever provider has 1+ active strikes */}
+            {/* ── STRIKE BANNER ── */}
             {(() => {
               const activeStrikes = (provider.strikeLog || []).filter(s => !s.cleared).length;
               if (!activeStrikes) return null;
               const isSuspended = provider.status === "suspended";
               const remaining   = MAX_STRIKES - activeStrikes;
-              const bgColor     = isSuspended ? "rgba(239,68,68,0.12)" : activeStrikes === 2 ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.07)";
-              const bdColor     = isSuspended ? "rgba(239,68,68,0.35)" : activeStrikes === 2 ? "rgba(245,158,11,0.4)" : "rgba(245,158,11,0.2)";
-              const iconName    = isSuspended ? "suspend" : "warning";
+              const bgColor     = isSuspended ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)";
+              const bdColor     = isSuspended ? "rgba(239,68,68,0.35)" : "rgba(245,158,11,0.35)";
               const iconColor   = isSuspended ? "#EF4444" : "#F59E0B";
-              const titleColor  = isSuspended ? "#FCA5A5" : "#FCD34D";
               return (
                 <div style={{ background: bgColor, border: `1px solid ${bdColor}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <Icon name={iconName} size={16} color={iconColor} strokeWidth={1.8} />
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: titleColor }}>
-                      {isSuspended ? "Account suspended" : `${activeStrikes} of ${MAX_STRIKES} strikes`}
+                    <Icon name="warning" size={16} color={iconColor} strokeWidth={1.8} />
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: isSuspended ? "#FCA5A5" : "#FCD34D" }}>
+                      {isSuspended ? "Account suspended" : `${activeStrikes} of ${MAX_STRIKES} quality strikes`}
                     </div>
-                    {/* Strike pip indicators */}
                     <div style={{ display: "flex", gap: 5, marginLeft: "auto" }}>
                       {[1,2,3].map(i => (
-                        <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i <= activeStrikes ? (isSuspended ? "#EF4444" : "#F59E0B") : "rgba(255,255,255,0.12)" }} />
+                        <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i <= activeStrikes ? iconColor : "rgba(255,255,255,0.12)" }} />
                       ))}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, color: isSuspended ? "#FCA5A5" : "#B45309", lineHeight: 1.6 }}>
                     {isSuspended
-                      ? "Your account has been automatically suspended after 3 negative reviews. Please contact FixIt Now support to appeal."
-                      : `${remaining} more strike${remaining !== 1 ? "s" : ""} will result in automatic suspension. A strike is issued when you receive a 1 or 2 star review.`}
-                  </div>
-                  {/* Strike history */}
-                  <div style={{ marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 10 }}>
-                    {(provider.strikeLog || []).filter(s => !s.cleared).map((s, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(245,158,11,0.2)", border: "1px solid rgba(245,158,11,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#F59E0B", flexShrink: 0 }}>{i + 1}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.dateLabel} · {[,"","","","","",""][s.rating]}{"★".repeat(s.rating)} from {s.customerName}</div>
-                          {s.comment && <div style={{ fontSize: 10, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{s.comment}"</div>}
-                        </div>
-                      </div>
-                    ))}
+                      ? "Your account has been suspended after 3 negative reviews. Contact FixIt Now support to appeal."
+                      : `${remaining} more strike${remaining !== 1 ? "s" : ""} will suspend your account. A strike is issued for a 1 or 2 star review.`}
                   </div>
                 </div>
               );
             })()}
 
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>This month</div>
-
-            {/* Stats grid — row 1: views + leads */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-              {[
-                { val: views,      label: "Profile views", color: "#6366F1" },
-                { val: totalLeads, label: "Total leads",   color: "#10B981" },
-              ].map(({ val, label, color }) => (
-                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: 14 }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, color: "#F1F5F9" }}>{val}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>{label}</div>
+            {/* ── AVAILABILITY ── top priority, most important toggle */}
+            <div onClick={() => setAvailable(a=>!a)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: available ? "rgba(16,185,129,0.09)" : "rgba(239,68,68,0.07)", border: `1.5px solid ${available ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 16, cursor: "pointer" }}>
+              <div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: available ? "#34D399" : "#FCA5A5" }}>
+                  {available ? "🟢 Open for business" : "🔴 Not available"}
                 </div>
-              ))}
-            </div>
-            {/* Stats grid — row 2: jobs done + response speed + call taps */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
-              {/* Completed jobs */}
-              {(() => {
-                const completedCount = providerJobs.filter(j => j.status === "completed").length;
-                return (
-                  <div style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 12, padding: 12 }}>
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#10B981" }}>{completedCount}</div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: "#10B981", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Jobs done</div>
-                  </div>
-                );
-              })()}
-              {/* Response speed — now in minutes */}
-              {(() => {
-                const avgMins = getResponseSpeed(providerJobs);
-                const tier    = getSpeedTier(avgMins);
-                return (
-                  <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${tier ? tier.color+"33" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 12 }}>
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: avgMins !== null ? 18 : 11, color: tier ? tier.color : "#334155", lineHeight: 1.2 }}>
-                      {avgMins !== null ? formatResponseTime(avgMins) : "No data"}
-                    </div>
-                    <div style={{ fontSize: 9, fontWeight: 700, color: tier?.color || "#475569", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Response</div>
-                    {avgMins !== null && <div style={{ fontSize: 9, color: "#334155", marginTop: 1 }}>{tier?.label}</div>}
-                  </div>
-                );
-              })()}
-              {/* Call taps */}
-              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 12, padding: 12 }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#F1F5F9" }}>{calls}</div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#10B981", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Call taps</div>
+                <div style={{ fontSize: 11, color: available ? "#065F46" : "#7F1D1D", marginTop: 3 }}>
+                  {available ? "You appear in search results — tap to go offline" : "You're hidden from all searches — tap to go online"}
+                </div>
+              </div>
+              <div style={{ width: 46, height: 25, borderRadius: 13, background: available ? "#10B981" : "#EF4444", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+                <div style={{ position: "absolute", top: 3, left: available ? 24 : 3, width: 19, height: 19, borderRadius: "50%", background: "white", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
               </div>
             </div>
 
-            {/* Weekly bar chart */}
+            {/* ── THIS MONTH STATS ── */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
+              Performance · {new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+              {[
+                { val: views,                                                label: "Profile views",  color: "#6366F1", icon: "search" },
+                { val: totalLeads,                                           label: "New leads",       color: "#10B981", icon: "send"   },
+              ].map(({ val, label, color, icon }) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: "#F1F5F9" }}>{val}</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Icon name={icon} size={15} color={color} strokeWidth={1.8} />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color, letterSpacing: "0.07em", textTransform: "uppercase" }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+              {(() => {
+                const completed = providerJobs.filter(j => j.status === "completed").length;
+                const pending   = providerJobs.filter(j => j.status === "pending").length;
+                const avgMins   = getResponseSpeed(providerJobs);
+                const tier      = getSpeedTier(avgMins);
+                return [
+                  { val: completed, label: "Jobs done",  color: "#10B981" },
+                  { val: pending,   label: "Awaiting",   color: "#F59E0B" },
+                  { val: avgMins !== null ? formatResponseTime(avgMins) : "—", label: "Avg response", color: tier?.color || "#64748B" },
+                ].map(({ val, label, color }) => (
+                  <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "11px 10px", textAlign: "center" }}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color }}>{val}</div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>{label}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* ── EARNINGS ESTIMATE ── */}
+            {(() => {
+              const completedWithValue = providerJobs.filter(j => j.status === "completed" && j.estimatedValue);
+              const totalEarned = completedWithValue.reduce((s, j) => s + (parseFloat(j.discountedValue || j.estimatedValue) || 0), 0);
+              const commissionPaid = completedWithValue.reduce((s, j) => s + (j.platformFee || 0), 0);
+              if (!completedWithValue.length) return null;
+              return (
+                <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 13, padding: 14, marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#10B981", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Earnings (declared jobs)</div>
+                  <div style={{ display: "flex", gap: 16 }}>
+                    <div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#34D399" }}>R{totalEarned.toLocaleString("en-ZA", {maximumFractionDigits: 0})}</div>
+                      <div style={{ fontSize: 10, color: "#065F46" }}>Total job value</div>
+                    </div>
+                    <div style={{ width: 1, background: "rgba(16,185,129,0.2)" }} />
+                    <div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#94A3B8" }}>R{commissionPaid.toLocaleString("en-ZA", {maximumFractionDigits: 0})}</div>
+                      <div style={{ fontSize: 10, color: "#334155" }}>Platform fees (8%)</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── WEEKLY ACTIVITY CHART ── */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 13, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Weekly leads</div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 64 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Weekly activity</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[{label:"Calls",val:calls,color:"#10B981"},{label:"WA",val:whatsapps,color:"#25D366"},{label:"Views",val:views,color:"#6366F1"}].map(({ label, val, color }) => (
+                    <div key={label} style={{ fontSize: 10, fontWeight: 600, color, background: `${color}18`, borderRadius: 6, padding: "2px 7px" }}>{val} {label}</div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60 }}>
                 {days.map((d, i) => {
                   const h = barMax > 0 ? Math.round((barData[i] / barMax) * 100) : 0;
                   const isToday = i === new Date().getDay() - 1;
                   return (
                     <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%" }}>
                       <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
-                        <div style={{ width: "100%", background: isToday ? "#0EA5E9" : "rgba(255,255,255,0.1)", borderRadius: "3px 3px 0 0", height: `${Math.max(h, 6)}%`, transition: "height 0.4s ease" }} />
+                        <div style={{ width: "100%", background: isToday ? "#0EA5E9" : "rgba(255,255,255,0.1)", borderRadius: "3px 3px 0 0", height: `${Math.max(h, 4)}%`, transition: "height 0.4s ease" }} />
                       </div>
                       <div style={{ fontSize: 9, color: isToday ? "#0EA5E9" : "#334155", fontWeight: isToday ? 700 : 400 }}>{d}</div>
                     </div>
@@ -4588,46 +4710,65 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               </div>
             </div>
 
-            {/* Availability toggle */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: available ? "rgba(16,185,129,0.07)" : "rgba(255,255,255,0.03)", border: `1px solid ${available ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: available ? "#6EE7B7" : "#94A3B8" }}>Available for new jobs</div>
-                <div style={{ fontSize: 11, color: available ? "#065F46" : "#334155", marginTop: 2 }}>{available ? "Customers can contact you" : "You're hidden from search results"}</div>
-              </div>
-              <div onClick={() => setAvailable(a=>!a)} style={{ width: 42, height: 23, borderRadius: 12, background: available ? "#10B981" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
-                <div style={{ position: "absolute", top: 3, left: available ? 22 : 3, width: 17, height: 17, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
-              </div>
+            {/* ── RECENT ACTIVITY FEED ── (was "Leads" tab) */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Recent activity</div>
+              {leads.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "28px 0", color: "#334155", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ marginBottom: 8 }}><Icon name="search" size={28} color="#334155" strokeWidth={1.4} /></div>
+                  <div style={{ fontSize: 12, color: "#475569" }}>No activity yet</div>
+                  <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Profile views and customer contacts appear here</div>
+                </div>
+              ) : leads.slice(0, 8).map((lead, i) => (
+                <div key={lead.id || i} className="fadeUp" style={{ animationDelay: `${i * 0.03}s`, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "10px 12px", marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
+                  <LeadIcon type={lead.type} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0", textTransform: "capitalize" }}>
+                      {lead.type === "whatsapp" ? "WhatsApp contact" : lead.type === "call" ? "Phone call tapped" : "Profile viewed"}
+                    </div>
+                    {lead.searchArea && <div style={{ fontSize: 10, color: "#475569", marginTop: 1 }}>{lead.searchArea}{lead.searchQuery ? ` · "${lead.searchQuery.slice(0,40)}"` : ""}</div>}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#334155", flexShrink: 0, textAlign: "right" }}>
+                    <div>{lead.timeLabel}</div><div style={{ marginTop: 1 }}>{lead.dateLabel}</div>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Plan + billing */}
-            <div style={{ background: `${planColor}0A`, border: `1px solid ${planColor}25`, borderRadius: 12, padding: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{plan.label} Plan</div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: planColor }}>{plan.priceLabel}</div>
+            {/* ── PLAN & BILLING ── */}
+            <div style={{ background: `${planColor}0A`, border: `1px solid ${planColor}25`, borderRadius: 13, padding: 14, marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{plan.label} Plan</div>
+                  <div style={{ fontSize: 11, color: planColor, marginTop: 2 }}>{plan.priceLabel} · Next billing 1 Apr 2026</div>
+                </div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: planColor }}>{plan.priceLabel}</div>
               </div>
-              <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6 }}>
-                Next billing: <span style={{ color: "#64748B" }}>1 April 2026</span>
-                {referralCredits > 0 && (
-                  <> · Referral credits this month: <span style={{ color: "#10B981", fontWeight: 700 }}>R{referralCredits.toLocaleString()}</span> ({totalLeads} leads × R{referralRate})</>
-                )}
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <Btn small variant="ghost" onClick={() => setTab("settings")} style={{ fontSize: 11 }}>Manage plan →</Btn>
-              </div>
+              {referralCredits > 0 && (
+                <div style={{ fontSize: 11, color: "#10B981", marginBottom: 8 }}>
+                  Referral credits this month: <strong>R{referralCredits.toLocaleString()}</strong> ({totalLeads} leads × R{referralRate})
+                </div>
+              )}
+              <Btn small variant="ghost" onClick={() => setTab("account")} style={{ fontSize: 11 }}>Manage plan →</Btn>
             </div>
 
-            {/* Ranking tips */}
-            <div style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: 14, marginTop: 14 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 8 }}>How your ranking is calculated</div>
+            {/* ── RANKING TIPS ── */}
+            <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 13, padding: 14 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 10 }}>
+                How your search ranking works
+              </div>
               {[
-                { label: "Star rating",      weight: "40%", tip: "Higher ratings push you to the top" },
-                { label: "Response speed",   weight: "25%", tip: "Accept jobs faster to rank higher" },
-                { label: "Review count",     weight: "15%", tip: "More reviews = more trust" },
-                { label: "Plan tier",        weight: "15%", tip: "Premium & Featured get a ranking boost" },
-                { label: "24hr emergency",   weight: "5%",  tip: "Being on-call boosts your score" },
-              ].map(({ label, weight, tip }) => (
-                <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 7 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#6366F1", minWidth: 34, flexShrink: 0 }}>{weight}</div>
+                { label: "Star rating",     weight: "40%", tip: "Higher ratings = top of results", icon: "star" },
+                { label: "Response speed",  weight: "25%", tip: "Accept jobs fast to rank higher", icon: "lightning" },
+                { label: "Review count",    weight: "15%", tip: "More reviews builds more trust", icon: "message" },
+                { label: "Plan tier",       weight: "15%", tip: "Featured & Premium get boosted", icon: "chart" },
+                { label: "24hr emergency",  weight: "5%",  tip: "Being on-call adds ranking points", icon: "emergency" },
+              ].map(({ label, weight, tip, icon }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#6366F1", minWidth: 32, flexShrink: 0 }}>{weight}</div>
+                  <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon name={icon} size={12} color="#8B9CF8" strokeWidth={1.8} />
+                  </div>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8" }}>{label}</div>
                     <div style={{ fontSize: 10, color: "#334155" }}>{tip}</div>
@@ -4638,8 +4779,8 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           </div>
         )}
 
-        {/* ── LEADS ── */}
-        {tab === "leads" && (
+        {/* ── OLD LEADS TAB — now merged into dashboard ── */}
+        {(false) && (
           <div className="fadeUp">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>All leads</div>
@@ -4920,7 +5061,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <ProviderReviews providerId={provider.id} />
           </div>
         )}
-        {tab === "settings" && (
+        {tab === "account" && (
           <div className="fadeUp">
             <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Account settings</div>
 
@@ -4970,11 +5111,33 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         {/* ── JOBS ── */}
         {tab === "jobs" && (
           <div className="fadeUp">
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>
-              Job requests
-              {providerJobs.filter(j=>j.status==="pending").length > 0 && (
-                <span style={{ marginLeft: 8, background: "#EF4444", color: "white", borderRadius: 20, padding: "2px 8px", fontSize: 10, fontWeight: 700 }}>{providerJobs.filter(j=>j.status==="pending").length} new</span>
-              )}
+            {/* Jobs header with status summary */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9" }}>Jobs</div>
+                <button onClick={loadProviderJobs} style={{ background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 10px", color: "#64748B", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  Refresh
+                </button>
+              </div>
+              {/* Status summary chips */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[
+                  { status: "pending",    label: "New",        color: "#F59E0B" },
+                  { status: "accepted",   label: "Accepted",   color: "#0EA5E9" },
+                  { status: "onroute",    label: "On the way", color: "#8B5CF6" },
+                  { status: "inprogress", label: "In progress",color: "#06B6D4" },
+                  { status: "completed",  label: "Done",       color: "#10B981" },
+                ].map(({ status, label, color }) => {
+                  const count = providerJobs.filter(j => j.status === status).length;
+                  if (!count) return null;
+                  return (
+                    <div key={status} style={{ display: "flex", alignItems: "center", gap: 5, background: `${color}15`, border: `1px solid ${color}33`, borderRadius: 20, padding: "4px 10px" }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color }}>{count} {label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {providerJobs.length === 0 ? (
@@ -5005,9 +5168,25 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                     <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{job.description}</div>
                     <div style={{ fontSize: 11, color: "#475569", marginTop: 5 }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.8} /> {job.address}</div>
                     <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}><Icon name="calendar" size={11} color="#475569" strokeWidth={1.8} /> {job.preferredDate} at {job.preferredTime}{job.isEmergency ? " · Emergency" : ""}</div>
-                    {job.estimatedValue && <div style={{ fontSize: 11, color: "#F59E0B", marginTop: 2 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee R{job.platformFee}</div>}
+                    {job.recurring && job.recurring !== "once" && (
+                      <div style={{ fontSize: 11, color: "#0EA5E9", marginTop: 2 }}>🔄 {job.recurring === "weekly" ? "Weekly" : "Monthly"} recurring job</div>
+                    )}
+                    {job.estimatedValue && !job.discountApplied && <div style={{ fontSize: 11, color: "#F59E0B", marginTop: 2 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee R{job.platformFee}</div>}
                     {job.customerPhone && <div style={{ fontSize: 11, color: "#475569", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}><Icon name="phone" size={11} color="#475569" strokeWidth={1.8} /> {job.customerPhone}</div>}
                   </div>
+
+                  {/* Loyalty discount banner — visible to provider */}
+                  {job.discountApplied > 0 && (
+                    <div style={{ background: "linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06))", border: "1.5px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "10px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                      <Icon name="star" size={16} color="#10B981" strokeWidth={2} />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#34D399" }}>Returning client — {job.discountApplied}% loyalty discount</div>
+                        <div style={{ fontSize: 10, color: "#065F46", marginTop: 1 }}>
+                          {job.estimatedValue ? `Original R${parseFloat(job.estimatedValue).toLocaleString()} → Client pays R${parseFloat(job.discountedValue || job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}` : "Discount applies to final invoice"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action buttons based on status */}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -5016,7 +5195,14 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                       <Btn small variant="danger" onClick={() => handleJobAction(job.id, "declined", "Sorry, unavailable at this time")} style={{ flex: 1 }}>Decline</Btn>
                     </>)}
                     {job.status === "accepted" && (
-                      <Btn small onClick={() => handleJobAction(job.id, "inprogress")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", color: "white", border: "none" }}>Mark In Progress</Btn>
+                      <Btn small onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", color: "white", border: "none" }}>
+                        🚗 On My Way
+                      </Btn>
+                    )}
+                    {job.status === "onroute" && (
+                      <Btn small onClick={() => handleJobAction(job.id, "inprogress")} style={{ flex: 1, background: "linear-gradient(135deg,#06B6D4,#0EA5E9)", color: "white", border: "none" }}>
+                        🔧 Start Work
+                      </Btn>
                     )}
                     {job.status === "inprogress" && (
                       <Btn small variant="green" onClick={() => handleJobAction(job.id, "completed")} style={{ flex: 1 }}>Mark Complete</Btn>
@@ -5057,7 +5243,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
 
       {/* ── BOTTOM NAV ── */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", backdropFilter: "blur(20px)" }}>
-        {[["overview","overview","Overview"],["leads","chart","Leads"],["jobs","jobs","Jobs"],["profile","home","Profile"],["settings","settings","Settings"]].map(([id,iconName,label]) => (
+        {[["jobs","jobs","Jobs"],["dashboard","overview","Dashboard"],["profile","profile","My Profile"],["account","settings","Account"]].map(([id,iconName,label]) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
             <Icon name={iconName} size={18} color={tab === id ? "#0EA5E9" : "#475569"} strokeWidth={1.6} />
             {label.toUpperCase()}

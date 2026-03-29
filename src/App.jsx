@@ -536,6 +536,205 @@ const redeemDiscount = async (customerId, discountId) => {
     ));
   } catch {}
 };
+// ─── HOME HEALTH SCORE HELPERS ───────────────────────────────────────────────
+const HOME_SERVICE_INTERVALS = {
+  plumber:     { label: "Plumbing check",      months: 12, icon: "check" },
+  electrician: { label: "Electrical inspection",months: 24, icon: "lightning" },
+  handyman:    { label: "General maintenance",  months: 6,  icon: "check" },
+  security:    { label: "Security system check",months: 12, icon: "check" },
+  gate_repair: { label: "Gate motor service",   months: 12, icon: "check" },
+  technology:  { label: "Tech devices check",   months: 24, icon: "check" },
+};
+
+const addHomeServiceLog = async (customerId, job) => {
+  try {
+    const key = `home_log:${customerId}`;
+    const raw = await store.get(key);
+    const log = raw ? JSON.parse(raw.value) : [];
+    // Replace existing entry for same service type + provider
+    const filtered = log.filter(e => !(e.serviceType === job.serviceType && e.providerId === job.providerId));
+    filtered.unshift({
+      id:           `hl-${Date.now()}`,
+      serviceType:  job.serviceType,
+      serviceName:  job.serviceName,
+      providerId:   job.providerId,
+      providerName: job.providerName,
+      completedAt:  job.updatedAt || new Date().toISOString(),
+      dateLabel:    new Date(job.updatedAt || Date.now()).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }),
+      jobId:        job.id,
+      description:  job.description,
+    });
+    await store.set(key, filtered.slice(0, 50));
+  } catch {}
+};
+
+const getHomeLog = async (customerId) => {
+  try {
+    const raw = await store.get(`home_log:${customerId}`);
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+const getHomeHealthScore = (log) => {
+  if (!log.length) return { score: 0, status: "untracked", due: [] };
+  const now = Date.now();
+  let due = [];
+  let upToDate = 0;
+  Object.entries(HOME_SERVICE_INTERVALS).forEach(([serviceType, { label, months }]) => {
+    const last = log.find(e => e.serviceType === serviceType);
+    if (last) {
+      const monthsAgo = (now - new Date(last.completedAt).getTime()) / (30 * 86400000);
+      if (monthsAgo > months) {
+        due.push({ serviceType, label, monthsOverdue: Math.round(monthsAgo - months), lastProvider: last.providerName, lastProviderId: last.providerId });
+      } else {
+        upToDate++;
+      }
+    }
+  });
+  const total  = Object.keys(HOME_SERVICE_INTERVALS).length;
+  const score  = Math.round(((total - due.length) / total) * 100);
+  const status = score >= 80 ? "good" : score >= 50 ? "fair" : "needs-attention";
+  return { score, status, due, upToDate };
+};
+
+// ─── TRUSTED PROVIDER HELPERS ────────────────────────────────────────────────
+const saveTrustedProvider = async (customerId, provider) => {
+  try {
+    const key = `trusted:${customerId}`;
+    const raw = await store.get(key);
+    const list = raw ? JSON.parse(raw.value) : [];
+    if (!list.find(p => p.providerId === provider.providerId)) {
+      list.push({ providerId: provider.providerId, name: provider.name, serviceType: provider.serviceType, phone: provider.phone, logoUrl: provider.logoUrl, addedAt: new Date().toISOString() });
+      await store.set(key, list.slice(0, 20));
+    }
+  } catch {}
+};
+
+const removeTrustedProvider = async (customerId, providerId) => {
+  try {
+    const key = `trusted:${customerId}`;
+    const raw = await store.get(key);
+    const list = raw ? JSON.parse(raw.value) : [];
+    await store.set(key, list.filter(p => p.providerId !== providerId));
+  } catch {}
+};
+
+const getTrustedProviders = async (customerId) => {
+  try {
+    const raw = await store.get(`trusted:${customerId}`);
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+// ─── COMMUNITY REVIEW HELPERS ────────────────────────────────────────────────
+const saveCommunityReview = async ({ providerId, providerName, reviewerName, reviewerEmail, relationship, comment }) => {
+  try {
+    const key = `community:${providerId}`;
+    const raw = await store.get(key);
+    const reviews = raw ? JSON.parse(raw.value) : [];
+    // One vouch per email
+    const filtered = reviews.filter(r => r.reviewerEmail !== reviewerEmail);
+    filtered.unshift({
+      id:            `cr-${Date.now()}`,
+      providerId, providerName, reviewerName, reviewerEmail, relationship, comment,
+      ts:            new Date().toISOString(),
+      dateLabel:     new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }),
+      status:        "pending", // admin approves
+    });
+    await store.set(key, filtered.slice(0, 50));
+  } catch {}
+};
+
+const getCommunityReviews = async (providerId) => {
+  try {
+    const raw = await store.get(`community:${providerId}`);
+    const all = raw ? JSON.parse(raw.value) : [];
+    return all.filter(r => r.status === "approved");
+  } catch { return []; }
+};
+
+// ─── GET IT DONE BOARD HELPERS ───────────────────────────────────────────────
+const postJobBoard = async (job) => {
+  try {
+    const raw = await store.get("job_board");
+    const board = raw ? JSON.parse(raw.value) : [];
+    board.unshift({ ...job, id: `jb-${Date.now()}`, postedAt: new Date().toISOString(), dateLabel: new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short" }), status: "open", quotes: [] });
+    await store.set("job_board", board.slice(0, 200));
+  } catch {}
+};
+
+const getJobBoard = async (serviceId) => {
+  try {
+    const raw = await store.get("job_board");
+    const all = raw ? JSON.parse(raw.value) : [];
+    return serviceId ? all.filter(j => j.serviceType === serviceId && j.status === "open") : all.filter(j => j.status === "open");
+  } catch { return []; }
+};
+
+const submitJobBoardQuote = async (jobId, providerId, providerName, amount, note) => {
+  try {
+    const raw = await store.get("job_board");
+    const board = raw ? JSON.parse(raw.value) : [];
+    const updated = board.map(j => {
+      if (j.id !== jobId) return j;
+      const quotes = (j.quotes || []).filter(q => q.providerId !== providerId);
+      quotes.push({ providerId, providerName, amount, note, ts: new Date().toISOString() });
+      return { ...j, quotes };
+    });
+    await store.set("job_board", updated);
+  } catch {}
+};
+
+// ─── 5-STAR STREAK HELPERS ───────────────────────────────────────────────────
+const getStarStreak = (reviews) => {
+  if (!reviews?.length) return 0;
+  const sorted = [...reviews].sort((a, b) => new Date(b.ts) - new Date(a.ts));
+  let streak = 0;
+  for (const r of sorted) {
+    if (r.rating === 5) streak++;
+    else break;
+  }
+  return streak;
+};
+
+// ─── MILESTONE DEFINITIONS ───────────────────────────────────────────────────
+const MILESTONES = [
+  { id: "first_job",    jobs: 1,  label: "First job",         reward: "Response speed badge unlocked",        icon: "check"    },
+  { id: "5_jobs",       jobs: 5,  label: "5 jobs done",        reward: "Priority placement for 1 week",        icon: "lightning"},
+  { id: "10_reviews",   jobs: 10, label: "10 completed jobs",  reward: "FixIt Pro badge on your listing",      icon: "star"     },
+  { id: "25_jobs",      jobs: 25, label: "25 jobs done",        reward: "Access to the Get It Done Board",      icon: "chart"    },
+  { id: "50_jobs",      jobs: 50, label: "50 jobs done",        reward: "Featured in Provider of the Month",   icon: "booking"  },
+];
+
+const getProviderMilestone = (completedCount) => {
+  const achieved = MILESTONES.filter(m => completedCount >= m.jobs);
+  const next     = MILESTONES.find(m => completedCount < m.jobs);
+  return { achieved, next, completedCount };
+};
+
+// ─── PROVIDER OF THE MONTH HELPERS ──────────────────────────────────────────
+const getProviderOfMonth = async (serviceId) => {
+  try {
+    const raw = await store.get("providers");
+    const providers = raw ? JSON.parse(raw.value) : [];
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const eligible = providers.filter(p =>
+      p.status === "approved" &&
+      (!serviceId || p.services?.includes(serviceId)) &&
+      (p.jobs || []).filter(j => j.status === "completed" && j.updatedAt >= monthStart).length >= 3
+    );
+    if (!eligible.length) return null;
+    // Score: rating 50% + jobs this month 30% + reviews 20%
+    const scored = eligible.map(p => {
+      const monthJobs = (p.jobs || []).filter(j => j.status === "completed" && j.updatedAt >= monthStart).length;
+      return { ...p, _potm: (p.liveRating || 0) * 50 + monthJobs * 30 + (p.liveReviewCount || 0) * 20 };
+    }).sort((a, b) => b._potm - a._potm);
+    return scored[0] || null;
+  } catch { return null; }
+};
+
+
 
 // ─── REFERRAL SYSTEM ─────────────────────────────────────────────────────────────
 const makeRefCode = (email) => {
@@ -546,7 +745,8 @@ const makeRefCode = (email) => {
   return code;
 };
 
-const REFERRAL_CREDIT_AMOUNT = 50; // R50 credited to referrer on friend's first completed job
+const REFERRAL_CREDIT_AMOUNT = 50; // R50 platform credit — applied as fee reduction on next booking (Option B)
+const REFERRAL_CREDIT_IS_PLATFORM = true; // credit applies to any provider, not provider-specific
 const REFERRAL_FRIEND_DISCOUNT = 10; // 10% off friend's first job
 
 const saveReferralCredit = async (customerId, amount, fromName) => {
@@ -840,15 +1040,24 @@ function Input({ label, value, onChange, placeholder, type = "text", icon }) {
     <div style={{ marginBottom: 14 }}>
       {label && <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>{label}</label>}
       <div style={{ position: "relative" }}>
-        {icon && <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{icon}</span>}
+        {icon && <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center", pointerEvents: "none" }}>{icon}</span>}
         <input
           type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
           style={{
-            width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)",
-            borderRadius: 11, padding: `12px ${icon ? "12px 12px 38px" : "14px"}`,
-            paddingLeft: icon ? 40 : 14,
-            color: "#E2E8F0", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none",
+            width: "100%",
+            background: "rgba(255,255,255,0.05)",
+            border: "1.5px solid rgba(255,255,255,0.1)",
+            borderRadius: 12,
+            padding: icon ? "12px 14px 12px 42px" : "12px 14px",
+            color: "#E2E8F0",
+            fontSize: 14,
+            fontFamily: "'DM Sans',sans-serif",
+            outline: "none",
+            WebkitAppearance: "none",
+            transition: "border-color 0.15s",
           }}
+          onFocus={e => e.target.style.borderColor = "rgba(14,165,233,0.5)"}
+          onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
         />
       </div>
     </div>
@@ -857,21 +1066,36 @@ function Input({ label, value, onChange, placeholder, type = "text", icon }) {
 
 function Btn({ children, onClick, variant = "primary", disabled, full, small, style: extraStyle }) {
   const styles = {
-    primary: { background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "white", border: "none", boxShadow: "0 6px 24px rgba(14,165,233,0.25)" },
+    primary: { background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "white", border: "none", boxShadow: "0 4px 16px rgba(14,165,233,0.2)" },
     danger:  { background: "linear-gradient(135deg,#EF4444,#DC2626)", color: "white", border: "none" },
-    ghost:   { background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1.5px solid rgba(255,255,255,0.08)" },
+    ghost:   { background: "rgba(255,255,255,0.05)", color: "#94A3B8", border: "1.5px solid rgba(255,255,255,0.1)" },
     green:   { background: "linear-gradient(135deg,#10B981,#059669)", color: "white", border: "none" },
   };
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      ...styles[variant], borderRadius: 11,
-      padding: small ? "8px 16px" : "13px 20px",
-      fontSize: small ? 12 : 14, fontWeight: 600,
-      fontFamily: "'DM Sans',sans-serif", cursor: disabled ? "default" : "pointer",
-      width: full ? "100%" : "auto", opacity: disabled ? 0.5 : 1,
-      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-      transition: "all 0.2s", ...extraStyle,
-    }}>{children}</button>
+      ...styles[variant],
+      borderRadius: 12,
+      padding:    small ? "9px 16px" : "13px 20px",
+      minHeight:  small ? 38 : 46,
+      fontSize:   small ? 13 : 14,
+      fontWeight: 600,
+      fontFamily: "'DM Sans',sans-serif",
+      cursor:     disabled ? "default" : "pointer",
+      width:      full ? "100%" : "auto",
+      opacity:    disabled ? 0.45 : 1,
+      display:    "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      transition: "opacity 0.15s, transform 0.1s",
+      WebkitTapHighlightColor: "transparent",
+      ...extraStyle,
+    }}
+    onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = "scale(0.97)"; }}
+    onMouseUp={e => { e.currentTarget.style.transform = "scale(1)"; }}
+    onTouchStart={e => { if (!disabled) e.currentTarget.style.transform = "scale(0.97)"; }}
+    onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; }}
+    >{children}</button>
   );
 }
 
@@ -1410,7 +1634,7 @@ function ProviderRegistration({ onBack, onDone }) {
           <div style={{ marginBottom: 12 }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>Tagline <span style={{ color: "#334155", fontWeight: 400 }}>(optional)</span></label>
             <input value={form.tagline} onChange={e => set("tagline", e.target.value)} placeholder="e.g. Durban's most trusted plumber since 2008"
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
           </div>
 
           {/* About */}
@@ -1419,7 +1643,7 @@ function ProviderRegistration({ onBack, onDone }) {
             <textarea value={form.description} onChange={e => set("description", e.target.value)}
               placeholder="Tell customers what makes you different. What do you specialise in? Why should they choose you over anyone else?"
               rows={4}
-              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 11, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "vertical" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
           </div>
 
           {/* Trust & credentials */}
@@ -1430,12 +1654,12 @@ function ProviderRegistration({ onBack, onDone }) {
               <div>
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Years in business</label>
                 <input type="number" value={form.yearsInBusiness} onChange={e => set("yearsInBusiness", e.target.value)} placeholder="e.g. 12"
-                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
               </div>
               <div>
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Call-out fee from (R)</label>
                 <input type="number" value={form.priceRangeMin} onChange={e => set("priceRangeMin", e.target.value)} placeholder="e.g. 350"
-                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
               </div>
             </div>
 
@@ -1443,14 +1667,14 @@ function ProviderRegistration({ onBack, onDone }) {
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Certifications & licences</label>
               <input value={form.certifications} onChange={e => set("certifications", e.target.value)}
                 placeholder="e.g. Licensed electrician, ECSA registered, COC certified"
-                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
             </div>
 
             <div style={{ marginBottom: 10 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Logo URL <span style={{ color: "#334155", fontWeight: 400, textTransform: "none" }}>(paste a link to your logo image)</span></label>
               <input value={form.logoUrl} onChange={e => set("logoUrl", e.target.value)}
                 placeholder="https://imgur.com/your-logo.png"
-                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
               <div style={{ fontSize: 10, color: "#334155", marginTop: 3 }}>Free upload: imgur.com · Free image host for business logos</div>
             </div>
 
@@ -1690,7 +1914,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
 
         {done ? (
@@ -1733,7 +1957,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Comments (optional)</label>
               <textarea value={comment} onChange={e => setComment(e.target.value)}
                 placeholder="Quality of work, punctuality, professionalism…" rows={3}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -1846,7 +2070,7 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
           <textarea value={customNote} onChange={e => setCustomNote(e.target.value)}
             placeholder={`Hi ${job.customerName}, thanks for choosing ${provider.bizName}! It was a pleasure working on your home.`}
             rows={3}
-            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
         </div>
 
         {/* Discount offer toggle */}
@@ -1948,11 +2172,11 @@ function CompletionPopup({ notification, user, onClose }) {
     setStep("done");
   };
 
-  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" };
+  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" };
   const labelMap   = { 1: "Poor", 2: "Below average", 3: "Average", 4: "Good", 5: "Excellent!" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 48px", maxHeight: "92vh", overflowY: "auto" }}>
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
 
@@ -2221,7 +2445,7 @@ function ChatModal({ job, user, userRole, onClose }) {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, height: "75vh", display: "flex", flexDirection: "column" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, height: "75vh", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2322,7 +2546,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
 
   if (submitted) return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "32px 20px 48px", textAlign: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "32px 20px 48px", textAlign: "center" }}>
         <div style={{ marginBottom: 16 }}><Icon name="check" size={48} color="#10B981" strokeWidth={1.4} /></div>
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#F1F5F9", marginBottom: 8 }}>Quote request sent!</div>
         <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7, marginBottom: 24 }}>
@@ -2358,7 +2582,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
               <textarea value={description} onChange={e => setDescription(e.target.value)}
                 placeholder="e.g. My geyser burst, water leaking in kitchen ceiling…"
                 rows={3}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
             </div>
 
             <Input label="Your location" value={location} onChange={setLocation} placeholder="Suburb, Durban" />
@@ -2479,8 +2703,8 @@ function GPSTrackerModal({ job, onClose }) {
     : `https://www.google.com/maps/search/${encodeURIComponent(job.providerName + " " + (job.providerSuburb || "Durban"))}`;
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 48px" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(16,185,129,0.15)", border: "1.5px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2525,6 +2749,37 @@ function VerificationBadge({ verification, compact = false }) {
     <div style={{ display: "flex", alignItems: "center", gap: 6, background: `${color}10`, border: `1px solid ${color}30`, borderRadius: 8, padding: "6px 10px" }}>
       <Icon name="check" size={12} color={color} strokeWidth={2} />
       <span style={{ fontSize: 11, fontWeight: 600, color }}>{label} ID</span>
+    </div>
+  );
+}
+
+// ─── COMMUNITY SECTION (shown on provider profile page) ─────────────────────
+function CommunitySection({ providerId }) {
+  const [reviews, setReviews] = useState([]);
+  useEffect(() => { getCommunityReviews(providerId).then(setReviews); }, [providerId]);
+  if (!reviews.length) return null;
+  return (
+    <div style={{ margin: "16px 20px 0" }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
+        Community recommendations ({reviews.length})
+      </div>
+      <div style={{ fontSize: 11, color: "#334155", marginBottom: 10, fontStyle: "italic" }}>
+        Personal vouches from people who know this provider — not tied to a booking.
+      </div>
+      {reviews.map(r => (
+        <div key={r.id} style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 12, padding: "13px 15px", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 11, color: "#818CF8", flexShrink: 0 }}>
+              {r.reviewerName?.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{r.reviewerName}</div>
+              <div style={{ fontSize: 10, color: "#475569", marginTop: 1 }}>{r.relationship?.replace("_", " ")} · {r.dateLabel}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.7, fontStyle: "italic" }}>"{r.comment}"</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -2727,6 +2982,11 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
             </>
           )}
         </div>
+
+        {/* Community Recommendations */}
+        {provider.providerId && (
+          <CommunitySection providerId={provider.providerId} />
+        )}
       </div>
 
       {/* Sticky action bar */}
@@ -2768,6 +3028,671 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
   );
 }
 
+// ─── HOME HEALTH SCORE COMPONENT ────────────────────────────────────────────
+function HomeHealthScore({ customerId, onBookService }) {
+  const [log, setLog]   = useState([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => { getHomeLog(customerId).then(setLog); }, [customerId]);
+
+  const { score, status, due } = getHomeHealthScore(log);
+  const color = status === "good" ? "#10B981" : status === "fair" ? "#F59E0B" : "#EF4444";
+  const label = status === "good" ? "All up to date" : status === "fair" ? "A few things due" : "Needs attention";
+
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${color}25`, borderRadius: 14, marginBottom: 12, overflow: "hidden" }}>
+      <div onClick={() => setOpen(v => !v)} style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+        {/* Score ring */}
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,0.06) 0deg)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#060A14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color }}>{score}%</span>
+          </div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>Home Health Score</div>
+          <div style={{ fontSize: 12, color, marginTop: 2, fontWeight: 600 }}>{label}</div>
+          {due.length > 0 && <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{due.length} service{due.length !== 1 ? "s" : ""} overdue</div>}
+        </div>
+        <span style={{ color: "#334155", fontSize: 14 }}>{open ? "▲" : "▼"}</span>
+      </div>
+
+      {open && (
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "12px 16px 16px" }}>
+          {log.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#475569", textAlign: "center", padding: "8px 0" }}>
+              Your home service history will appear here as jobs are completed through FixIt Now.
+            </div>
+          ) : (
+            <>
+              {/* Service log */}
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Service history</div>
+              {log.slice(0, 6).map(entry => (
+                <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <ServiceIcon serviceId={entry.serviceType} size={13} color="#475569" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: "#E2E8F0" }}>{entry.serviceName} by {entry.providerName}</div>
+                    <div style={{ fontSize: 10, color: "#334155", marginTop: 1 }}>{entry.dateLabel}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "#10B981", fontWeight: 600 }}>✓ Done</div>
+                </div>
+              ))}
+
+              {/* Due services */}
+              {due.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Due for attention</div>
+                  {due.map(d => (
+                    <div key={d.serviceType} style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 10, padding: "10px 12px", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                      <ServiceIcon serviceId={d.serviceType} size={14} color="#F59E0B" />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: "#E2E8F0", fontWeight: 600 }}>{d.label}</div>
+                        <div style={{ fontSize: 10, color: "#64748B", marginTop: 1 }}>
+                          {d.monthsOverdue > 0 ? `${d.monthsOverdue} month${d.monthsOverdue !== 1 ? "s" : ""} overdue` : "Due now"}
+                          {d.lastProvider && ` · Last done by ${d.lastProvider}`}
+                        </div>
+                      </div>
+                      <button onClick={() => onBookService && onBookService(d.serviceType)}
+                        style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 600, color: "#F59E0B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
+                        Book
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SERVICE RECORD DOWNLOAD ─────────────────────────────────────────────────
+function ServiceRecordExport({ customerId, userName }) {
+  const [exporting, setExporting] = useState(false);
+
+  const exportRecord = async () => {
+    setExporting(true);
+    try {
+      const log = await getHomeLog(customerId);
+      const jobsRaw = await store.get("jobs");
+      const jobs = jobsRaw ? JSON.parse(jobsRaw.value) : [];
+      const myJobs = jobs.filter(j => j.customerId === customerId && j.status === "completed");
+
+      const lines = [
+        `HOME SERVICE RECORD`,
+        `Property Owner: ${userName}`,
+        `Generated: ${new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })}`,
+        `Platform: FixIt Now (fixit-now-five.vercel.app)`,
+        `${"─".repeat(50)}`,
+        ``,
+        `COMPLETED JOBS (${myJobs.length} total)`,
+        `${"─".repeat(50)}`,
+        ...myJobs.map(j =>
+          `${j.dateLabel}  |  ${j.serviceName}  |  ${j.providerName}\n  Job: ${j.description}\n  Address: ${j.address}\n`
+        ),
+        `${"─".repeat(50)}`,
+        `This record was generated from jobs completed through FixIt Now.`,
+        `FixIt Now connects KZN homeowners with verified service professionals.`,
+      ];
+
+      const text = lines.join("\n");
+      const blob = new Blob([text], { type: "text/plain" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = `FixItNow_ServiceRecord_${userName.replace(/\s/g,"_")}.txt`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch {}
+    setExporting(false);
+  };
+
+  return (
+    <button onClick={exportRecord} disabled={exporting}
+      style={{ width: "100%", background: "rgba(99,102,241,0.1)", border: "1.5px solid rgba(99,102,241,0.25)", borderRadius: 11, padding: "11px 14px", fontSize: 12, fontWeight: 600, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+      <Icon name="jobs" size={14} color="#A5B4FC" strokeWidth={1.8} />
+      {exporting ? "Generating…" : "Download home service record"}
+    </button>
+  );
+}
+
+// ─── EMERGENCY SOS ────────────────────────────────────────────────────────────
+function EmergencySOS({ user, onClose }) {
+  const [step, setStep]           = useState("confirm"); // confirm | service | sending | sent
+  const [serviceId, setServiceId] = useState(null);
+  const [description, setDescription] = useState("");
+  const [sending, setSending]     = useState(false);
+
+  const emergencyServices = SERVICES.filter(s => s.emergency);
+  const svc = SERVICES.find(s => s.id === serviceId);
+
+  const sendSOS = async () => {
+    if (!serviceId) return;
+    setSending(true);
+    // Load approved emergency providers for this service
+    const raw = await store.get("providers");
+    const providers = raw ? JSON.parse(raw.value) : [];
+    const urgent = providers
+      .filter(p => p.status === "approved" && p.emergency && p.services?.includes(serviceId))
+      .sort((a, b) => (getResponseSpeed(b.jobs || []) || 999) - (getResponseSpeed(a.jobs || []) || 999))
+      .slice(0, 3);
+
+    for (const p of urgent) {
+      await pushNotif(p.id, {
+        title: "🚨 Emergency SOS request!",
+        body:  `${user.name} in ${user.suburb || "your area"} urgently needs ${svc?.label}: "${description || "Emergency help needed"}". Respond immediately.`,
+        type:  "booking",
+      });
+    }
+    await pushNotif(user.email, {
+      title: "SOS sent to top 3 emergency providers",
+      body:  `We've alerted the nearest available ${svc?.label?.toLowerCase()} providers. You'll hear back within minutes.`,
+      type:  "accepted",
+    });
+    setSending(false);
+    setStep("sent");
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px", border: "2px solid rgba(239,68,68,0.3)" }}>
+
+        {step === "confirm" && (
+          <>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 48, marginBottom: 8 }}>🚨</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#FCA5A5" }}>Emergency SOS</div>
+              <div style={{ fontSize: 13, color: "#64748B", marginTop: 8, lineHeight: 1.6 }}>
+                This will immediately alert the top 3 available emergency providers near you. Use only for genuine emergencies.
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+              <Btn onClick={() => setStep("service")} style={{ flex: 2, background: "linear-gradient(135deg,#EF4444,#DC2626)", border: "none" }}>I need emergency help</Btn>
+            </div>
+          </>
+        )}
+
+        {step === "service" && (
+          <>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>What do you need?</div>
+            <div style={{ fontSize: 12, color: "#475569", marginBottom: 16 }}>Select the emergency service you need right now.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {emergencyServices.map(s => (
+                <div key={s.id} onClick={() => setServiceId(s.id)}
+                  style={{ background: serviceId === s.id ? `${s.color}20` : "rgba(255,255,255,0.04)", border: `2px solid ${serviceId === s.id ? s.color : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}>
+                  <ServiceIcon serviceId={s.id} size={22} color={serviceId === s.id ? s.color : "#475569"} />
+                  <div style={{ fontSize: 12, fontWeight: 600, color: serviceId === s.id ? "#F1F5F9" : "#64748B", marginTop: 6 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Briefly describe the emergency (e.g. burst pipe flooding kitchen)…" rows={2}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <Btn variant="ghost" onClick={() => setStep("confirm")} style={{ flex: 1 }}>← Back</Btn>
+              <Btn onClick={sendSOS} disabled={!serviceId || sending} style={{ flex: 2, background: "linear-gradient(135deg,#EF4444,#DC2626)", border: "none" }}>
+                {sending ? "Alerting providers…" : "🚨 Send SOS"}
+              </Btn>
+            </div>
+          </>
+        )}
+
+        {step === "sent" && (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#34D399", marginBottom: 8 }}>SOS sent!</div>
+            <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7, marginBottom: 24 }}>
+              We've alerted the top 3 emergency {svc?.label?.toLowerCase()} providers near you. Check your notifications — you should hear back within minutes.
+            </div>
+            <Btn full onClick={onClose}>Got it</Btn>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── TRUSTED PROVIDERS (MY TEAM) ────────────────────────────────────────────
+function MyTeam({ customerId, onBookProvider }) {
+  const [team, setTeam]   = useState([]);
+  const [open, setOpen]   = useState(false);
+
+  useEffect(() => { getTrustedProviders(customerId).then(setTeam); }, [customerId]);
+  if (!team.length) return null;
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div onClick={() => setOpen(v => !v)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", marginBottom: open ? 10 : 0 }}>
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>
+          My Team <span style={{ fontSize: 12, color: "#475569", fontWeight: 400 }}>({team.length} saved)</span>
+        </div>
+        <span style={{ color: "#334155", fontSize: 13 }}>{open ? "▲" : "▼"}</span>
+      </div>
+      {open && (
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+          {team.map(p => {
+            const svc = SERVICES.find(s => s.id === p.serviceType);
+            return (
+              <div key={p.providerId} style={{ flexShrink: 0, width: 120, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 12, textAlign: "center" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${svc?.color || "#0EA5E9"}18`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", overflow: "hidden" }}>
+                  {p.logoUrl
+                    ? <img src={p.logoUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: svc?.color || "#0EA5E9" }}>{p.name?.split(" ").map(w=>w[0]).join("").slice(0,2)}</span>
+                  }
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#E2E8F0", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                <div style={{ fontSize: 10, color: "#475569", marginBottom: 8 }}>{svc?.label}</div>
+                <button onClick={() => onBookProvider && onBookProvider(p)}
+                  style={{ width: "100%", background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 7, padding: "5px 0", fontSize: 10, fontWeight: 600, color: "#38BDF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  Book
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── COMMUNITY REVIEW FORM ───────────────────────────────────────────────────
+function CommunityReviewForm({ provider, onClose, onSubmitted }) {
+  const [form, setForm] = useState({ reviewerName: "", reviewerEmail: "", relationship: "customer", comment: "" });
+  const [saving, setSaving]   = useState(false);
+  const [done, setDone]       = useState(false);
+  const set = (k, v) => setForm(f => ({...f,[k]:v}));
+
+  const submit = async () => {
+    if (!form.reviewerName.trim() || !form.comment.trim() || !form.reviewerEmail.trim()) return;
+    setSaving(true);
+    await saveCommunityReview({ providerId: provider.providerId, providerName: provider.name, ...form });
+    setSaving(false); setDone(true);
+    setTimeout(() => { onSubmitted && onSubmitted(); onClose(); }, 1500);
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 150, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        {done ? (
+          <div style={{ textAlign: "center", padding: "12px 0" }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🙏</div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#34D399" }}>Thank you!</div>
+            <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>Your recommendation is under review and will appear on their profile shortly.</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 4 }}>Recommend {provider.name}</div>
+            <div style={{ fontSize: 12, color: "#475569", marginBottom: 16, lineHeight: 1.6 }}>
+              Know this provider personally? Leave a community recommendation — it helps new customers trust them.
+            </div>
+            <Input label="Your name" value={form.reviewerName} onChange={v => set("reviewerName", v)} placeholder="Your full name" />
+            <Input label="Your email" value={form.reviewerEmail} onChange={v => set("reviewerEmail", v)} placeholder="for verification" type="email" />
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Your relationship</label>
+              <select value={form.relationship} onChange={e => set("relationship", e.target.value)}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", cursor: "pointer" }}>
+                <option value="customer">Long-time customer</option>
+                <option value="neighbour">Neighbour who's seen their work</option>
+                <option value="colleague">Industry colleague</option>
+                <option value="family">Family / personal friend</option>
+              </select>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Your recommendation</label>
+              <textarea value={form.comment} onChange={e => set("comment", e.target.value)}
+                placeholder="Tell others why you trust this provider and what they're best at…" rows={3}
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+            </div>
+            <Btn full onClick={submit} disabled={saving || !form.reviewerName.trim() || !form.comment.trim()}>
+              {saving ? "Submitting…" : "Submit recommendation"}
+            </Btn>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── GET IT DONE BOARD ────────────────────────────────────────────────────────
+function JobBoardPost({ user, onClose, onPosted }) {
+  const [serviceId, setServiceId] = useState(null);
+  const [description, setDescription] = useState("");
+  const [budget, setBudget]       = useState("");
+  const [location, setLocation]   = useState(user.suburb ? `${user.suburb}, ${user.city}` : "");
+  const [posting, setPosting]     = useState(false);
+  const svc = SERVICES.find(s => s.id === serviceId);
+
+  const post = async () => {
+    if (!serviceId || !description.trim()) return;
+    setPosting(true);
+    await postJobBoard({
+      customerId:    user.email,
+      customerName:  user.name,
+      serviceType:   serviceId,
+      serviceName:   svc?.label,
+      description,
+      budget:        budget ? parseFloat(budget) : null,
+      location,
+    });
+    // Notify providers who offer this service
+    const raw = await store.get("providers");
+    const providers = raw ? JSON.parse(raw.value) : [];
+    const eligible = providers.filter(p => p.status === "approved" && p.services?.includes(serviceId)).slice(0, 10);
+    for (const p of eligible) {
+      await pushNotif(p.id, {
+        title: "New job posted on the board",
+        body:  `${user.name} needs a ${svc?.label} in ${location}. Post your best quote.`,
+        type:  "booking",
+      });
+    }
+    setPosting(false);
+    onPosted && onPosted();
+    onClose();
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Post to the Job Board</div>
+        <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#34D399", lineHeight: 1.6 }}>
+          💡 Providers compete to offer you their best price — you typically save 10–25% compared to booking directly.
+        </div>
+
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>What do you need?</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+          {SERVICES.map(s => (
+            <div key={s.id} onClick={() => setServiceId(s.id)}
+              style={{ background: serviceId === s.id ? `${s.color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${serviceId === s.id ? s.color+"55" : "rgba(255,255,255,0.08)"}`, borderRadius: 11, padding: "10px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}>
+              <ServiceIcon serviceId={s.id} size={18} color={serviceId === s.id ? s.color : "#475569"} />
+              <div style={{ fontSize: 10, fontWeight: 600, color: serviceId === s.id ? "#F1F5F9" : "#64748B", marginTop: 5 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Describe the job</label>
+          <textarea value={description} onChange={e => setDescription(e.target.value)}
+            placeholder="e.g. Need a plumber to fix a leaking pipe under the kitchen sink…" rows={3}
+            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Your budget (optional)</label>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#475569", fontWeight: 600 }}>R</span>
+              <input type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="Max budget"
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 11px 10px 24px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+            </div>
+          </div>
+          <Input label="Location" value={location} onChange={setLocation} placeholder="Suburb, City" />
+        </div>
+
+        <Btn full onClick={post} disabled={posting || !serviceId || !description.trim()}>
+          {posting ? "Posting…" : "Post to Job Board →"}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+// ─── JOB BOARD BROWSE (Provider) ────────────────────────────────────────────
+function JobBoardBrowse({ provider, onClose }) {
+  const [jobs, setJobs]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [quoteJob, setQuoteJob] = useState(null);
+  const [quoteAmount, setQuoteAmount] = useState("");
+  const [quoteNote, setQuoteNote]     = useState("");
+  const [sending, setSending]         = useState(false);
+
+  useEffect(() => {
+    getJobBoard().then(all => {
+      // Filter to services the provider offers
+      const mine = all.filter(j => provider.services?.includes(j.serviceType));
+      setJobs(mine);
+      setLoading(false);
+    });
+  }, []);
+
+  const submitQuote = async () => {
+    if (!quoteAmount) return;
+    setSending(true);
+    await submitJobBoardQuote(quoteJob.id, provider.id, provider.bizName, parseFloat(quoteAmount), quoteNote);
+    await pushNotif(quoteJob.customerId, {
+      title: `Quote received from ${provider.bizName}`,
+      body:  `R${quoteAmount}${quoteNote ? ` — "${quoteNote}"` : ""} for your ${quoteJob.serviceName} job.`,
+      type:  "accepted",
+    });
+    setSending(false);
+    setQuoteJob(null); setQuoteAmount(""); setQuoteNote("");
+    getJobBoard().then(all => setJobs(all.filter(j => provider.services?.includes(j.serviceType))));
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "85vh", overflowY: "auto", padding: "24px 20px 44px" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Job Board</div>
+        <div style={{ fontSize: 12, color: "#475569", marginBottom: 16, lineHeight: 1.6 }}>Customers looking for your services. Submit a competitive quote to win the job.</div>
+
+        {loading ? <div style={{ textAlign: "center", padding: "32px 0", color: "#475569" }}>Loading…</div> :
+         jobs.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "32px 0" }}>
+            <div style={{ marginBottom: 8 }}><Icon name="jobs" size={32} color="#334155" strokeWidth={1.4} /></div>
+            <div style={{ fontSize: 13, color: "#475569" }}>No open jobs right now</div>
+            <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Check back later — new jobs are posted daily.</div>
+          </div>
+         ) : jobs.map(job => (
+          <div key={job.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, padding: 14, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F1F5F9" }}>{job.serviceName}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 3, lineHeight: 1.5 }}>{job.description}</div>
+                <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
+                  <Icon name="pin" size={10} color="#475569" strokeWidth={1.8} /> {job.location}
+                  {job.budget && <span style={{ color: "#F59E0B", marginLeft: 8, fontWeight: 600 }}>Budget: R{job.budget.toLocaleString()}</span>}
+                </div>
+              </div>
+              <div style={{ fontSize: 10, color: "#334155", flexShrink: 0, textAlign: "right", marginLeft: 8 }}>
+                {job.dateLabel}<br />{job.quotes?.length || 0} quote{job.quotes?.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+            {quoteJob?.id === job.id ? (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8, marginBottom: 8 }}>
+                  <div style={{ position: "relative" }}>
+                    <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#475569", fontWeight: 600 }}>R</span>
+                    <input type="number" value={quoteAmount} onChange={e => setQuoteAmount(e.target.value)} placeholder="Your price"
+                      style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(14,165,233,0.4)", borderRadius: 9, padding: "10px 10px 10px 24px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  </div>
+                  <input value={quoteNote} onChange={e => setQuoteNote(e.target.value)} placeholder="Brief note (optional)"
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small variant="ghost" onClick={() => setQuoteJob(null)} style={{ flex: 1 }}>Cancel</Btn>
+                  <Btn small variant="green" onClick={submitQuote} disabled={!quoteAmount || sending} style={{ flex: 2 }}>{sending ? "Sending…" : "Submit quote"}</Btn>
+                </div>
+              </div>
+            ) : (
+              <Btn small full onClick={() => { setQuoteJob(job); setQuoteAmount(""); setQuoteNote(""); }}>
+                Submit quote →
+              </Btn>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── MILESTONE TRACKER (Provider) ────────────────────────────────────────────
+function MilestoneTracker({ completedCount }) {
+  const { achieved, next } = getProviderMilestone(completedCount);
+  if (!next && achieved.length === 0) return null;
+
+  const progress = next ? Math.round((completedCount / next.jobs) * 100) : 100;
+
+  return (
+    <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 12 }}>Your progress</div>
+
+      {next && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <div style={{ fontSize: 12, color: "#94A3B8" }}>Next: <span style={{ color: "#F1F5F9", fontWeight: 600 }}>{next.label}</span></div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#6366F1" }}>{completedCount}/{next.jobs}</div>
+          </div>
+          <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg,#6366F1,#8B5CF6)", borderRadius: 3, transition: "width 0.4s ease" }} />
+          </div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 5 }}>🎁 Unlock: {next.reward}</div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {MILESTONES.map(m => {
+          const done = completedCount >= m.jobs;
+          return (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 5, background: done ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${done ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 20, padding: "4px 10px" }}>
+              <Icon name={m.icon} size={10} color={done ? "#10B981" : "#334155"} strokeWidth={2} />
+              <span style={{ fontSize: 10, fontWeight: 600, color: done ? "#34D399" : "#334155" }}>{m.jobs} jobs</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── PROVIDER TRAINING CONTENT ───────────────────────────────────────────────
+const TRAINING_MODULES = [
+  {
+    id: "profile",
+    title: "Building a profile that wins jobs",
+    icon: "profile",
+    color: "#0EA5E9",
+    readTime: "3 min",
+    content: [
+      { heading: "Your tagline is your pitch", body: "You have one sentence to tell a customer why you're the right choice. Don't say what you do — say how long you've been doing it, what you specialise in, or what sets you apart. Bad: 'Plumber in Durban.' Good: 'Fixing KZN leaks for 14 years — same-day response, guaranteed work.'" },
+      { heading: "Your about section should answer one question", body: "Customers are thinking: can I trust this person in my home? Answer that directly. Mention your years of experience, your most common job types, the areas you know best, and whether you're licensed or insured. The more specific you are, the more trustworthy you seem." },
+      { heading: "A logo makes you look like a business", body: "Upload your logo to imgur.com (free, takes 30 seconds) and paste the link in your profile. Providers with logos get significantly more profile views. If you don't have a logo, use a clear professional photo of you on a job site — anything that shows you're real." },
+      { heading: "Your certifications are your proof", body: "List every qualification, licence, and registration you hold. ECSA, COC certified, licensed electrician, CIPC registered — don't assume customers know what these mean. Write them out in full. They're the difference between 'seems legit' and 'clearly professional.'" },
+    ],
+  },
+  {
+    id: "response",
+    title: "How to respond faster and win more jobs",
+    icon: "lightning",
+    color: "#F59E0B",
+    readTime: "2 min",
+    content: [
+      { heading: "Speed is your biggest ranking factor", body: "25% of your search ranking comes from response speed. A provider who accepts within 30 minutes ranks significantly higher than one who takes 6 hours. Even sending a message before accepting — 'I've received your request, will confirm shortly' — dramatically improves customer confidence." },
+      { heading: "Turn on notifications", body: "Enable notifications for FixIt Now on your phone. When a job request arrives, you want to know immediately — not an hour later when the customer has already booked someone else. The providers who respond fastest consistently get the most work." },
+      { heading: "What to say when accepting", body: "Don't just tap 'Accept' and go silent. Send a quick message: 'Hi [name], confirmed for [date] at [time]. I'll be there promptly. Please have [anything you need] ready.' This one message sets expectations, builds trust, and dramatically reduces no-show anxiety." },
+      { heading: "When you can't take a job, decline quickly", body: "A quick decline is better than silence. If you're unavailable, decline immediately and the customer can book someone else. Providers who leave requests pending for hours damage their ranking and frustrate customers who are waiting." },
+    ],
+  },
+  {
+    id: "reviews",
+    title: "Getting more 5-star reviews",
+    icon: "star",
+    color: "#10B981",
+    readTime: "3 min",
+    content: [
+      { heading: "The review is won before the job starts", body: "Show up on time. Text 20 minutes before you arrive. Call if you're running late. These three things alone put you ahead of most tradespeople in South Africa. Customers review how they felt, not just the quality of work." },
+      { heading: "Ask for the review at the right moment", body: "The best time to ask is right after the customer has seen the finished work and is clearly happy. Don't wait until you've left — say it in person: 'If you're happy with the work, a review on FixIt Now would mean a lot to me.' Most satisfied customers will do it immediately." },
+      { heading: "What to do if something goes wrong", body: "Don't get defensive. Acknowledge the problem, fix it, and follow up. A customer who had a problem resolved professionally often leaves a better review than one whose job went perfectly. How you handle complaints defines your reputation." },
+      { heading: "The loyalty discount creates repeat business", body: "When you mark a job complete, offer a loyalty discount for the customer's next booking. Even 10% gives them a reason to come back to you specifically. Repeat customers leave more reviews, refer more friends, and are easier to work with because they already know and trust you." },
+    ],
+  },
+  {
+    id: "pricing",
+    title: "Pricing your services to win and earn more",
+    icon: "chart",
+    color: "#8B5CF6",
+    readTime: "2 min",
+    content: [
+      { heading: "Show a call-out fee, not a full price", body: "Set your 'From R...' price at your call-out fee, not your total job cost. This gets you clicks. Customers understand that complex jobs cost more — they just want to know you're not going to charge R3,000 to show up. A visible call-out fee removes the biggest anxiety." },
+      { heading: "Charge for emergency work appropriately", body: "If you offer 24-hour emergency service, you should charge more for it. Don't be embarrassed about this — customers calling at 11pm with a burst pipe are expecting to pay a premium. Set your emergency rate clearly in your description." },
+      { heading: "The weekly deal is a slow-week tool", body: "When you have a quiet week and open slots, post a deal: '20% off gate motor repairs this week, 2 slots available.' This isn't desperation — it's smart business. Airlines and hotels do this constantly. You're filling capacity that would otherwise sit empty." },
+      { heading: "Your plan tier is a marketing investment", body: "Featured and Premium providers appear higher in search results. If you're getting consistent 5-star reviews and fast response times, upgrading your plan multiplies the returns on work you're already doing well. Think of it as advertising to the right audience at exactly the right moment." },
+    ],
+  },
+  {
+    id: "safety",
+    title: "Working safely and protecting yourself",
+    icon: "check",
+    color: "#EF4444",
+    readTime: "2 min",
+    content: [
+      { heading: "Always communicate through FixIt Now first", body: "Before swapping personal numbers, use in-app chat for all job details. This creates a paper trail that protects you if there's a dispute about what was agreed. Once trust is established, WhatsApp is fine — but keep the initial agreement in writing on the platform." },
+      { heading: "Take before-and-after photos on every job", body: "Before you start work, photograph the problem. After you finish, photograph the solution. This protects you from false claims and doubles as portfolio content. Providers with job photos on their profiles get significantly more trust from new customers." },
+      { heading: "Get the job description confirmed before starting", body: "If a customer's description in the app says 'fix the gate motor' but when you arrive they want you to rewire the whole property — stop. Message through the app: 'The scope has changed significantly. I can do this for R[X]. Do you confirm?' This prevents payment disputes." },
+      { heading: "Your public liability insurance matters", body: "If you accidentally damage property while working — a flooded bathroom, a cracked tile, a burnt appliance — you're liable. Public liability insurance typically costs R1,500–R3,000/year and covers you for R1–2 million in claims. It also shows on your FixIt Now profile as a trust signal. Get it if you don't have it." },
+    ],
+  },
+];
+
+function TrainingContent({ onClose }) {
+  const [selected, setSelected] = useState(null);
+  const module = TRAINING_MODULES.find(m => m.id === selected);
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 150, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+
+        {!module ? (
+          <>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#F1F5F9", marginBottom: 4 }}>Provider Academy</div>
+            <div style={{ fontSize: 12, color: "#475569", marginBottom: 20, lineHeight: 1.6 }}>Guides to help you get more jobs, better reviews, and grow your business on FixIt Now.</div>
+            {TRAINING_MODULES.map(m => (
+              <div key={m.id} onClick={() => setSelected(m.id)}
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, padding: 16, marginBottom: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
+                onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}>
+                <div style={{ width: 40, height: 40, borderRadius: 11, background: `${m.color}18`, border: `1.5px solid ${m.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name={m.icon} size={18} color={m.color} strokeWidth={1.8} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>{m.title}</div>
+                  <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{m.readTime} read · {m.content.length} tips</div>
+                </div>
+                <Icon name="send" size={14} color="#334155" strokeWidth={1.8} />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <button onClick={() => setSelected(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 16, padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              ← All guides
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: `${module.color}18`, border: `1.5px solid ${module.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name={module.icon} size={18} color={module.color} strokeWidth={1.8} />
+              </div>
+              <div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>{module.title}</div>
+                <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{module.readTime} read</div>
+              </div>
+            </div>
+            {module.content.map((section, i) => (
+              <div key={i} style={{ marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: module.color, marginBottom: 6 }}>{section.heading}</div>
+                <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.8 }}>{section.body}</div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── BOOKING MODAL ───────────────────────────────────────────────────────────────
 function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
   const svc = SERVICES.find(s => s.id === serviceType) || SERVICES[0];
@@ -2797,14 +3722,20 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
         if (match) setActiveDiscount(match);
       });
     }
+    // Load platform credit for Option B fee reduction
+    getCredits(user.email).then(credits => {
+      const available = getTotalCredit(credits);
+      if (available > 0) setPlatformCredit(available);
+    });
   }, []);
 
-  const baseValue  = form.estimatedValue ? parseFloat(form.estimatedValue) : 0;
-  const discounted = activeDiscount && baseValue > 0
-    ? baseValue * (1 - activeDiscount.discountPct / 100)
-    : baseValue;
-  const fee        = discounted > 0 ? Math.round(discounted * PLATFORM_FEE_PCT) : 0;
-  const saving     = activeDiscount && baseValue > 0 ? baseValue - discounted : 0;
+  const [platformCredit, setPlatformCredit] = useState(0);
+  const baseValue    = form.estimatedValue ? parseFloat(form.estimatedValue) : 0;
+  const discounted   = activeDiscount && baseValue > 0 ? baseValue * (1 - activeDiscount.discountPct / 100) : baseValue;
+  const rawFee       = discounted > 0 ? Math.round(discounted * PLATFORM_FEE_PCT) : 0;
+  const creditApplied = Math.min(platformCredit, rawFee); // Option B: credit reduces fee
+  const fee          = Math.max(0, rawFee - creditApplied);
+  const saving       = activeDiscount && baseValue > 0 ? baseValue - discounted : 0;
   const canSubmit  = form.description.trim().length > 5 && form.address.trim().length > 5;
 
   // Quick problem description starters per service
@@ -2874,7 +3805,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
     if (onBooked) onBooked(job);
   };
 
-  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 13px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" };
+  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" };
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
@@ -2900,7 +3831,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {quickDesc.map(q => (
                     <button key={q} onClick={() => set("description", q)}
-                      style={{ fontSize: 11, fontWeight: 600, borderRadius: 20, padding: "5px 11px", cursor: "pointer", transition: "all 0.15s", background: form.description === q ? `${svc.color}20` : "rgba(255,255,255,0.05)", border: `1.5px solid ${form.description === q ? svc.color+"55" : "rgba(255,255,255,0.08)"}`, color: form.description === q ? svc.color : "#64748B", fontFamily: "'DM Sans',sans-serif" }}>
+                      style={{ fontSize: 12, fontWeight: 600, borderRadius: 20, padding: "6px 12px", cursor: "pointer", transition: "all 0.15s", background: form.description === q ? `${svc.color}20` : "rgba(255,255,255,0.05)", border: `1.5px solid ${form.description === q ? svc.color+"55" : "rgba(255,255,255,0.08)"}`, color: form.description === q ? svc.color : "#64748B", fontFamily: "'DM Sans',sans-serif" }}>
                       {q}
                     </button>
                   ))}
@@ -3041,10 +3972,12 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
                   ["Original",  `R${baseValue.toLocaleString()}`],
                   ["Discount",  `${activeDiscount.discountPct}% off = R${saving.toLocaleString("en-ZA",{maximumFractionDigits:0})} saving`],
                   ["You pay",   `R${discounted.toLocaleString("en-ZA",{maximumFractionDigits:0})}`],
-                  ["Platform fee", `R${fee} (8%)`],
+                  ...(creditApplied > 0 ? [["Credit applied", `−R${creditApplied} from your wallet`]] : []),
+                  ["Platform fee", `R${fee}${creditApplied > 0 ? ` (after R${creditApplied} credit)` : " (8%)"}`],
                 ] : baseValue > 0 ? [
                   ["Est. value", `R${baseValue.toLocaleString()}`],
-                  ["Platform fee", `R${fee} (8%)`],
+                  ...(creditApplied > 0 ? [["Credit applied", `−R${creditApplied} from your wallet`]] : []),
+                  ["Platform fee", `R${fee}${creditApplied > 0 ? ` (after R${creditApplied} credit)` : " (8%)"}`],
                 ] : []),
                 ...(form.isEmergency ? [["Priority", "Emergency"]] : []),
               ].map(([k, v]) => (
@@ -3083,37 +4016,28 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
 
 // ─── PROVIDER CARD ───────────────────────────────────────────────────────────────
 function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
-  const [open, setOpen]             = useState(false);
-  const [tracked, setTracked]       = useState(false);
-  const [showBooking, setShowBooking]   = useState(false);
-  const [showReview, setShowReview]     = useState(false);
-  const [showProfile, setShowProfile]   = useState(false);
-  const [cardReviews, setCardReviews]   = useState([]);
+  const [open, setOpen]               = useState(false);
+  const [tracked, setTracked]         = useState(false);
+  const [showBooking, setShowBooking] = useState(false);
+  const [showReview, setShowReview]   = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showCommunityReview, setShowCommunityReview] = useState(false);
+  const [cardReviews, setCardReviews] = useState([]);
   const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const svc = SERVICES.find(s => s.id === provider.serviceType) || SERVICES[0];
 
-  // Fire a view event the first time the card is expanded
   const handleExpand = async () => {
     const next = !open;
     setOpen(next);
     if (next && !tracked) {
       setTracked(true);
-      await trackEvent({
-        providerId:  provider.providerId || null,
-        providerName: provider.name,
-        type:        "view",
-        serviceType: provider.serviceType,
-        searchArea,
-        searchQuery,
-        plan:        provider.plan,
-      });
+      await trackEvent({ providerId: provider.providerId || null, providerName: provider.name, type: "view", serviceType: provider.serviceType, searchArea, searchQuery, plan: provider.plan });
     }
-    // Load reviews for this provider when card opens
     if (next && !reviewsLoaded && provider.providerId) {
       try {
         const raw = await store.get("reviews");
         const all = raw ? JSON.parse(raw.value) : [];
-        setCardReviews(all.filter(r => r.providerId === provider.providerId).slice(0, 3));
+        setCardReviews(all.filter(r => r.providerId === provider.providerId).slice(0, 2));
       } catch {}
       setReviewsLoaded(true);
     }
@@ -3121,195 +4045,256 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
   const call = async () => {
     if (!provider.phone) return;
-    await trackEvent({
-      providerId:   provider.providerId || null,
-      providerName: provider.name,
-      type:         "call",
-      serviceType:  provider.serviceType,
-      searchArea,
-      searchQuery,
-      plan:         provider.plan,
-    });
-    window.open(`tel:${provider.phone.replace(/\s/g,"")}`);
+    await trackEvent({ providerId: provider.providerId || null, providerName: provider.name, type: "call", serviceType: provider.serviceType, searchArea, searchQuery, plan: provider.plan });
+    window.open(`tel:${provider.phone.replace(/\s/g, "")}`);
   };
-
   const whatsapp = async () => {
-    await trackEvent({
-      providerId:   provider.providerId || null,
-      providerName: provider.name,
-      type:         "whatsapp",
-      serviceType:  provider.serviceType,
-      searchArea,
-      searchQuery,
-      plan:         provider.plan,
-    });
-    const n = provider.phone?.replace(/[\s-()+]/g,"");
-    window.open(`https://wa.me/${n}?text=Hi, I found you on FixIt Now and need ${svc.label} help. Are you available?`);
+    if (!provider.phone) return;
+    await trackEvent({ providerId: provider.providerId || null, providerName: provider.name, type: "whatsapp", serviceType: provider.serviceType, searchArea, searchQuery, plan: provider.plan });
+    window.open(`https://wa.me/${provider.phone.replace(/[\s\-()+]/g, "")}?text=Hi, I found you on FixIt Now and need ${svc.label} help. Are you available?`);
   };
+  const maps = () => window.open(`https://www.google.com/maps/search/${encodeURIComponent(provider.name + " " + provider.vicinity)}`);
 
-  const maps = () => window.open(`https://www.google.com/maps/search/${encodeURIComponent(provider.name+" "+provider.vicinity)}`);
+  // Derived trust signals — only show what's meaningful
+  const rating       = provider.liveRating || provider.rating || 0;
+  const reviewCount  = provider.liveReviewCount || provider.reviewCount || 0;
+  const avgMins      = provider.avgResponseMins ?? null;
+  const speedTier    = getSpeedTier(avgMins);
+  const isVerified   = provider.verification?.status === "verified";
+  const isInsured    = provider.insuranceConfirmed;
+  const yearsExp     = provider.yearsInBusiness ? parseInt(provider.yearsInBusiness) : null;
+  const fromPrice    = provider.priceRangeMin ? parseInt(provider.priceRangeMin) : null;
+  const certLine     = provider.certifications?.trim();
+  const isAvail      = isAvailableToday(provider.avail);
+  const slotsLeft    = provider.avail?.slotsLeft;
+  const isNew        = provider.providerId && reviewCount < 10 && provider.joinDate && (Date.now() - new Date(provider.joinDate).getTime()) < 90 * 86400000;
 
-  // Build list of services with their areas for display
-  const serviceAreaEntries = provider.serviceAreas
-    ? Object.entries(provider.serviceAreas).map(([id, areaData]) => {
-        const s = SERVICES.find(sv => sv.id === id);
-        if (!s) return null;
-        return { svc: s, allKZN: areaData.allKZN, areas: areaData.areas || [] };
-      }).filter(Boolean)
-    : [];
+  // Logo or initials
+  const logoEl = provider.logoUrl ? (
+    <img src={provider.logoUrl} alt={provider.name}
+      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
+      onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
+  ) : null;
 
   return (
-    <div onClick={handleExpand}
-      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "18px 20px", cursor: "pointer", marginBottom: 10, position: "relative", overflow: "hidden", transition: "background 0.2s" }}
-      onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.07)"}
-      onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.04)"}
-    >
-      {provider.openNow && <div style={{ position: "absolute", top: 0, right: 0, background: "linear-gradient(135deg,#10B981,#059669)", fontSize: 9, fontWeight: 700, color: "white", padding: "4px 10px", borderRadius: "0 16px 0 10px", letterSpacing: "0.1em" }}>OPEN NOW</div>}
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 11, background: `${svc.color}18`, border: `1.5px solid ${svc.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><ServiceIcon serviceId={svc.id} size={22} color={svc.color} /></div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-            <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{provider.name}</span>
-            {provider.emergency && <Badge color="#EF4444">24hr</Badge>}
-            {provider.plan === "premium"  && <Badge color="#F59E0B">Premium</Badge>}
-            {provider.plan === "featured" && <Badge color="#0EA5E9">Featured</Badge>}
-            {provider.verification?.status === "verified" && <VerificationBadge verification={provider.verification} compact />}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-            <StarRating rating={provider.liveRating || provider.rating} />
-            <span style={{ color: "#94A3B8", fontSize: 11 }}>
-              {(provider.liveRating || provider.rating)?.toFixed(1)} ({provider.liveReviewCount || provider.reviewCount} review{(provider.liveReviewCount || provider.reviewCount) !== 1 ? "s" : ""})
-              {provider.liveReviewCount > 0 && <span style={{ color: "#10B981" }}> ✓ verified</span>}
-            </span>
-            {/* Response speed badge */}
-            <SpeedBadge avgResponseMins={provider.avgResponseMins ?? null} />
-          </div>
-          <div style={{ color: "#475569", fontSize: 11, marginTop: 3 }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.6} /> {provider.vicinity}</div>
+    <div style={{ background: open ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${open ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.07)"}`, borderRadius: 16, marginBottom: 10, overflow: "hidden", transition: "all 0.2s" }}>
 
-          {/* Per-service area summary (registered providers only) */}
-          {serviceAreaEntries.length > 0 && (
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
-              {serviceAreaEntries.map(({ svc: sv, allKZN, areas }) => (
-                <div key={sv.id} style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 76 }}>
-                    <ServiceIcon serviceId={sv.id} size={11} color="#475569" />
-                    <span style={{ fontSize: 11, color: "#475569" }}>{sv.label}</span>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-                    {allKZN ? (
-                      <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "2px 8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399" }}>All KZN</span>
-                    ) : (
-                      areas.slice(0, 4).map(a => (
-                        <span key={a} style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: "2px 7px", background: `${sv.color}15`, border: `1px solid ${sv.color}35`, color: sv.color }}>{a}</span>
-                      ))
-                    )}
-                    {!allKZN && areas.length > 4 && (
-                      <span style={{ fontSize: 10, color: "#475569" }}>+{areas.length - 4}</span>
-                    )}
-                  </div>
+      {/* ── COLLAPSED CARD — the hook ── */}
+      <div onClick={handleExpand} style={{ padding: "16px 16px 14px", cursor: "pointer" }}>
+
+        {/* Top row: logo + name + CTA */}
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+
+          {/* Logo / initials */}
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: `${svc.color}18`, border: `1.5px solid ${svc.color}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden", position: "relative" }}>
+            {logoEl}
+            <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: svc.color, display: provider.logoUrl ? "none" : "flex" }}>
+              {provider.name?.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Name + verified */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+              <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{provider.name}</span>
+              {isVerified && (
+                <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 20, padding: "1px 7px" }}>
+                  <Icon name="check" size={9} color="#10B981" strokeWidth={2.5} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981" }}>VERIFIED</span>
                 </div>
-              ))}
+              )}
+              {provider.emergency && (
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 20, padding: "1px 7px" }}>24HR</div>
+              )}
+            </div>
+
+            {/* Tagline if set — replaces generic location */}
+            {provider.tagline ? (
+              <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 5, fontStyle: "italic" }}>"{provider.tagline}"</div>
+            ) : provider.description ? (
+              <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{provider.description}</div>
+            ) : null}
+
+            {/* Rating row */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              {rating > 0 ? (
+                <>
+                  <StarRating rating={rating} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#F59E0B" }}>{rating.toFixed(1)}</span>
+                  <span style={{ fontSize: 11, color: "#475569" }}>({reviewCount} review{reviewCount !== 1 ? "s" : ""})</span>
+                </>
+              ) : isNew ? (
+                <span style={{ fontSize: 11, color: "#34D399", fontWeight: 600 }}>New provider</span>
+              ) : (
+                <span style={{ fontSize: 11, color: "#475569" }}>No reviews yet</span>
+              )}
+            </div>
+          </div>
+
+          {/* Expand chevron */}
+          <div style={{ color: "#334155", fontSize: 14, paddingTop: 2, flexShrink: 0 }}>{open ? "▲" : "▼"}</div>
+        </div>
+
+        {/* ── TRUST SIGNALS ROW — the confidence builders ── */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+
+          {/* Years in business */}
+          {yearsExp && yearsExp > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: 20, padding: "4px 10px" }}>
+              <Icon name="check" size={10} color="#818CF8" strokeWidth={2.2} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#818CF8" }}>{yearsExp}yr{yearsExp !== 1 ? "s" : ""} experience</span>
+            </div>
+          )}
+
+          {/* Price signal */}
+          {fromPrice && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 20, padding: "4px 10px" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#34D399" }}>From R{fromPrice}</span>
+            </div>
+          )}
+
+          {/* Insurance */}
+          {isInsured && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: 20, padding: "4px 10px" }}>
+              <Icon name="check" size={10} color="#10B981" strokeWidth={2.2} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#10B981" }}>Insured</span>
+            </div>
+          )}
+
+          {/* Response speed — human phrase */}
+          {avgMins !== null && speedTier && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, background: `${speedTier.color}12`, border: `1px solid ${speedTier.color}28`, borderRadius: 20, padding: "4px 10px" }}>
+              <Icon name="lightning" size={10} color={speedTier.color} strokeWidth={2} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: speedTier.color }}>
+                {avgMins < 60 ? `Responds in ~${Math.round(avgMins)}min` : `Responds in ~${(avgMins/60).toFixed(1)}hr`}
+              </span>
+            </div>
+          )}
+
+          {/* Availability */}
+          {provider.avail && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5, background: isAvail ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${isAvail ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.22)"}`, borderRadius: 20, padding: "4px 10px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: isAvail ? "#10B981" : "#EF4444", flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: isAvail ? "#34D399" : "#FCA5A5" }}>
+                {!isAvail ? "Fully booked" : slotsLeft !== undefined ? `${slotsLeft} slot${slotsLeft !== 1 ? "s" : ""} this week` : "Available"}
+              </span>
             </div>
           )}
         </div>
-        <div style={{ color: "#475569", fontSize: 16 }}>{open ? "▲" : "▼"}</div>
+
+        {/* Certification line — one clean line, no clutter */}
+        {certLine && (
+          <div style={{ marginTop: 8, fontSize: 11, color: "#475569", display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon name="check" size={10} color="#475569" strokeWidth={2} />
+            {certLine.length > 60 ? certLine.slice(0, 60) + "…" : certLine}
+          </div>
+        )}
       </div>
 
+      {/* ── EXPANDED SECTION ── */}
       {open && (
-        <div onClick={e => e.stopPropagation()} style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-          {provider.description && <p style={{ color: "#64748B", fontSize: 12, marginBottom: 12, lineHeight: "1.5" }}>{provider.description}</p>}
-          {provider.phone && <div style={{ color: "#94A3B8", fontSize: 12, marginBottom: 10 }}><Icon name="phone" size={11} color="#94A3B8" strokeWidth={1.8} /> {provider.phone}</div>}
+        <div onClick={e => e.stopPropagation()} style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: "14px 16px 16px" }}>
 
-          {/* Action buttons */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {provider.phone && <button onClick={call}     style={{ flex: 1, minWidth: 80, background: "linear-gradient(135deg,#10B981,#059669)", color: "white", border: "none", borderRadius: 9, padding: "9px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icon name="phone" size={12} color="white" strokeWidth={1.8} />Call</button>}
-            {provider.phone && <button onClick={whatsapp} style={{ flex: 1, minWidth: 80, background: "linear-gradient(135deg,#25D366,#128C7E)", color: "white", border: "none", borderRadius: 9, padding: "9px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icon name="whatsapp" size={12} color="white" strokeWidth={1.8} />WhatsApp</button>}
-            <button onClick={maps}                        style={{ flex: 1, minWidth: 80, background: "rgba(255,255,255,0.07)", color: "#CBD5E1", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "9px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Icon name="directions" size={12} color="#CBD5E1" strokeWidth={1.8} />Directions</button>
+          {/* Most recent review — the social proof anchor */}
+          {cardReviews.length > 0 && (
+            <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 11, padding: "10px 14px", marginBottom: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <div style={{ display: "flex", gap: 1 }}>
+                  {[1,2,3,4,5].map(i => <span key={i} style={{ color: i <= cardReviews[0].rating ? "#F59E0B" : "#1E293B", fontSize: 12 }}>★</span>)}
+                </div>
+                <span style={{ fontSize: 11, color: "#64748B" }}>{cardReviews[0].customerName} · {cardReviews[0].dateLabel}</span>
+              </div>
+              {cardReviews[0].comment && (
+                <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6, fontStyle: "italic" }}>"{cardReviews[0].comment}"</div>
+              )}
+              {cardReviews.length > 1 && cardReviews[1].comment && (
+                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.6, fontStyle: "italic", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>"{cardReviews[1].comment}" — {cardReviews[1].customerName}</div>
+              )}
+            </div>
+          )}
+          {reviewsLoaded && cardReviews.length === 0 && provider.providerId && (
+            <div style={{ fontSize: 11, color: "#334155", textAlign: "center", padding: "8px 0 12px", fontStyle: "italic" }}>No reviews yet — be the first</div>
+          )}
+
+          {/* About — only if not already shown as tagline above */}
+          {provider.description && !provider.tagline && (
+            <p style={{ color: "#64748B", fontSize: 12, marginBottom: 12, lineHeight: 1.6 }}>{provider.description}</p>
+          )}
+          {provider.description && provider.tagline && (
+            <p style={{ color: "#64748B", fontSize: 12, marginBottom: 12, lineHeight: 1.6 }}>{provider.description}</p>
+          )}
+
+          {/* Primary actions */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            {provider.phone && (
+              <button onClick={whatsapp} style={{ flex: 2, background: "linear-gradient(135deg,#25D366,#128C7E)", color: "white", border: "none", borderRadius: 10, padding: "11px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Icon name="whatsapp" size={13} color="white" strokeWidth={1.8} />WhatsApp
+              </button>
+            )}
+            {provider.phone && (
+              <button onClick={call} style={{ flex: 1, background: "rgba(16,185,129,0.15)", color: "#34D399", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "11px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Icon name="phone" size={13} color="#34D399" strokeWidth={1.8} />Call
+              </button>
+            )}
           </div>
 
-          {/* Book + Rate row */}
+          {/* Book job + view profile */}
           {user && (
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <button onClick={() => setShowBooking(true)}
-                style={{ flex: 2, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "white", border: "none", borderRadius: 9, padding: "11px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <Icon name="booking" size={12} color="white" strokeWidth={1.8} />Request a Job
+                style={{ flex: 2, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "white", border: "none", borderRadius: 10, padding: "12px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Icon name="booking" size={13} color="white" strokeWidth={1.8} />Request a Job
               </button>
               <button onClick={() => setShowReview(true)}
-                style={{ flex: 1, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "11px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                <Icon name="star" size={12} color="#F59E0B" strokeWidth={1.8} />Rate
+                style={{ flex: 1, background: "rgba(245,158,11,0.1)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <Icon name="star" size={13} color="#F59E0B" strokeWidth={1.8} />Rate
               </button>
             </div>
           )}
 
-          {/* View Full Profile */}
           <button onClick={() => setShowProfile(true)}
-            style={{ width: "100%", marginTop: 8, background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 12px", fontSize: 11, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.15s" }}>
-            View full profile & all reviews →
+            style={{ width: "100%", background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 12px", fontSize: 11, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+            View full profile & all {reviewCount > 0 ? `${reviewCount} ` : ""}reviews →
           </button>
 
-          {/* Inline reviews */}
-          {cardReviews.length > 0 && (
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-                Customer reviews
-              </div>
-              {cardReviews.map(r => (
-                <div key={r.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#94A3B8" }}>{r.customerName}</span>
-                    <div style={{ display: "flex", gap: 1 }}>
-                      {[1,2,3,4,5].map(i => <span key={i} style={{ color: i <= r.rating ? "#F59E0B" : "#1E293B", fontSize: 11 }}>★</span>)}
-                    </div>
-                  </div>
-                  {r.comment && <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.5 }}>"{r.comment}"</div>}
-                  <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{r.dateLabel}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* No reviews nudge for registered providers with no reviews yet */}
-          {reviewsLoaded && cardReviews.length === 0 && provider.providerId && (
-            <div style={{ marginTop: 12, fontSize: 11, color: "#334155", textAlign: "center" }}>
-              No reviews yet — be the first to rate this provider
+          {/* Save to My Team + Community Recommend */}
+          {user && provider.providerId && (
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <button onClick={() => { saveTrustedProvider(user.email, provider); }}
+                style={{ flex: 1, background: "rgba(14,165,233,0.08)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <Icon name="home" size={11} color="#64748B" strokeWidth={2} />Save to My Team
+              </button>
+              <button onClick={() => setShowCommunityReview(true)}
+                style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <Icon name="check" size={11} color="#64748B" strokeWidth={2} />Recommend
+              </button>
             </div>
           )}
         </div>
       )}
 
       {showBooking && user && (
-        <BookingModal
-          provider={provider}
-          user={user}
-          serviceType={provider.serviceType}
+        <BookingModal provider={provider} user={user} serviceType={provider.serviceType}
           onClose={() => setShowBooking(false)}
-          onBooked={(job) => { setShowBooking(false); if (onBooked) onBooked(job); }}
-        />
+          onBooked={(job) => { setShowBooking(false); if (onBooked) onBooked(job); }} />
       )}
-
       {showReview && user && (
-        <ReviewModal
-          provider={provider}
-          serviceType={provider.serviceType}
-          user={user}
+        <ReviewModal provider={provider} serviceType={provider.serviceType} user={user}
           onClose={() => setShowReview(false)}
           onDone={() => {
-            // Refresh inline reviews after submitting
             store.get("reviews").then(raw => {
               const all = raw ? JSON.parse(raw.value) : [];
-              setCardReviews(all.filter(r => r.providerId === provider.providerId).slice(0, 3));
+              setCardReviews(all.filter(r => r.providerId === provider.providerId).slice(0, 2));
             });
-          }}
-        />
+          }} />
       )}
-
       {showProfile && (
-        <ProviderProfilePage
-          provider={provider}
-          user={user}
+        <ProviderProfilePage provider={provider} user={user}
           onClose={() => setShowProfile(false)}
-          onBook={(job) => { setShowProfile(false); if (onBooked) onBooked(job); }}
-        />
+          onBook={(job) => { setShowProfile(false); if (onBooked) onBooked(job); }} />
+      )}
+      {showCommunityReview && (
+        <CommunityReviewForm provider={provider} onClose={() => setShowCommunityReview(false)} />
       )}
     </div>
   );
@@ -3335,7 +4320,9 @@ function CustomerHome({ user, onLogout }) {
   const [chatJob, setChatJob]             = useState(null);
   const [gpsJob, setGpsJob]              = useState(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [completionNotif, setCompletionNotif] = useState(null); // sales moment popup
+  const [showSOS, setShowSOS]             = useState(false);
+  const [showJobBoard, setShowJobBoard]   = useState(false);
+  const [completionNotif, setCompletionNotif] = useState(null);
   const resultsRef = useRef(null);
 
   // Poll for completion/sales notifications every 10s
@@ -3535,6 +4522,10 @@ function CustomerHome({ user, onLogout }) {
                 <Wordmark size={17} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button onClick={() => setShowSOS(true)}
+                  style={{ background: "rgba(239,68,68,0.12)", border: "1.5px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "7px 11px", fontSize: 11, fontWeight: 700, color: "#FCA5A5", cursor: "pointer", fontFamily: "'Syne',sans-serif" }}>
+                  🚨 SOS
+                </button>
                 <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
                 <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", cursor: "pointer" }} onClick={() => setTab("profile")}>
                   {user.name?.charAt(0).toUpperCase()}
@@ -3602,7 +4593,7 @@ function CustomerHome({ user, onLogout }) {
                 <Icon name="pin" size={14} color="#475569" strokeWidth={1.8} />
               </span>
               <input value={location} onChange={e => setLocation(e.target.value)} onKeyDown={e => e.key==="Enter" && search()} placeholder="Suburb or city…"
-                style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 11, padding: "12px 80px 12px 38px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 80px 12px 38px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif" }} />
               {user.suburb && <button onClick={() => setLocation(`${user.suburb}, ${user.city}`)} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "rgba(14,165,233,0.12)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 7, padding: "5px 9px", color: "#0EA5E9", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Home</button>}
             </div>
           </div>
@@ -3760,6 +4751,24 @@ function CustomerHome({ user, onLogout }) {
           {/* Referral & Credits */}
           <CreditWallet user={user} />
 
+          {/* Home Health Score */}
+          <HomeHealthScore customerId={user.email} onBookService={(svcId) => { setSelectedService(svcId); setTab("find"); }} />
+
+          {/* My Team */}
+          <MyTeam customerId={user.email} onBookProvider={() => setTab("find")} />
+
+          {/* Get It Done Board */}
+          <button onClick={() => setShowJobBoard(true)}
+            style={{ width: "100%", background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", borderRadius: 12, padding: "13px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="jobs" size={17} color="#10B981" strokeWidth={1.8} />
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>Get It Done Board</div>
+              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post a job · providers compete · save 10–25%</div>
+            </div>
+          </button>
+
           {/* Home address */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 18, marginBottom: 14 }}>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
@@ -3774,6 +4783,7 @@ function CustomerHome({ user, onLogout }) {
               ))}
             </div>
           </div>
+          <ServiceRecordExport customerId={user.email} userName={user.name} />
           <Btn full variant="ghost" onClick={onLogout} style={{ marginTop: 8 }}>Sign Out</Btn>
         </div>
       )}
@@ -3886,6 +4896,8 @@ function CustomerHome({ user, onLogout }) {
       {chatJob && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
       {gpsJob  && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
       {showQuoteModal && <QuoteRequestModal user={user} onClose={() => setShowQuoteModal(false)} onDone={() => { setShowQuoteModal(false); loadMyJobs(); setTab("jobs"); }} />}
+      {showSOS && <EmergencySOS user={user} onClose={() => setShowSOS(false)} />}
+      {showJobBoard && <JobBoardPost user={user} onClose={() => setShowJobBoard(false)} onPosted={() => { loadMyJobs(); setTab("jobs"); }} />}
 
       {completionNotif && (
         <CompletionPopup
@@ -4324,7 +5336,7 @@ function ProviderVerificationSection({ provider, onUpdated }) {
           </div>
           <input value={docNumber} onChange={e => setDocNumber(e.target.value)}
             placeholder={docType === "id" ? "SA ID number" : docType === "passport" ? "Passport number" : "CIPC registration number"}
-            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", marginBottom: 10 }} />
+            style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", marginBottom: 10 }} />
           <Btn small full onClick={submit} disabled={!docNumber.trim() || saving}>
             {saved ? "Submitted ✓" : saving ? "Submitting…" : "Submit for verification"}
           </Btn>
@@ -4590,12 +5602,12 @@ function DealsManager({ provider }) {
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Headline</label>
             <input value={form.headline} onChange={e => set("headline", e.target.value)} placeholder="e.g. 20% off gate repairs this week" maxLength={50}
-              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
           </div>
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Details</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="e.g. Free callout fee + 20% off parts for any gate motor repair booked this week." rows={2}
-              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
           </div>
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
@@ -4674,7 +5686,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
     } catch {}
   };
 
-  useEffect(() => { loadLeads(); loadProviderJobs(); }, [provider.id]);
+  useEffect(() => { loadLeads(); loadProviderJobs(); getProviderOfMonth().then(setPotm); }, [provider.id]);
   useEffect(() => {
     if (tab === "dashboard") loadLeads();
     if (tab === "jobs") { loadProviderJobs(); setJobsBadge(0); }
@@ -4682,6 +5694,9 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
 
   const [salesJob, setSalesJob] = useState(null);
   const [providerChatJob, setProviderChatJob] = useState(null);
+  const [showTraining, setShowTraining]     = useState(false);
+  const [showJobBoardBrowse, setShowJobBoardBrowse] = useState(false);
+  const [potm, setPotm]                     = useState(null);
 
   const handleJobAction = async (jobId, newStatus, note = "") => {
     // Intercept "completed" — show sales moment modal first
@@ -4770,6 +5785,11 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
     // 4. Check if this customer was referred — reward the referrer on their first completed job
     if (job.customerId) {
       await processReferralReward(job.customerId, job.customerName);
+    }
+
+    // 5. Add to customer's home health log
+    if (job.customerId && job.serviceType) {
+      await addHomeServiceLog(job.customerId, { ...job, status: "completed" });
     }
 
     await loadProviderJobs();
@@ -5086,6 +6106,55 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 </div>
               ))}
             </div>
+
+            {/* ── MILESTONE TRACKER ── */}
+            <MilestoneTracker completedCount={providerJobs.filter(j => j.status === "completed").length} />
+
+            {/* ── 5-STAR STREAK BADGE ── */}
+            {(() => {
+              const reviews = providerJobs.flatMap(j => []).concat([]); // fetched separately in reviews tab
+              const streak = provider.liveReviewCount > 0 ? getStarStreak(provider._reviews || []) : 0;
+              if (streak < 3) return null;
+              return (
+                <div style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.05))", border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 13, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ fontSize: 28 }}>🔥</div>
+                  <div>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#F59E0B" }}>{streak}-star streak!</div>
+                    <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>{streak} consecutive 5-star reviews — keep it up to stay top of results.</div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── PROVIDER OF THE MONTH ── */}
+            {potm && potm.id === provider.id && (
+              <div style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.08))", border: "2px solid rgba(245,158,11,0.4)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div style={{ fontSize: 28 }}>🏆</div>
+                  <div>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: "#F59E0B" }}>Provider of the Month</div>
+                    <div style={{ fontSize: 12, color: "#78350F" }}>{new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>
+                  You're the top-rated provider on FixIt Now this month. This badge shows on your listing and we feature you in customer recommendations.
+                </div>
+              </div>
+            )}
+
+            {/* ── QUICK ACTIONS ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
+              <button onClick={() => setShowJobBoardBrowse(true)}
+                style={{ background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399", marginBottom: 3 }}>Job Board</div>
+                <div style={{ fontSize: 11, color: "#065F46", lineHeight: 1.4 }}>Browse customer posts &amp; submit quotes</div>
+              </button>
+              <button onClick={() => setShowTraining(true)}
+                style={{ background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left" }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 3 }}>Provider Academy</div>
+                <div style={{ fontSize: 11, color: "#312E81", lineHeight: 1.4 }}>5 guides to grow your business</div>
+              </button>
+            </div>
           </div>
         )}
 
@@ -5200,7 +6269,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               {editMode ? (
                 <input value={editForm.tagline} onChange={e => setEditForm(f=>({...f,tagline:e.target.value}))}
                   placeholder="e.g. KZN's most trusted plumber since 2008"
-                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "9px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
               ) : (
                 <p style={{ fontSize: 13, color: editForm.tagline ? "#94A3B8" : "#334155", fontStyle: editForm.tagline ? "italic" : "normal" }}>
                   {editForm.tagline ? `"${editForm.tagline}"` : "No tagline added yet."}
@@ -5213,7 +6282,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               {editMode ? (
                 <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} rows={4}
                   placeholder="Tell customers what makes you great…"
-                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", resize: "vertical", outline: "none" }}/>
+                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", resize: "none", outline: "none" }}/>
               ) : (
                 <p style={{ fontSize: 13, color: provider.description ? "#94A3B8" : "#334155", lineHeight: 1.6 }}>{provider.description || "No description added yet. Tap Edit to add one."}</p>
               )}
@@ -5243,7 +6312,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Years in business</div>
                 {editMode ? (
                   <input type="number" value={editForm.yearsInBusiness} onChange={e => setEditForm(f=>({...f,yearsInBusiness:e.target.value}))} placeholder="e.g. 12"
-                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "8px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
                 ) : (
                   <div style={{ fontSize: 13, color: "#94A3B8" }}>{provider.yearsInBusiness ? `${provider.yearsInBusiness} years` : "Not set"}</div>
                 )}
@@ -5254,7 +6323,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Call-out fee from (R)</div>
                 {editMode ? (
                   <input type="number" value={editForm.priceRangeMin} onChange={e => setEditForm(f=>({...f,priceRangeMin:e.target.value}))} placeholder="e.g. 350"
-                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "8px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
                 ) : (
                   <div style={{ fontSize: 13, color: "#94A3B8" }}>{provider.priceRangeMin ? `From R${provider.priceRangeMin}` : "Not set"}</div>
                 )}
@@ -5265,7 +6334,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Certifications & licences</div>
                 {editMode ? (
                   <input value={editForm.certifications} onChange={e => setEditForm(f=>({...f,certifications:e.target.value}))} placeholder="e.g. ECSA registered, COC certified"
-                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "8px 11px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
                 ) : (
                   <div style={{ fontSize: 13, color: "#94A3B8" }}>{provider.certifications || "Not set"}</div>
                 )}
@@ -5548,6 +6617,9 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           onClose={() => setProviderChatJob(null)}
         />
       )}
+
+      {showTraining && <TrainingContent onClose={() => setShowTraining(false)} />}
+      {showJobBoardBrowse && <JobBoardBrowse provider={provider} onClose={() => setShowJobBoardBrowse(false)} />}
 
       {salesJob && (
         <SalesMomentModal

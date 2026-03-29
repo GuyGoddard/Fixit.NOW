@@ -1,4 +1,27 @@
 import { useState, useEffect, useRef } from "react";
+// ─── DESIGN TOKENS ───────────────────────────────────────────────────────────────
+// Single source of truth for colors, spacing, radius. Edit here = updates everywhere.
+const C = {
+  // Brand
+  sky:      "#0EA5E9",  skyLight:  "#38BDF8",
+  indigo:   "#6366F1",
+  amber:    "#F59E0B",  amberDark: "#78350F",
+  emerald:  "#10B981",  emeraldDark: "#065F46",
+  red:      "#EF4444",  redLight:  "#FCA5A5",
+  purple:   "#8B5CF6",
+  teal:     "#06B6D4",
+  whatsapp: "#25D366",
+  // Neutrals (dark theme)
+  bg:       "#060A14",  surface:  "#0D1526",
+  border:   "rgba(255,255,255,0.08)",  borderSubtle: "rgba(255,255,255,0.05)",
+  text:     "#F1F5F9",  textSub:  "#94A3B8",  textMuted: "#475569",  textFaint: "#334155",
+  // Opacity helpers
+  o04: "rgba(255,255,255,0.04)",  o07: "rgba(255,255,255,0.07)",  o12: "rgba(255,255,255,0.12)",
+};
+const R = { sm: 9, md: 12, lg: 16, pill: 20 }; // border-radius scale
+const F = { xs: 10, sm: 11, md: 13, lg: 15, xl: 18, h2: 22, h1: 28 }; // font-size scale
+
+
 
 // ─── SUPABASE STORE ──────────────────────────────────────────────────────────────
 // Live database — data persists across all devices and users.
@@ -689,7 +712,7 @@ function Input({ label, value, onChange, placeholder, type = "text", icon }) {
     <div style={{ marginBottom: 14 }}>
       {label && <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>{label}</label>}
       <div style={{ position: "relative" }}>
-        {icon && <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 15 }}>{icon}</span>}
+        {icon && <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", display: "flex", alignItems: "center" }}>{icon}</span>}
         <input
           type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
           style={{
@@ -978,25 +1001,30 @@ function AuthScreen({ onLogin }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Customer lane */}
-          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>I need a service</div>
-          <Btn full onClick={() => setMode("signup")}>Sign up — find pros near me</Btn>
-          <Btn full variant="ghost" onClick={() => setMode("login")}>Sign in to my account</Btn>
+          <div style={{ background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.15)", borderRadius: 16, padding: "16px 16px 12px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>I need a service</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Btn full onClick={() => setMode("signup")}>Sign up — find pros near me</Btn>
+              <Btn full variant="ghost" onClick={() => setMode("login")}>Sign in to my account</Btn>
+            </div>
+          </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
             <span style={{ color: "#334155", fontSize: 11 }}>or</span>
             <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
           </div>
 
           {/* Provider lane */}
-          <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>I'm a service provider</div>
-          <Btn full variant="ghost" onClick={() => setMode("provider")}>Register my business</Btn>
-          <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Business dashboard</Btn>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "6px 0" }}>
-            <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.04)" }} />
+          <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 16, padding: "16px 16px 12px" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>I'm a service provider</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Btn full onClick={() => setMode("provider")} style={{ background: "linear-gradient(135deg,#F59E0B,#D97706)" }}>Register my business</Btn>
+              <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Business dashboard</Btn>
+            </div>
           </div>
-          <button onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }} style={{ background: "none", border: "none", color: "#1E293B", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "center", padding: "4px 0" }}>Admin</button>
+
+          <button onClick={() => { setAdminCode(""); setAdminError(""); setMode("adminLogin"); }} style={{ background: "none", border: "none", color: "#1E293B", fontSize: 10, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "center", padding: "8px 0 0" }}>Admin</button>
         </div>
       </div>
     </div>
@@ -1176,7 +1204,7 @@ function ProviderRegistration({ onBack, onDone }) {
   const allAreasForService = (serviceId) => {
     const hints = SERVICE_AREA_HINTS[serviceId] || [];
     const showing = showAllAreas[serviceId];
-    return showing ? KZN_AREAS : [...new Set([...hints, ...KZN_AREAS.filter(a => !hints.includes(a)).slice(0, 0)])].concat(showing ? [] : []);
+    return showing ? KZN_AREAS : hints;
   };
 
   const submit = async () => {
@@ -1576,7 +1604,7 @@ function NotificationBell({ userId, onOpen }) {
       setUnread(notifs.filter(n => !n.read).length);
     };
     check();
-    const interval = setInterval(check, 8000);
+    const interval = setInterval(check, 15000);
     return () => clearInterval(interval);
   }, [userId]);
 
@@ -1932,7 +1960,7 @@ function ChatModal({ job, user, userRole, onClose }) {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 5000); // poll every 5s
+    const interval = setInterval(load, 8000);
     return () => clearInterval(interval);
   }, [job.id]);
 
@@ -2329,7 +2357,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#F1F5F9", lineHeight: 1.2, marginBottom: 4 }}>{provider.name}</div>
               {provider.tagline && (
-                <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5, marginBottom: 6, fontStyle: "italic" }}>"{provider.tagline}"</div>
+                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.5, marginBottom: 6, fontStyle: "italic", letterSpacing: "0.01em" }}>"{provider.tagline}"</div>
               )}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                 <Badge color={svc.color}>{svc.label}</Badge>
@@ -3016,7 +3044,7 @@ function CustomerHome({ user, onLogout }) {
       }
     };
     checkSalesNotifs();
-    const interval = setInterval(checkSalesNotifs, 10000);
+    const interval = setInterval(checkSalesNotifs, 15000);
     return () => clearInterval(interval);
   }, [user.email]);
 
@@ -3470,7 +3498,7 @@ function CustomerHome({ user, onLogout }) {
       {/* Bottom nav */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.95)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", backdropFilter: "blur(20px)" }}>
         {[["find","search","Find Pros"],["jobs","jobs","My Jobs"],["profile","profile","Profile"]].map(([id,iconName,label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 9, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
             <Icon name={iconName} size={19} color={tab === id ? "#0EA5E9" : "#475569"} strokeWidth={1.6} />
             {label.toUpperCase()}
             {id === "jobs" && jobsBadge > 0 && (
@@ -3569,7 +3597,7 @@ function AdminDashboard({ onLogout }) {
           ["pending",  "Pending" + (pending.length ? ` (${pending.length})` : "")],
           ["reviews",  "Reviews"],
         ].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "9px 4px", borderRadius: 7, border: "none", background: tab===id ? "rgba(255,255,255,0.08)" : "transparent", color: tab===id ? "#F1F5F9" : "#475569", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s" }}>{label}</button>
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "11px 4px", borderRadius: 8, border: "none", background: tab===id ? "rgba(255,255,255,0.08)" : "transparent", color: tab===id ? "#F1F5F9" : "#475569", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s" }}>{label}</button>
         ))}
       </div>
 
@@ -4820,7 +4848,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
       {/* ── BOTTOM NAV ── */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", backdropFilter: "blur(20px)" }}>
         {[["overview","overview","Overview"],["leads","chart","Leads"],["jobs","jobs","Jobs"],["profile","home","Profile"],["settings","settings","Settings"]].map(([id,iconName,label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 9, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
             <Icon name={iconName} size={18} color={tab === id ? "#0EA5E9" : "#475569"} strokeWidth={1.6} />
             {label.toUpperCase()}
             {id === "jobs" && jobsBadge > 0 && (
@@ -4843,8 +4871,7 @@ if (typeof window !== "undefined" &&
     !window.location.hostname.includes("csb.app")) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js")
-      .then(r  => console.log("SW registered:", r.scope))
-      .catch(e => console.log("SW skipped:", e.message));
+      .catch(() => {});
   });
 }
 

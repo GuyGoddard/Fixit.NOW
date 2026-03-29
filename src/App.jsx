@@ -2093,6 +2093,7 @@ function CreditWallet({ user }) {
 }
 
 // ─── DISCOUNT WALLET ──────────────────────────────────────────────────────────────
+function DiscountWallet({ customerId }) {
   const [discounts, setDiscounts] = useState([]);
 
   useEffect(() => {

@@ -4934,338 +4934,861 @@ function CustomerHome({ user, onLogout }) {
 }
 
 // ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────────
+// ─── ADMIN HELPERS ───────────────────────────────────────────────────────────
+const addAdminLog = async (action, detail, targetId = null) => {
+  try {
+    const raw = await store.get("admin_log");
+    const log = raw ? JSON.parse(raw.value) : [];
+    log.unshift({
+      id: `log-${Date.now()}`,
+      action, detail, targetId,
+      ts: new Date().toISOString(),
+      dateLabel: new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+    });
+    await store.set("admin_log", log.slice(0, 500));
+  } catch {}
+};
+
+const getAdminLog = async () => {
+  try {
+    const raw = await store.get("admin_log");
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+const flagReview = async (reviewId, reason) => {
+  try {
+    const raw = await store.get("reviews");
+    const reviews = raw ? JSON.parse(raw.value) : [];
+    const updated = reviews.map(r => r.id === reviewId ? { ...r, flagged: true, flagReason: reason, flaggedAt: new Date().toISOString() } : r);
+    await store.set("reviews", updated);
+    return updated;
+  } catch { return []; }
+};
+
+const removeReview = async (reviewId) => {
+  try {
+    const raw = await store.get("reviews");
+    const reviews = raw ? JSON.parse(raw.value) : [];
+    const updated = reviews.filter(r => r.id !== reviewId);
+    await store.set("reviews", updated);
+    return updated;
+  } catch { return []; }
+};
+
+const approveCommunityReview = async (providerId, reviewId) => {
+  try {
+    const raw = await store.get(`community:${providerId}`);
+    const reviews = raw ? JSON.parse(raw.value) : [];
+    const updated = reviews.map(r => r.id === reviewId ? { ...r, status: "approved" } : r);
+    await store.set(`community:${providerId}`, updated);
+  } catch {}
+};
+
+const rejectCommunityReview = async (providerId, reviewId) => {
+  try {
+    const raw = await store.get(`community:${providerId}`);
+    const reviews = raw ? JSON.parse(raw.value) : [];
+    const updated = reviews.filter(r => r.id !== reviewId);
+    await store.set(`community:${providerId}`, updated);
+  } catch {}
+};
+
+const removeJobBoardPost = async (jobId) => {
+  try {
+    const raw = await store.get("job_board");
+    const board = raw ? JSON.parse(raw.value) : [];
+    await store.set("job_board", board.filter(j => j.id !== jobId));
+  } catch {}
+};
+
+const removeDealPost = async (providerId) => {
+  try {
+    await deleteDeal(providerId);
+  } catch {}
+};
+
+const getCustomers = async () => {
+  try {
+    const raw = await store.get("customers");
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+// ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────
 function AdminDashboard({ onLogout }) {
-  const [tab, setTab]         = useState("jobs");
+  const [tab, setTab]           = useState("inbox");
   const [providers, setProviders] = useState([]);
-  const [events, setEvents]   = useState([]);
-
-  const [allJobs, setAllJobs]     = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [allJobs, setAllJobs]   = useState([]);
   const [allReviews, setAllReviews] = useState([]);
+  const [events, setEvents]     = useState([]);
+  const [auditLog, setAuditLog] = useState([]);
+  const [communityPending, setCommunityPending] = useState([]);
+  const [allDeals, setAllDeals] = useState([]);
+  const [jobBoard, setJobBoard] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [provFilter, setProvFilter] = useState("all"); // all|active|suspended|rejected|pending
+  const [search, setSearch]     = useState("");
+  const [noteTarget, setNoteTarget] = useState(null);
+  const [noteText, setNoteText] = useState("");
+  const [planTarget, setPlanTarget] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null); // {label, onConfirm}
 
-  useEffect(() => { loadAll(); }, []);
   const loadAll = async () => {
-    const raw = await store.get("providers");
-    setProviders(raw ? JSON.parse(raw.value) : []);
-    const evRaw = await store.get("events");
-    setEvents(evRaw ? JSON.parse(evRaw.value) : []);
-    const jRaw = await store.get("jobs");
+    setLoading(true);
+    const [pRaw, cRaw, jRaw, rRaw, eRaw, logRaw, dealsRaw, boardRaw] = await Promise.all([
+      store.get("providers"), store.get("customers"), store.get("jobs"),
+      store.get("reviews"), store.get("events"), store.get("admin_log"),
+      store.get("deals"), store.get("job_board"),
+    ]);
+    const provs = pRaw ? JSON.parse(pRaw.value) : [];
+    setProviders(provs);
+    setCustomers(cRaw ? JSON.parse(cRaw.value) : []);
     setAllJobs(jRaw ? JSON.parse(jRaw.value) : []);
-    const rRaw = await store.get("reviews");
     setAllReviews(rRaw ? JSON.parse(rRaw.value) : []);
+    setEvents(eRaw ? JSON.parse(eRaw.value) : []);
+    setAuditLog(logRaw ? JSON.parse(logRaw.value) : []);
+    setAllDeals(dealsRaw ? JSON.parse(dealsRaw.value) : []);
+    setJobBoard(boardRaw ? JSON.parse(boardRaw.value) : []);
+
+    // Collect all pending community reviews across all providers
+    const pending = [];
+    for (const p of provs) {
+      try {
+        const cr = await store.get(`community:${p.id}`);
+        const reviews = cr ? JSON.parse(cr.value) : [];
+        reviews.filter(r => r.status === "pending").forEach(r => pending.push({ ...r, providerName: p.bizName }));
+      } catch {}
+    }
+    setCommunityPending(pending);
+    setLoading(false);
   };
 
-  const updateStatus = async (id, status) => {
-    const updated = providers.map(p => p.id === id ? { ...p, status } : p);
+  useEffect(() => { loadAll(); }, []);
+
+  // ── Computed platform stats ──────────────────────────────────────────────
+  const now        = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const prevMonth  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+
+  const active    = providers.filter(p => p.status === "approved");
+  const suspended = providers.filter(p => p.status === "suspended");
+  const rejected  = providers.filter(p => p.status === "rejected");
+  const pending   = providers.filter(p => p.status === "pending");
+
+  const completedJobs  = allJobs.filter(j => j.status === "completed");
+  const stuckJobs      = allJobs.filter(j => j.status === "pending" && j.createdAt < new Date(Date.now() - 48*3600000).toISOString());
+  const totalRevSubs   = active.reduce((s, p) => s + (PLANS.find(pl => pl.id === p.plan)?.price || 0), 0);
+  const monthCommission = completedJobs
+    .filter(j => j.updatedAt >= monthStart && j.estimatedValue)
+    .reduce((s, j) => s + parseFloat(j.estimatedValue) * PLATFORM_FEE_PCT, 0);
+  const avgRating = allReviews.length ? (allReviews.reduce((s,r) => s+r.rating,0)/allReviews.length).toFixed(1) : "—";
+  const lowReviews = allReviews.filter(r => r.rating <= 2);
+  const flaggedReviews = allReviews.filter(r => r.flagged);
+  const autoSuspended = providers.filter(p => p.status === "suspended" && p.autoSuspendedAt);
+
+  // Inbox items that need attention
+  const inboxItems = [
+    ...pending.map(p => ({ type: "pending_provider", id: p.id, label: `New application: ${p.bizName}`, sub: p.city, urgency: "normal", data: p })),
+    ...autoSuspended.map(p => ({ type: "auto_suspended", id: p.id, label: `Auto-suspended: ${p.bizName}`, sub: `${(p.strikeLog||[]).filter(s=>!s.cleared).length} strikes`, urgency: "high", data: p })),
+    ...stuckJobs.map(j => ({ type: "stuck_job", id: j.id, label: `Stuck job: ${j.serviceName}`, sub: `${j.customerName} → ${j.providerName} · 48hr+ no response`, urgency: "high", data: j })),
+    ...communityPending.map(r => ({ type: "community_review", id: r.id, label: `Community review for ${r.providerName}`, sub: `From ${r.reviewerName}`, urgency: "normal", data: r })),
+    ...lowReviews.filter(r => !r.adminSeen).slice(0, 5).map(r => ({ type: "low_review", id: r.id, label: `1–2★ review: ${r.providerName}`, sub: `${r.customerName}: "${(r.comment||"").slice(0,40)}"`, urgency: "low", data: r })),
+  ];
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  const updateProviderStatus = async (id, status, note = "") => {
+    const bizName = providers.find(p => p.id === id)?.bizName || id;
+    const updated = providers.map(p => p.id === id ? {
+      ...p, status,
+      statusHistory: [...(p.statusHistory || []), { status, note, ts: new Date().toISOString(), dateLabel: new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }) }],
+      autoSuspendedAt: status !== "suspended" ? null : p.autoSuspendedAt,
+    } : p);
     await store.set("providers", updated);
+    await addAdminLog(`Status → ${status}`, `${bizName}${note ? ` — "${note}"` : ""}`, id);
     setProviders(updated);
   };
 
-  const totalRevenue   = providers.filter(p=>p.status==="approved").reduce((s,p) => s + (PLANS.find(pl=>pl.id===p.plan)?.price||0), 0);
-  const pending        = providers.filter(p=>p.status==="pending");
-  const approved       = providers.filter(p=>p.status==="approved");
+  const updateProviderPlan = async (id, plan) => {
+    const bizName = providers.find(p => p.id === id)?.bizName || id;
+    const updated = providers.map(p => p.id === id ? { ...p, plan } : p);
+    await store.set("providers", updated);
+    await addAdminLog("Plan changed", `${bizName} → ${plan}`, id);
+    setProviders(updated);
+    setPlanTarget(null);
+  };
 
-  // Real event totals from global log
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const monthEvents   = events.filter(e => e.ts >= monthStart);
-  const totalCalls    = events.filter(e => e.type === "call").length;
-  const totalWA       = events.filter(e => e.type === "whatsapp").length;
-  const totalViews    = events.filter(e => e.type === "view").length;
-  const totalReferrals = totalCalls + totalWA;
-  const totalBookings = events.filter(e => e.type === "booking").length;
-  const totalReviews  = allReviews.length;
-  const avgPlatformRating = allReviews.length > 0
-    ? (allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length).toFixed(1)
-    : "—";
+  const saveNote = async (id, note) => {
+    const bizName = providers.find(p => p.id === id)?.bizName || id;
+    const updated = providers.map(p => p.id === id ? { ...p, adminNote: note, adminNoteAt: new Date().toISOString() } : p);
+    await store.set("providers", updated);
+    await addAdminLog("Note added", `${bizName}: "${note}"`, id);
+    setProviders(updated);
+    setNoteTarget(null); setNoteText("");
+  };
 
-  // Real booking commission: 8% of declared job values for completed jobs this month
-  const bookingCommission = allJobs
-    .filter(j => j.status === "completed" && j.estimatedValue && j.createdAt >= monthStart)
-    .reduce((sum, j) => sum + (parseFloat(j.estimatedValue) * PLATFORM_FEE_PCT), 0);
+  const handleClearStrike = async (providerId, strikeIndex) => {
+    await clearStrike(providerId, strikeIndex);
+    await addAdminLog("Strike cleared", `Strike #${strikeIndex+1} cleared`, providerId);
+    const raw = await store.get("providers");
+    setProviders(raw ? JSON.parse(raw.value) : []);
+  };
 
-  // Referral revenue from per-provider billing
-  const referralRevenue = approved.reduce((sum, p) => {
-    const rate = p.plan === "premium" ? 10 : p.plan === "featured" ? 15 : 0;
-    const leads = (p.leads || []).filter(l => l.ts >= monthStart && ["call","whatsapp"].includes(l.type));
-    return sum + (leads.length * rate);
-  }, 0);
+  const handleRemoveReview = async (reviewId, providerName) => {
+    const updated = await removeReview(reviewId);
+    setAllReviews(updated);
+    await addAdminLog("Review removed", `Review ID ${reviewId} removed from ${providerName}`);
+    // Rebuild provider live ratings
+    const pRaw = await store.get("providers");
+    if (pRaw) {
+      const provs = JSON.parse(pRaw.value);
+      const updatedProvs = provs.map(p => {
+        const pReviews = updated.filter(r => r.providerId === p.id);
+        return { ...p, liveReviewCount: pReviews.length, liveRating: pReviews.length ? +(pReviews.reduce((s,r)=>s+r.rating,0)/pReviews.length).toFixed(1) : null };
+      });
+      await store.set("providers", updatedProvs);
+      setProviders(updatedProvs);
+    }
+  };
 
-  const StatCard = ({ iconName, label, value, sub, color="#0EA5E9" }) => (
-    <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 14, padding: 16, flex: 1, minWidth: 130 }}>
-      <div style={{ marginBottom: 8 }}><Icon name={iconName} size={18} color={color} strokeWidth={1.6} /></div>
-      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#F1F5F9" }}>{value}</div>
-      <div style={{ color, fontSize: 11, fontWeight: 600, marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ color: "#475569", fontSize: 10, marginTop: 3 }}>{sub}</div>}
+  const handleApproveCommunity = async (r) => {
+    await approveCommunityReview(providers.find(p=>p.bizName===r.providerName)?.id, r.id);
+    await addAdminLog("Community review approved", `${r.reviewerName} → ${r.providerName}`);
+    setCommunityPending(prev => prev.filter(x => x.id !== r.id));
+  };
+
+  const handleRejectCommunity = async (r) => {
+    await rejectCommunityReview(providers.find(p=>p.bizName===r.providerName)?.id, r.id);
+    await addAdminLog("Community review rejected", `${r.reviewerName} → ${r.providerName}`);
+    setCommunityPending(prev => prev.filter(x => x.id !== r.id));
+  };
+
+  // ── Filtered providers list ──────────────────────────────────────────────
+  const filteredProviders = providers
+    .filter(p => provFilter === "all" ? true : p.status === provFilter)
+    .filter(p => !search || p.bizName?.toLowerCase().includes(search.toLowerCase()) || p.email?.toLowerCase().includes(search.toLowerCase()) || p.city?.toLowerCase().includes(search.toLowerCase()));
+
+  // ── Sub-components ───────────────────────────────────────────────────────
+  const SectionTitle = ({ children }) => (
+    <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{children}</div>
+  );
+
+  const AStatCard = ({ label, value, sub, color = "#0EA5E9", iconName }) => (
+    <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 13, padding: "14px 16px", flex: 1, minWidth: 120 }}>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color }}>{value}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color, marginTop: 2 }}>{label}</div>
+      {sub && <div style={{ fontSize: 10, color: "#334155", marginTop: 3 }}>{sub}</div>}
     </div>
   );
 
-  return (
-    <div style={{ minHeight: "100vh", background: "#060A14", padding: "0 16px 80px", maxWidth: 600, margin: "0 auto" }}>
-      <div style={{ paddingTop: 44, paddingBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Logo size={36} />
-          <div>
-            <Wordmark size={18} />
-            <div style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.08em", marginTop: 2 }}>ADMIN PORTAL</div>
-          </div>
-        </div>
-        <Btn variant="ghost" small onClick={onLogout}>Sign Out</Btn>
-      </div>
+  const urgencyColor = { high: "#EF4444", normal: "#F59E0B", low: "#475569" };
+  const urgencyBg    = { high: "rgba(239,68,68,0.08)", normal: "rgba(245,158,11,0.06)", low: "rgba(255,255,255,0.03)" };
+  const urgencyBorder= { high: "rgba(239,68,68,0.25)", normal: "rgba(245,158,11,0.2)", low: "rgba(255,255,255,0.07)" };
 
-      <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 4, marginBottom: 22, gap: 4 }}>
-        {[
-          ["dashboard", "Dashboard"],
-          ["providers", "Providers"],
-          ["pending",  "Pending" + (pending.length ? ` (${pending.length})` : "")],
-          ["reviews",  "Reviews"],
-        ].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "11px 4px", borderRadius: 8, border: "none", background: tab===id ? "rgba(255,255,255,0.08)" : "transparent", color: tab===id ? "#F1F5F9" : "#475569", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.2s" }}>{label}</button>
-        ))}
-      </div>
+  // ── Provider card for admin ──────────────────────────────────────────────
+  const AdminProviderCard = ({ p }) => {
+    const [expanded, setExpanded] = useState(false);
+    const activeStrikes = (p.strikeLog || []).filter(s => !s.cleared).length;
+    const planObj       = PLANS.find(pl => pl.id === p.plan) || PLANS[0];
+    const pJobs         = allJobs.filter(j => j.providerName === p.bizName || j.providerId === p.id);
+    const pReviews      = allReviews.filter(r => r.providerId === p.id);
+    const completedCt   = pJobs.filter(j => j.status === "completed").length;
+    const totalValue    = pJobs.filter(j => j.status === "completed" && j.estimatedValue).reduce((s,j) => s + parseFloat(j.estimatedValue), 0);
+    const statusColors  = { approved: "#10B981", suspended: "#EF4444", rejected: "#64748B", pending: "#F59E0B" };
+    const statusColor   = statusColors[p.status] || "#64748B";
+    const isAutoSusp    = p.status === "suspended" && p.autoSuspendedAt;
 
-      {tab === "dashboard" && (
-        <div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
-            <StatCard iconName="chart"   label="Subscription revenue" value={`R${totalRevenue.toLocaleString()}`} sub="Active subscriptions" color="#10B981" />
-            <StatCard iconName="send"    label="Referral revenue" value={`R${referralRevenue.toLocaleString()}`} sub="This month, per-lead billing" color="#F59E0B" />
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
-            <StatCard iconName="booking" label="Booking commission" value={`R${Math.round(bookingCommission).toLocaleString()}`} sub="8% of completed job values" color="#8B5CF6" />
-            <StatCard iconName="star"    label="Platform rating" value={avgPlatformRating} sub={`${totalReviews} reviews submitted`} color="#F59E0B" />
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
-            <StatCard iconName="home"    label="Active providers" value={approved.length} sub={`${pending.length} pending`} color="#0EA5E9" />
-            <StatCard iconName="strike"  label="Auto-suspended" value={providers.filter(p=>p.autoSuspendedAt).length} sub="3-strike violations" color="#EF4444" />
-          </div>
-
-          {/* Real event breakdown */}
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Platform events — all time</div>
-            {[
-              { label: "WhatsApp taps", val: totalWA,        color: "#25D366", iconName: "whatsapp"  },
-              { label: "Call taps",     val: totalCalls,     color: "#10B981", iconName: "phone"     },
-              { label: "Profile views", val: totalViews,     color: "#6366F1", iconName: "search"    },
-              { label: "Job bookings",  val: totalBookings,  color: "#F59E0B", iconName: "booking"   },
-              { label: "Total leads",   val: totalReferrals, color: "#0EA5E9", iconName: "send"      },
-            ].map(({ label, val, color, iconName }) => (
-              <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Icon name={iconName} size={14} color={color} strokeWidth={1.6} />
-                  <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "'Syne',sans-serif" }}>{val}</span>
-              </div>
-            ))}
-            {events.length === 0 && (
-              <div style={{ fontSize: 11, color: "#334155", textAlign: "center", padding: "16px 0" }}>No events tracked yet. Events appear here as customers interact with provider listings.</div>
-            )}
-          </div>
-          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Revenue by Plan</div>
-            {PLANS.map(plan => {
-              const count = approved.filter(p=>p.plan===plan.id).length;
-              const rev   = count * plan.price;
-              const pct   = totalRevenue > 0 ? (rev/totalRevenue*100).toFixed(0) : 0;
-              return (
-                <div key={plan.id} style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
-                    <span style={{ color: "#94A3B8", fontWeight: 600 }}>{plan.label} <span style={{ color: "#475569" }}>({count} providers)</span></span>
-                    <span style={{ color: plan.color, fontWeight: 700 }}>R{rev.toLocaleString()}</span>
-                  </div>
-                  <div style={{ height: 6, borderRadius: 6, background: "rgba(255,255,255,0.06)" }}>
-                    <div style={{ height: "100%", borderRadius: 6, background: plan.color, width: `${pct}%`, transition: "width 0.6s ease" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {tab === "providers" && (
-        <div>
-          {/* Suspended providers (auto-suspended by strikes) shown first */}
-          {providers.filter(p => p.status === "suspended" && p.autoSuspendedAt).length > 0 && (
-            <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#FCA5A5", marginBottom: 4 }}>
-                ⛔ {providers.filter(p => p.status === "suspended" && p.autoSuspendedAt).length} provider{providers.filter(p => p.status === "suspended" && p.autoSuspendedAt).length !== 1 ? "s" : ""} auto-suspended
-              </div>
-              <div style={{ fontSize: 11, color: "#7F1D1D" }}>Suspended after receiving {MAX_STRIKES} negative reviews. Review and clear strikes to reinstate.</div>
+    return (
+      <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${activeStrikes > 0 ? "rgba(245,158,11,0.3)" : p.status === "suspended" ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, marginBottom: 10, overflow: "hidden" }}>
+        {/* Header row */}
+        <div onClick={() => setExpanded(v => !v)} style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
+              <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{p.bizName}</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}33`, borderRadius: 20, padding: "2px 8px" }}>{p.status?.toUpperCase()}</span>
+              {isAutoSusp && <span style={{ fontSize: 9, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", borderRadius: 20, padding: "2px 8px" }}>AUTO</span>}
+              {activeStrikes > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#F59E0B", background: "rgba(245,158,11,0.12)", borderRadius: 20, padding: "2px 8px" }}>⚠ {activeStrikes} STRIKE{activeStrikes>1?"S":""}</span>}
+              <span style={{ fontSize: 9, fontWeight: 700, color: planObj.color, background: `${planObj.color}18`, borderRadius: 20, padding: "2px 8px" }}>{planObj.label?.toUpperCase()}</span>
             </div>
-          )}
-
-          {approved.concat(providers.filter(p => p.status === "suspended" && p.autoSuspendedAt)).length === 0
-            ? <div style={{ textAlign: "center", color: "#475569", marginTop: 40 }}>No providers yet.</div>
-            : [...providers.filter(p => p.status === "suspended" && p.autoSuspendedAt), ...approved].map(p => {
-              const activeStrikes = (p.strikeLog || []).filter(s => !s.cleared).length;
-              const isSuspended   = p.status === "suspended" && p.autoSuspendedAt;
-              const borderColor   = isSuspended ? "rgba(239,68,68,0.35)" : activeStrikes > 0 ? "rgba(245,158,11,0.3)" : "rgba(255,255,255,0.08)";
-              return (
-                <div key={p.id} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${borderColor}`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{p.bizName}</div>
-                      <div style={{ color: "#64748B", fontSize: 11 }}>{p.contactName} · {p.city}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      {isSuspended && <Badge color="#EF4444">SUSPENDED</Badge>}
-                      {!isSuspended && activeStrikes > 0 && <Badge color="#F59E0B">{activeStrikes} STRIKE{activeStrikes > 1 ? "S" : ""}</Badge>}
-                      <Badge color={PLANS.find(pl=>pl.id===p.plan)?.color||"#64748B"}>{p.plan}</Badge>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-                    {p.services?.map(s => { const svc = SERVICES.find(sv=>sv.id===s); return svc ? <Badge key={s} color={svc.color}>{svc.label}</Badge> : null; })}
-                    {p.emergency && <Badge color="#EF4444">24hr</Badge>}
-                  </div>
-
-                  {/* Strike log */}
-                  {activeStrikes > 0 && (
-                    <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 9, padding: "10px 12px", marginBottom: 10 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Strike history</div>
-                      {(p.strikeLog || []).map((s, idx) => !s.cleared && (
-                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                          <div style={{ width: 18, height: 18, borderRadius: "50%", background: "rgba(245,158,11,0.2)", border: "1px solid rgba(245,158,11,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#F59E0B", flexShrink: 0 }}>{idx + 1}</div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 11, color: "#94A3B8" }}>{s.dateLabel} · {"★".repeat(s.rating)}{"☆".repeat(5 - s.rating)} · {s.customerName}</div>
-                            {s.comment && <div style={{ fontSize: 10, color: "#475569", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{s.comment}"</div>}
-                          </div>
-                          <button onClick={async () => { await clearStrike(p.id, idx); const raw = await store.get("providers"); setProviders(raw ? JSON.parse(raw.value) : []); }}
-                            style={{ fontSize: 10, fontWeight: 700, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
-                            Clear ✓
-                          </button>
-                        </div>
-                      ))}
-                      {isSuspended && (
-                        <div style={{ fontSize: 11, color: "#F59E0B", marginTop: 4 }}>Clear all strikes to reinstate this provider.</div>
-                      )}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 10 }}>
-                    <span><Icon name="phone" size={11} color="#475569" strokeWidth={1.8} /> {p.phone}</span>
-                    <span>{(p.leads||[]).filter(l=>["call","whatsapp"].includes(l.type)).length} leads</span>
-                    {(() => {
-                      const tier = getSpeedTier(getResponseSpeed(p.jobs || []));
-                      return tier
-                        ? <span style={{ color: tier.color }}>{tier.icon} {tier.short}</span>
-                        : <span>R{PLANS.find(pl=>pl.id===p.plan)?.price||0}/mo</span>;
-                    })()}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    {isSuspended
-                      ? <Btn small variant="green"  onClick={() => updateStatus(p.id, "approved")} style={{ flex: 1 }}>Reinstate</Btn>
-                      : <Btn small variant="ghost"  onClick={() => updateStatus(p.id, "suspended")} style={{ flex: 1 }}>Suspend</Btn>}
-                  </div>
-                </div>
-              );
-            })}
+            <div style={{ fontSize: 11, color: "#64748B" }}>{p.contactName} · {p.email}</div>
+            <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{p.suburb}, {p.city} · {completedCt} jobs · ★{p.liveRating || "—"} ({pReviews.length} reviews)</div>
+            {p.adminNote && <div style={{ marginTop: 6, fontSize: 11, color: "#F59E0B", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "4px 8px" }}>📝 {p.adminNote}</div>}
+          </div>
+          <span style={{ color: "#334155", fontSize: 13, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
         </div>
-      )}
 
-      {tab === "pending" && (
-        <div>
-          {pending.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#475569", marginTop: 40 }}>
-              <div style={{ marginBottom: 12 }}><Icon name="check" size={40} color="#10B981" strokeWidth={1.4} /></div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 15 }}>All clear</div>
-              <div style={{ fontSize: 12, marginTop: 6, color: "#334155" }}>No pending applications right now.</div>
-            </div>
-          ) : pending.map(p => (
-            <div key={p.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{p.bizName}</div>
-                  <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>{p.contactName}</div>
+        {expanded && (
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: "14px 16px" }}>
+
+            {/* Stats row */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
+              {[
+                { label: "Jobs done", val: completedCt, color: "#10B981" },
+                { label: "Revenue", val: totalValue > 0 ? `R${Math.round(totalValue).toLocaleString()}` : "—", color: "#0EA5E9" },
+                { label: "Leads", val: (p.leads||[]).filter(l=>["call","whatsapp"].includes(l.type)).length, color: "#F59E0B" },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 6px" }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color }}>{val}</div>
+                  <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{label}</div>
                 </div>
-                <Badge color="#F59E0B">Pending</Badge>
-              </div>
+              ))}
+            </div>
 
-              {/* Contact details */}
-              <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 10 }}>
-                {[
-                  ["Email",    p.email],
-                  ["Phone",    p.phone],
-                  ["Location", `${p.suburb}, ${p.city}`],
-                  ["Reg No.",  p.regNum],
-                ].filter(([,v]) => v).map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", gap: 10, padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                    <span style={{ fontSize: 11, color: "#475569", minWidth: 64, flexShrink: 0 }}>{k}</span>
-                    <span style={{ fontSize: 11, color: "#94A3B8", wordBreak: "break-all" }}>{v}</span>
+            {/* Contact links */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              {p.phone && (
+                <a href={`tel:${p.phone}`} style={{ flex: 1, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#34D399", cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                  <Icon name="phone" size={11} color="#34D399" strokeWidth={2} /> Call
+                </a>
+              )}
+              {p.phone && (
+                <a href={`https://wa.me/${p.phone.replace(/[\s-()+]/g,"")}?text=Hi ${p.contactName}, this is FixIt Now admin regarding your provider account.`} target="_blank" rel="noreferrer"
+                  style={{ flex: 1, background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                  <Icon name="whatsapp" size={11} color="#25D366" strokeWidth={2} /> WhatsApp
+                </a>
+              )}
+              {p.email && (
+                <a href={`mailto:${p.email}`} style={{ flex: 1, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#818CF8", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                  <Icon name="message" size={11} color="#818CF8" strokeWidth={2} /> Email
+                </a>
+              )}
+            </div>
+
+            {/* Strike history */}
+            {(p.strikeLog||[]).length > 0 && (
+              <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 10, padding: "10px 12px", marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Quality strikes</div>
+                {(p.strikeLog||[]).map((s, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <div style={{ width: 16, height: 16, borderRadius: "50%", background: s.cleared ? "rgba(16,185,129,0.2)" : "rgba(245,158,11,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: s.cleared ? "#10B981" : "#F59E0B", flexShrink: 0 }}>{idx+1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 11, color: s.cleared ? "#475569" : "#94A3B8" }}>{"★".repeat(s.rating)}{"☆".repeat(5-s.rating)} · {s.customerName} · {s.dateLabel}</div>
+                      {s.comment && <div style={{ fontSize: 10, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{s.comment}"</div>}
+                      {s.cleared && <div style={{ fontSize: 9, color: "#10B981", marginTop: 1 }}>Cleared by admin</div>}
+                    </div>
+                    {!s.cleared && (
+                      <button onClick={() => handleClearStrike(p.id, idx)}
+                        style={{ fontSize: 10, fontWeight: 700, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
+                        Clear
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
+            )}
 
-              {/* Services + plan */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-                {p.services?.map(s => { const svc = SERVICES.find(sv => sv.id === s); return svc ? <Badge key={s} color={svc.color}>{svc.label}</Badge> : null; })}
-                {p.emergency && <Badge color="#EF4444">24hr Emergency</Badge>}
-                <Badge color={PLANS.find(pl => pl.id === p.plan)?.color || "#64748B"}>{PLANS.find(pl => pl.id === p.plan)?.label || p.plan}</Badge>
+            {/* Status history */}
+            {(p.statusHistory||[]).length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Status history</div>
+                {(p.statusHistory||[]).slice(0, 4).map((h, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, padding: "4px 0", fontSize: 11, color: "#475569", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                    <span style={{ color: statusColors[h.status] || "#64748B", minWidth: 64 }}>{h.status}</span>
+                    <span style={{ flex: 1, color: "#334155" }}>{h.note || "—"}</span>
+                    <span style={{ flexShrink: 0 }}>{h.dateLabel}</span>
+                  </div>
+                ))}
               </div>
+            )}
 
-              {/* Description */}
-              {p.description && (
-                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.6, background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "8px 10px", marginBottom: 12 }}>
-                  "{p.description}"
+            {/* Services offered */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 14 }}>
+              {p.services?.map(s => { const svc = SERVICES.find(sv=>sv.id===s); return svc ? <Badge key={s} color={svc.color}>{svc.label}</Badge> : null; })}
+              {p.insuranceConfirmed && <Badge color="#10B981">Insured</Badge>}
+              {p.emergency && <Badge color="#EF4444">24hr</Badge>}
+            </div>
+
+            {/* Admin note */}
+            {noteTarget === p.id ? (
+              <div style={{ marginBottom: 12 }}>
+                <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add an admin note (visible only to you)…" rows={2}
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none", marginBottom: 8 }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn small variant="ghost" onClick={() => { setNoteTarget(null); setNoteText(""); }} style={{ flex: 1 }}>Cancel</Btn>
+                  <Btn small onClick={() => saveNote(p.id, noteText)} style={{ flex: 1, background: "rgba(245,158,11,0.2)", border: "1px solid rgba(245,158,11,0.4)", color: "#F59E0B" }}>Save note</Btn>
                 </div>
-              )}
-
-              {/* Approve / Reject */}
-              <div style={{ display: "flex", gap: 8 }}>
-                <Btn small variant="green"  onClick={() => updateStatus(p.id, "approved")} style={{ flex: 1 }}>Approve</Btn>
-                <Btn small variant="danger" onClick={() => updateStatus(p.id, "rejected")} style={{ flex: 1 }}>Reject</Btn>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ) : null}
 
-      {tab === "reviews" && (
-        <div>
-          {/* Summary strip */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <div style={{ flex: 1, background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#F59E0B" }}>{avgPlatformRating}</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#854F0B", letterSpacing: "0.07em", marginTop: 2 }}>AVG PLATFORM RATING</div>
-            </div>
-            <div style={{ flex: 1, background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#0EA5E9" }}>{totalReviews}</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#185FA5", letterSpacing: "0.07em", marginTop: 2 }}>TOTAL REVIEWS</div>
-            </div>
-          </div>
-
-          {allReviews.length === 0 ? (
-            <div style={{ textAlign: "center", color: "#475569", marginTop: 40 }}>
-              <div style={{ marginBottom: 10 }}><Icon name="star" size={36} color="#475569" strokeWidth={1.4} /></div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B" }}>No reviews yet</div>
-              <div style={{ fontSize: 12, marginTop: 6, color: "#334155" }}>Reviews appear here when customers rate completed jobs.</div>
-            </div>
-          ) : allReviews.map(r => (
-            <div key={r.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, padding: 14, marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F1F5F9" }}>{r.providerName}</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{r.customerName} · {r.dateLabel}</div>
-                </div>
-                <div style={{ display: "flex", gap: 1 }}>
-                  {[1,2,3,4,5].map(i => (
-                    <span key={i} style={{ color: i <= r.rating ? "#F59E0B" : "#1E293B", fontSize: 14 }}>★</span>
+            {/* Plan change */}
+            {planTarget === p.id && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: "#64748B", marginBottom: 8 }}>Change plan for {p.bizName}:</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {PLANS.map(pl => (
+                    <button key={pl.id} onClick={() => updateProviderPlan(p.id, pl.id)}
+                      style={{ flex: 1, background: p.plan === pl.id ? `${pl.color}22` : "rgba(255,255,255,0.04)", border: `1.5px solid ${p.plan === pl.id ? pl.color : "rgba(255,255,255,0.1)"}`, borderRadius: 9, padding: "8px 4px", fontSize: 11, fontWeight: 700, color: p.plan === pl.id ? pl.color : "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                      {pl.label}
+                    </button>
                   ))}
                 </div>
+                <Btn small variant="ghost" onClick={() => setPlanTarget(null)} style={{ marginTop: 8, width: "100%" }}>Cancel</Btn>
               </div>
-              {r.comment && (
-                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.6, background: "rgba(255,255,255,0.02)", borderRadius: 8, padding: "8px 10px" }}>"{r.comment}"</div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {p.status === "approved" && (
+                <Btn small variant="ghost" onClick={() => {
+                  setConfirmAction({ label: `Suspend ${p.bizName}?`, onConfirm: (note) => updateProviderStatus(p.id, "suspended", note) });
+                }} style={{ flex: 1, minWidth: 90 }}>Suspend</Btn>
               )}
-              <div style={{ fontSize: 10, color: "#334155", marginTop: 6 }}>
-                {SERVICES.find(s=>s.id===r.serviceType)?.icon} {SERVICES.find(s=>s.id===r.serviceType)?.label || r.serviceType}
-              </div>
+              {p.status === "suspended" && (
+                <Btn small variant="green" onClick={() => updateProviderStatus(p.id, "approved", "Reinstated by admin")} style={{ flex: 1, minWidth: 90 }}>Reinstate</Btn>
+              )}
+              {p.status === "rejected" && (
+                <Btn small variant="green" onClick={() => updateProviderStatus(p.id, "approved", "Re-approved by admin")} style={{ flex: 1, minWidth: 90 }}>Re-approve</Btn>
+              )}
+              {p.status === "pending" && (
+                <>
+                  <Btn small variant="green" onClick={() => updateProviderStatus(p.id, "approved", "Approved")} style={{ flex: 1 }}>Approve</Btn>
+                  <Btn small variant="danger" onClick={() => updateProviderStatus(p.id, "rejected", "Rejected by admin")} style={{ flex: 1 }}>Reject</Btn>
+                </>
+              )}
+              <Btn small variant="ghost" onClick={() => { setNoteTarget(p.id); setNoteText(p.adminNote || ""); }} style={{ flex: 1, minWidth: 70 }}>📝 Note</Btn>
+              <Btn small variant="ghost" onClick={() => setPlanTarget(planTarget === p.id ? null : p.id)} style={{ flex: 1, minWidth: 70 }}>Plan</Btn>
             </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── Confirm action modal ─────────────────────────────────────────────────
+  const ConfirmModal = () => {
+    const [note, setNote] = useState("");
+    if (!confirmAction) return null;
+    return (
+      <div onClick={() => setConfirmAction(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380 }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 8 }}>{confirmAction.label}</div>
+          <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Add a reason (optional — saved in status history)…" rows={2}
+            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none", marginBottom: 14 }} />
+          <div style={{ display: "flex", gap: 10 }}>
+            <Btn variant="ghost" onClick={() => setConfirmAction(null)} style={{ flex: 1 }}>Cancel</Btn>
+            <Btn variant="danger" onClick={() => { confirmAction.onConfirm(note); setConfirmAction(null); }} style={{ flex: 1 }}>Confirm</Btn>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  return (
+    <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 620, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
+      <style>{`.fadeUp{animation:fadeUp 0.3s ease forwards}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {/* Header */}
+      <div style={{ padding: "44px 18px 0", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Logo size={34} />
+            <div>
+              <Wordmark size={17} />
+              <div style={{ fontSize: 9, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.1em", marginTop: 1 }}>ADMIN PORTAL</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={loadAll} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>↻ Refresh</button>
+            <Btn variant="ghost" small onClick={onLogout}>Sign out</Btn>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab nav — horizontal scroll on small screens */}
+      <div style={{ padding: "0 18px", marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none", background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 4 }}>
+          {[
+            ["inbox",      `Inbox${inboxItems.length ? ` (${inboxItems.length})` : ""}`],
+            ["providers",  `Providers (${providers.length})`],
+            ["customers",  `Customers (${customers.length})`],
+            ["content",    `Content${communityPending.length + flaggedReviews.length > 0 ? ` (${communityPending.length + flaggedReviews.length})` : ""}`],
+            ["jobs",       `Jobs (${allJobs.length})`],
+            ["financials", "Financials"],
+            ["log",        "Audit log"],
+          ].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              style={{ flexShrink: 0, padding: "9px 12px", borderRadius: 9, border: "none", background: tab === id ? "rgba(255,255,255,0.1)" : "transparent", color: tab === id ? "#F1F5F9" : "#475569", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" }}>
+              {label}
+            </button>
           ))}
         </div>
-      )}
+      </div>
+
+      <div style={{ padding: "0 18px 100px" }}>
+
+        {loading && <div style={{ textAlign: "center", padding: "40px 0", color: "#475569" }}>Loading platform data…</div>}
+
+        {/* ── INBOX ── */}
+        {!loading && tab === "inbox" && (
+          <div className="fadeUp">
+            <SectionTitle>Needs your attention</SectionTitle>
+            {inboxItems.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 0" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#34D399" }}>All clear</div>
+                <div style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>No items need your attention right now.</div>
+              </div>
+            ) : inboxItems.map((item, i) => (
+              <div key={`${item.type}-${item.id}`} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: urgencyBg[item.urgency], border: `1px solid ${urgencyBorder[item.urgency]}`, borderRadius: 13, padding: "14px 16px", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: urgencyColor[item.urgency], flexShrink: 0, marginTop: 5 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", marginBottom: 2 }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: "#475569" }}>{item.sub}</div>
+
+                    {/* Inline actions per type */}
+                    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                      {item.type === "pending_provider" && (
+                        <>
+                          <Btn small variant="green" onClick={() => { updateProviderStatus(item.id, "approved", "Approved via inbox"); loadAll(); }}>Approve</Btn>
+                          <Btn small variant="danger" onClick={() => { updateProviderStatus(item.id, "rejected", "Rejected via inbox"); loadAll(); }}>Reject</Btn>
+                          <Btn small variant="ghost" onClick={() => setTab("providers")}>View details</Btn>
+                        </>
+                      )}
+                      {item.type === "auto_suspended" && (
+                        <>
+                          <Btn small variant="green" onClick={() => { updateProviderStatus(item.id, "approved", "Reinstated via inbox"); loadAll(); }}>Reinstate</Btn>
+                          <Btn small variant="ghost" onClick={() => setTab("providers")}>Review strikes</Btn>
+                        </>
+                      )}
+                      {item.type === "stuck_job" && (
+                        <Btn small variant="ghost" onClick={() => setTab("jobs")}>View job</Btn>
+                      )}
+                      {item.type === "community_review" && (
+                        <>
+                          <Btn small variant="green" onClick={() => handleApproveCommunity(item.data)}>Approve</Btn>
+                          <Btn small variant="danger" onClick={() => handleRejectCommunity(item.data)}>Reject</Btn>
+                        </>
+                      )}
+                      {item.type === "low_review" && (
+                        <>
+                          <Btn small variant="ghost" onClick={() => setTab("content")}>View review</Btn>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PROVIDERS ── */}
+        {!loading && tab === "providers" && (
+          <div className="fadeUp">
+            {/* Search */}
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, city…"
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "11px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", marginBottom: 12 }} />
+
+            {/* Status filter chips */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+              {[
+                ["all",       `All (${providers.length})`,        "#64748B"],
+                ["approved",  `Active (${active.length})`,        "#10B981"],
+                ["suspended", `Suspended (${suspended.length})`,  "#EF4444"],
+                ["rejected",  `Rejected (${rejected.length})`,    "#475569"],
+                ["pending",   `Pending (${pending.length})`,      "#F59E0B"],
+              ].map(([val, label, color]) => (
+                <button key={val} onClick={() => setProvFilter(val)}
+                  style={{ padding: "6px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", background: provFilter === val ? `${color}22` : "rgba(255,255,255,0.04)", border: `1.5px solid ${provFilter === val ? color : "rgba(255,255,255,0.08)"}`, color: provFilter === val ? color : "#475569" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {filteredProviders.length === 0
+              ? <div style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>No providers match this filter.</div>
+              : filteredProviders.map(p => <AdminProviderCard key={p.id} p={p} />)
+            }
+          </div>
+        )}
+
+        {/* ── CUSTOMERS ── */}
+        {!loading && tab === "customers" && (
+          <div className="fadeUp">
+            <SectionTitle>All customers ({customers.length})</SectionTitle>
+            {customers.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>No customers registered yet.</div>
+            ) : customers.map(c => {
+              const cJobs    = allJobs.filter(j => j.customerId === c.email || j.customerName === c.name);
+              const cReviews = allReviews.filter(r => r.customerEmail === c.email || r.customerName === c.name);
+              return (
+                <div key={c.email} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, padding: "14px 16px", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{c.email} · {c.phone}</div>
+                      <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{c.suburb}, {c.city}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#0EA5E9" }}>{cJobs.length} jobs</div>
+                      <div style={{ fontSize: 10, color: "#475569" }}>{cReviews.length} reviews left</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {c.phone && (
+                      <a href={`https://wa.me/${c.phone.replace(/[\s-()+]/g,"")}`} target="_blank" rel="noreferrer"
+                        style={{ flex: 1, background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.2)", borderRadius: 8, padding: "6px 0", fontSize: 11, fontWeight: 600, color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                        <Icon name="whatsapp" size={11} color="#25D366" strokeWidth={2} /> WhatsApp
+                      </a>
+                    )}
+                    {c.email && (
+                      <a href={`mailto:${c.email}`}
+                        style={{ flex: 1, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, padding: "6px 0", fontSize: 11, fontWeight: 600, color: "#818CF8", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                        <Icon name="message" size={11} color="#818CF8" strokeWidth={2} /> Email
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── CONTENT MODERATION ── */}
+        {!loading && tab === "content" && (
+          <div className="fadeUp">
+
+            {/* Community reviews pending */}
+            {communityPending.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <SectionTitle>Community reviews awaiting approval ({communityPending.length})</SectionTitle>
+                {communityPending.map(r => (
+                  <div key={r.id} style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 13, padding: 14, marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>For: {r.providerName}</div>
+                        <div style={{ fontSize: 11, color: "#64748B" }}>{r.reviewerName} · {r.relationship} · {r.dateLabel}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6, marginBottom: 10, fontStyle: "italic" }}>"{r.comment}"</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Btn small variant="green" onClick={() => handleApproveCommunity(r)} style={{ flex: 1 }}>Approve</Btn>
+                      <Btn small variant="danger" onClick={() => handleRejectCommunity(r)} style={{ flex: 1 }}>Reject</Btn>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* All platform reviews — can flag or remove */}
+            <div style={{ marginBottom: 24 }}>
+              <SectionTitle>Platform reviews ({allReviews.length}) — avg {avgRating}★</SectionTitle>
+              {allReviews.length === 0
+                ? <div style={{ color: "#475569", fontSize: 12, textAlign: "center", padding: "20px 0" }}>No reviews yet.</div>
+                : allReviews.slice(0, 30).map(r => (
+                  <div key={r.id} style={{ background: r.rating <= 2 ? "rgba(239,68,68,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${r.rating <= 2 ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.07)"}`, borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{r.providerName}</div>
+                        <div style={{ fontSize: 11, color: "#64748B" }}>{r.customerName} · {r.dateLabel}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 1 }}>
+                        {[1,2,3,4,5].map(i => <span key={i} style={{ color: i <= r.rating ? "#F59E0B" : "#1E293B", fontSize: 13 }}>★</span>)}
+                      </div>
+                    </div>
+                    {r.comment && <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5, marginBottom: 8 }}>"{r.comment}"</div>}
+                    {r.flagged && <div style={{ fontSize: 10, color: "#EF4444", marginBottom: 6 }}>⚑ Flagged: {r.flagReason}</div>}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => { handleRemoveReview(r.id, r.providerName); }}
+                        style={{ fontSize: 10, fontWeight: 600, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#FCA5A5", borderRadius: 7, padding: "4px 10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        Remove review
+                      </button>
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+
+            {/* Deals board */}
+            {allDeals.length > 0 && (
+              <div style={{ marginBottom: 24 }}>
+                <SectionTitle>Active deals ({allDeals.length})</SectionTitle>
+                {allDeals.map(d => (
+                  <div key={d.id} style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 12, padding: 14, marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#F59E0B" }}>{d.headline}</div>
+                        <div style={{ fontSize: 11, color: "#64748B" }}>{d.providerName} · expires {new Date(d.expiresAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 8 }}>{d.description}</div>
+                    <button onClick={() => { removeDealPost(d.providerId); setAllDeals(prev => prev.filter(x => x.id !== d.id)); addAdminLog("Deal removed", `${d.providerName}: "${d.headline}"`); }}
+                      style={{ fontSize: 10, fontWeight: 600, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#FCA5A5", borderRadius: 7, padding: "4px 10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                      Remove deal
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Job board posts */}
+            {jobBoard.filter(j => j.status === "open").length > 0 && (
+              <div>
+                <SectionTitle>Job board posts ({jobBoard.filter(j=>j.status==="open").length} open)</SectionTitle>
+                {jobBoard.filter(j => j.status === "open").slice(0, 20).map(j => (
+                  <div key={j.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 14, marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName}</div>
+                        <div style={{ fontSize: 11, color: "#64748B" }}>{j.customerName} · {j.location} · {j.dateLabel}</div>
+                      </div>
+                      <div style={{ fontSize: 11, color: "#475569" }}>{j.quotes?.length || 0} quotes</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#94A3B8", marginBottom: 8 }}>{j.description}</div>
+                    <button onClick={() => { removeJobBoardPost(j.id); setJobBoard(prev => prev.filter(x => x.id !== j.id)); addAdminLog("Job board post removed", `${j.customerName}: ${j.serviceName}`); }}
+                      style={{ fontSize: 10, fontWeight: 600, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", color: "#FCA5A5", borderRadius: 7, padding: "4px 10px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                      Remove post
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {communityPending.length === 0 && allReviews.length === 0 && allDeals.length === 0 && jobBoard.length === 0 && (
+              <div style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>No content to moderate yet.</div>
+            )}
+          </div>
+        )}
+
+        {/* ── JOBS ── */}
+        {!loading && tab === "jobs" && (
+          <div className="fadeUp">
+            {/* Summary */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+              {[
+                { label: "Total", val: allJobs.length, color: "#64748B" },
+                { label: "Completed", val: completedJobs.length, color: "#10B981" },
+                { label: "Stuck 48hr+", val: stuckJobs.length, color: stuckJobs.length > 0 ? "#EF4444" : "#475569" },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color }}>{val}</div>
+                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Stuck jobs first */}
+            {stuckJobs.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <SectionTitle>⚠ Stuck jobs — no response in 48+ hours</SectionTitle>
+                {stuckJobs.map(j => (
+                  <div key={j.id} style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 14, marginBottom: 8 }}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#FCA5A5", marginBottom: 4 }}>{j.serviceName}</div>
+                    <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>{j.customerName} → {j.providerName}</div>
+                    <div style={{ fontSize: 11, color: "#475569" }}>Posted: {j.dateLabel || "Unknown"} · {j.address}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <SectionTitle>All jobs (most recent first)</SectionTitle>
+            {allJobs.length === 0
+              ? <div style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>No jobs yet.</div>
+              : [...allJobs].sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0)).slice(0, 50).map(j => {
+                const st = JOB_STATUS[j.status] || JOB_STATUS.pending;
+                return (
+                  <div key={j.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${st.color}22`, borderRadius: 12, padding: "12px 14px", marginBottom: 7 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName || j.serviceType} · {j.customerName} → {j.providerName}</div>
+                        <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{j.description?.slice(0, 60)}</div>
+                        <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{j.dateLabel} · {j.address?.slice(0,40)}</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 8 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.color }} />
+                        <span style={{ fontSize: 10, fontWeight: 600, color: st.color }}>{st.label}</span>
+                      </div>
+                    </div>
+                    {j.estimatedValue && (
+                      <div style={{ fontSize: 10, color: "#10B981", marginTop: 4 }}>
+                        R{parseFloat(j.estimatedValue).toLocaleString()} · Platform fee: R{Math.round(parseFloat(j.estimatedValue) * PLATFORM_FEE_PCT)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            }
+          </div>
+        )}
+
+        {/* ── FINANCIALS ── */}
+        {!loading && tab === "financials" && (
+          <div className="fadeUp">
+            <SectionTitle>Revenue snapshot</SectionTitle>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <AStatCard label="Subscription MRR" value={`R${totalRevSubs.toLocaleString()}`} sub="Active provider plans" color="#10B981" />
+              <AStatCard label="Commission (this month)" value={`R${Math.round(monthCommission).toLocaleString()}`} sub="8% of completed job values" color="#8B5CF6" />
+              <AStatCard label="Total reviews" value={allReviews.length} sub={`Avg ${avgRating}★`} color="#F59E0B" />
+              <AStatCard label="Total jobs" value={allJobs.length} sub={`${completedJobs.length} completed`} color="#0EA5E9" />
+            </div>
+
+            {/* Revenue by plan */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Subscriptions by plan</div>
+              {PLANS.map(plan => {
+                const planProviders = active.filter(p => p.plan === plan.id);
+                const rev = planProviders.length * plan.price;
+                return planProviders.length > 0 ? (
+                  <div key={plan.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: plan.color }} />
+                      <span style={{ fontSize: 13, color: "#E2E8F0" }}>{plan.label}</span>
+                      <span style={{ fontSize: 11, color: "#475569" }}>{planProviders.length} provider{planProviders.length !== 1?"s":""}</span>
+                    </div>
+                    <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: plan.color }}>R{rev.toLocaleString()}/mo</span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+
+            {/* Platform events breakdown */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Platform activity — all time</div>
+              {[
+                { label: "Profile views",  val: events.filter(e=>e.type==="view").length,      color: "#6366F1" },
+                { label: "WhatsApp taps",  val: events.filter(e=>e.type==="whatsapp").length,  color: "#25D366" },
+                { label: "Call taps",      val: events.filter(e=>e.type==="call").length,       color: "#10B981" },
+                { label: "Job requests",   val: events.filter(e=>e.type==="booking").length,    color: "#F59E0B" },
+                { label: "SOS sent",       val: events.filter(e=>e.type==="sos").length,        color: "#EF4444" },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
+                  <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color }}>{val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── AUDIT LOG ── */}
+        {!loading && tab === "log" && (
+          <div className="fadeUp">
+            <SectionTitle>Admin action log ({auditLog.length} entries)</SectionTitle>
+            {auditLog.length === 0
+              ? <div style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>No admin actions recorded yet. Actions you take appear here.</div>
+              : auditLog.map((entry, i) => (
+                <div key={entry.id || i} style={{ display: "flex", gap: 12, padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, marginBottom: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6366F1", flexShrink: 0, marginTop: 5 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{entry.action}</div>
+                    <div style={{ fontSize: 11, color: "#64748B", marginTop: 1 }}>{entry.detail}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: "#334155", flexShrink: 0, textAlign: "right" }}>{entry.dateLabel}</div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+
+      <ConfirmModal />
     </div>
   );
 }
+
 
 // ─── PROVIDER STATUS SCREEN ──────────────────────────────────────────────────────
 function ProviderStatusScreen({ provider, onLogout }) {

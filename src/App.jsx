@@ -388,23 +388,31 @@ const getResponseSpeed = (providerJobs = []) => {
     ["accepted","inprogress","completed"].includes(j.status) && j.createdAt && j.updatedAt
   );
   if (!accepted.length) return null;
-  const avgHours = accepted.reduce((sum, j) => {
-    const hrs = (new Date(j.updatedAt) - new Date(j.createdAt)) / 36e5;
-    return sum + Math.max(0, hrs);
+  const avgMins = accepted.reduce((sum, j) => {
+    const mins = (new Date(j.updatedAt) - new Date(j.createdAt)) / 60000;
+    return sum + Math.max(0, mins);
   }, 0) / accepted.length;
-  return avgHours;
+  return avgMins; // now returns MINUTES, not hours
+};
+
+// Human-readable label for response time in minutes
+const formatResponseTime = (avgMins) => {
+  if (avgMins === null) return null;
+  if (avgMins < 60)   return `${Math.round(avgMins)}min`;
+  if (avgMins < 1440) return `${(avgMins / 60).toFixed(1)}hr`;
+  return `${Math.round(avgMins / 1440)}d`;
 };
 
 const SPEED_TIERS = [
-  { maxHrs: 1,    label: "Under 1 hr",   short: "<1hr",   color: "#10B981", score: 4 },
-  { maxHrs: 4,    label: "Under 4 hrs",  short: "<4hrs",  color: "#0EA5E9", score: 3 },
-  { maxHrs: 24,   label: "Under 24 hrs", short: "<24hrs", color: "#F59E0B", score: 2 },
-  { maxHrs: 9999, label: "Over 24 hrs",  short: ">24hrs", color: "#64748B", score: 1 },
+  { maxMins: 60,    label: "Under 1 hour",  short: "<1hr",   color: "#10B981", score: 4 },
+  { maxMins: 240,   label: "Under 4 hours", short: "<4hrs",  color: "#0EA5E9", score: 3 },
+  { maxMins: 1440,  label: "Under 24 hrs",  short: "<24hrs", color: "#F59E0B", score: 2 },
+  { maxMins: 99999, label: "Over 24 hrs",   short: ">24hrs", color: "#64748B", score: 1 },
 ];
 
-const getSpeedTier = (avgHours) => {
-  if (avgHours === null) return null;
-  return SPEED_TIERS.find(t => avgHours <= t.maxHrs) || SPEED_TIERS[SPEED_TIERS.length - 1];
+const getSpeedTier = (avgMins) => {
+  if (avgMins === null) return null;
+  return SPEED_TIERS.find(t => avgMins <= t.maxMins) || SPEED_TIERS[SPEED_TIERS.length - 1];
 };
 
 // ─── RANKING SCORE ────────────────────────────────────────────────────────────────
@@ -417,7 +425,7 @@ const getSpeedTier = (avgHours) => {
 const rankScore = (p) => {
   const rating    = (p.liveRating || p.rating || 0);
   const reviews   = Math.min(p.liveReviewCount || p.reviewCount || 0, 50);
-  const speedTier = getSpeedTier(p.avgResponseHrs ?? null);
+  const speedTier = getSpeedTier(p.avgResponseMins ?? p.avgResponseHrs * 60 ?? null); // support both old and new
   const planScore = p.plan === "premium" ? 15 : p.plan === "featured" ? 10 : 5;
   return (
     (rating / 5) * 40 +
@@ -466,6 +474,66 @@ const redeemDiscount = async (customerId, discountId) => {
     await store.set(`discounts:${customerId}`, discounts.map(d =>
       d.id === discountId ? { ...d, redeemed: true, redeemedAt: new Date().toISOString() } : d
     ));
+  } catch {}
+};
+
+// ─── REFERRAL SYSTEM ─────────────────────────────────────────────────────────────
+const makeRefCode = (email) => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  let n = email.split("").reduce((a, c, i) => a + c.charCodeAt(0) * (i + 1), 0);
+  for (let i = 0; i < 6; i++) { code += chars[n % chars.length]; n = Math.floor(n / chars.length) + 31; }
+  return code;
+};
+
+const REFERRAL_CREDIT_AMOUNT = 50; // R50 credited to referrer on friend's first completed job
+const REFERRAL_FRIEND_DISCOUNT = 10; // 10% off friend's first job
+
+const saveReferralCredit = async (customerId, amount, fromName) => {
+  try {
+    const key = `credits:${customerId}`;
+    const raw = await store.get(key);
+    const credits = raw ? JSON.parse(raw.value) : [];
+    credits.unshift({
+      id: `cr-${Date.now()}`,
+      amount, fromName,
+      redeemed: false,
+      ts: new Date().toISOString(),
+      dateLabel: new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }),
+    });
+    await store.set(key, credits.slice(0, 50));
+  } catch {}
+};
+
+const getCredits = async (customerId) => {
+  try {
+    const raw = await store.get(`credits:${customerId}`);
+    return raw ? JSON.parse(raw.value) : [];
+  } catch { return []; }
+};
+
+const getTotalCredit = (credits) =>
+  credits.filter(c => !c.redeemed).reduce((sum, c) => sum + c.amount, 0);
+
+// Called when a job is completed — checks if referrer should be rewarded
+const processReferralReward = async (customerEmail, customerName) => {
+  try {
+    const cusRaw = await store.get("customers");
+    const customers = cusRaw ? JSON.parse(cusRaw.value) : [];
+    const customer = customers.find(c => c.email === customerEmail);
+    if (!customer?.referredBy) return;
+    // Only reward on first ever completed job
+    const jobsRaw = await store.get("jobs");
+    const jobs = jobsRaw ? JSON.parse(jobsRaw.value) : [];
+    const completedCount = jobs.filter(j => j.customerId === customerEmail && j.status === "completed").length;
+    if (completedCount !== 1) return;
+    // Give referrer R50 credit
+    await saveReferralCredit(customer.referredBy, REFERRAL_CREDIT_AMOUNT, customerName);
+    await pushNotif(customer.referredBy, {
+      title: `You earned R${REFERRAL_CREDIT_AMOUNT} credit!`,
+      body:  `${customerName} completed their first booking via your referral link. R${REFERRAL_CREDIT_AMOUNT} added to your credit wallet.`,
+      type:  "completed",
+    });
   } catch {}
 };
 
@@ -857,8 +925,8 @@ function ServiceIcon({ serviceId, size = 20, color = "#0EA5E9" }) {
 }
 
 // Speed badge — brand-coloured pill with inline SVG icon, no emoji
-function SpeedBadge({ avgResponseHrs }) {
-  const tier = getSpeedTier(avgResponseHrs ?? null);
+function SpeedBadge({ avgResponseMins }) {
+  const tier = getSpeedTier(avgResponseMins ?? null);
   if (!tier) return null;
   const iconName = tier.maxHrs <= 1 ? "lightning" : tier.maxHrs <= 4 ? "clock" : tier.maxHrs <= 24 ? "calendar" : "slow";
   return (
@@ -948,15 +1016,40 @@ function AuthScreen({ onLogin }) {
     if (!form.name.trim()) { return alert("Please enter your name."); }
     if (!form.email.trim()) { return alert("Please enter your email."); }
     if (!form.password || form.password.length < 6) { return alert("Password must be at least 6 characters."); }
-    // Save customer to storage
     const raw = await store.get("customers");
     const customers = raw ? JSON.parse(raw.value) : [];
     if (customers.find(c => c.email.toLowerCase() === form.email.toLowerCase())) {
       return alert("An account with this email already exists. Please sign in.");
     }
-    const newCustomer = { name: form.name, email: form.email, password: form.password, phone: form.phone, address: form.address, suburb: form.suburb, city: form.city, province: form.province, role: "customer", notifPreference: form.notifPreference || "whatsapp", joinDate: new Date().toISOString() };
+    // Detect referral code from URL (?ref=XXXXX)
+    const urlRef = new URLSearchParams(window.location.search).get("ref");
+    let referredBy = null;
+    if (urlRef) {
+      const referrer = customers.find(c => makeRefCode(c.email) === urlRef.toUpperCase());
+      if (referrer) referredBy = referrer.email;
+    }
+    const refCode = makeRefCode(form.email);
+    const newCustomer = {
+      name: form.name, email: form.email, password: form.password,
+      phone: form.phone, address: form.address, suburb: form.suburb,
+      city: form.city, province: form.province,
+      role: "customer",
+      notifPreference: form.notifPreference || "whatsapp",
+      refCode,
+      referredBy,
+      joinDate: new Date().toISOString(),
+    };
     customers.push(newCustomer);
     await store.set("customers", customers);
+    // If referred, give friend their 10% first-booking discount immediately
+    if (referredBy) {
+      await saveReferralCredit(form.email, 0, ""); // placeholder — discount applied at booking
+      await pushNotif(form.email, {
+        title: "Welcome! You have a referral bonus 🎁",
+        body:  `You were referred by a friend — enjoy ${REFERRAL_FRIEND_DISCOUNT}% off your first completed booking. It's already in your wallet!`,
+        type:  "completed",
+      });
+    }
     onLogin(newCustomer);
   };
 
@@ -1910,7 +2003,96 @@ function CompletionPopup({ notification, user, onClose }) {
 }
 
 // ─── DISCOUNT WALLET ─────────────────────────────────────────────────────────────
-function DiscountWallet({ customerId }) {
+// ─── CREDIT WALLET ───────────────────────────────────────────────────────────────
+function CreditWallet({ user }) {
+  const [credits, setCredits] = useState([]);
+  const [open, setOpen]       = useState(false);
+  const refCode  = user.refCode || makeRefCode(user.email);
+  const appUrl   = window.location.origin;
+  const refLink  = `${appUrl}?ref=${refCode}`;
+  const total    = getTotalCredit(credits);
+
+  useEffect(() => { getCredits(user.email).then(setCredits); }, []);
+
+  const shareMsg = `Hi! I use FixIt Now to find trusted home service pros in KZN — plumbers, electricians, handymen and more. Sign up with my link and get ${REFERRAL_FRIEND_DISCOUNT}% off your first booking! 🏠 ${refLink}`;
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      {/* Header card */}
+      <div style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.15), rgba(14,165,233,0.1))", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 16, padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#A5B4FC" }}>Referral Credits</div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: "#F1F5F9", marginTop: 2 }}>
+              R{total}<span style={{ fontSize: 13, color: "#64748B", fontWeight: 600 }}> available</span>
+            </div>
+          </div>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(99,102,241,0.2)", border: "1.5px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon name="send" size={22} color="#A5B4FC" strokeWidth={1.8} />
+          </div>
+        </div>
+
+        {/* How it works */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+          {[
+            { icon: "send",    color: "#A5B4FC", text: `Share your link — friend signs up` },
+            { icon: "booking", color: "#34D399", text: `Friend completes their first booking` },
+            { icon: "chart",   color: "#F59E0B", text: `You earn R${REFERRAL_CREDIT_AMOUNT} · Friend gets ${REFERRAL_FRIEND_DISCOUNT}% off` },
+          ].map(({ icon, color, text }) => (
+            <div key={text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: `${color}18`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Icon name={icon} size={13} color={color} strokeWidth={2} />
+              </div>
+              <span style={{ fontSize: 12, color: "#94A3B8" }}>{text}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Your ref code */}
+        <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 10, color: "#475569", marginBottom: 2 }}>Your referral code</div>
+            <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 20, color: "#A5B4FC", letterSpacing: "0.15em" }}>{refCode}</div>
+          </div>
+          <button onClick={() => { navigator.clipboard?.writeText(refLink); }}
+            style={{ background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 600, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+            Copy link
+          </button>
+        </div>
+
+        {/* Share button */}
+        <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`)}
+          style={{ width: "100%", background: "linear-gradient(135deg,#25D366,#128C7E)", border: "none", borderRadius: 11, padding: "12px", fontSize: 13, fontWeight: 700, color: "white", cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <Icon name="whatsapp" size={16} color="white" strokeWidth={1.8} />
+          Share via WhatsApp
+        </button>
+      </div>
+
+      {/* Credit history */}
+      {credits.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <button onClick={() => setOpen(v => !v)}
+            style={{ background: "none", border: "none", color: "#475569", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 4, padding: "4px 0" }}>
+            {open ? "Hide" : "Show"} credit history ({credits.length})
+          </button>
+          {open && credits.map(c => (
+            <div key={c.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "10px 14px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 12, color: "#E2E8F0", fontWeight: 600 }}>{c.fromName} joined via your link</div>
+                <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{c.dateLabel}</div>
+              </div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: c.redeemed ? "#475569" : "#34D399" }}>
+                {c.redeemed ? "Used" : `+R${c.amount}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DISCOUNT WALLET ──────────────────────────────────────────────────────────────
   const [discounts, setDiscounts] = useState([]);
 
   useEffect(() => {
@@ -2295,8 +2477,8 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
   const [showBooking, setShowBooking]       = useState(false);
   const [showReview, setShowReview]         = useState(false);
   const svc = SERVICES.find(s => s.id === provider.serviceType) || SERVICES[0];
-  const avgHrs = provider.avgResponseHrs ?? null;
-  const speedTier = getSpeedTier(avgHrs);
+  const avgMins = provider.avgResponseMins ?? null;
+  const speedTier = getSpeedTier(avgMins);
 
   useEffect(() => {
     if (provider.providerId) {
@@ -2373,7 +2555,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             {[
               { val: rating > 0 ? rating.toFixed(1) : "New", sub: `${reviewCount} review${reviewCount !== 1 ? "s" : ""}`, color: "#F59E0B" },
-              { val: speedTier ? speedTier.short : "—", sub: "Avg response", color: speedTier?.color || "#64748B" },
+              { val: speedTier ? (avgMins !== null ? formatResponseTime(avgMins) : speedTier.short) : "—", sub: "Avg response", color: speedTier?.color || "#64748B" },
               { val: provider.yearsInBusiness ? `${provider.yearsInBusiness}yr${provider.yearsInBusiness > 1 ? "s" : ""}` : "—", sub: "Experience", color: "#10B981" },
             ].map(({ val, sub, color }) => (
               <div key={sub} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 11, padding: "10px 8px", textAlign: "center" }}>
@@ -2874,7 +3056,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
               {provider.liveReviewCount > 0 && <span style={{ color: "#10B981" }}> ✓ verified</span>}
             </span>
             {/* Response speed badge */}
-            <SpeedBadge avgResponseHrs={provider.avgResponseHrs ?? null} />
+            <SpeedBadge avgResponseMins={provider.avgResponseMins ?? null} />
           </div>
           <div style={{ color: "#475569", fontSize: 11, marginTop: 3 }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.6} /> {provider.vicinity}</div>
 
@@ -3087,7 +3269,7 @@ function CustomerHome({ user, onLogout }) {
         area.toLowerCase().includes(searchSuburb)
       );
     }).map(p => {
-      const avgHrs = getResponseSpeed(p.jobs || []);
+      const avgMins = getResponseSpeed(p.jobs || []);
       return {
         name: p.bizName,
         rating: p.liveRating || 4.5,
@@ -3110,7 +3292,7 @@ function CustomerHome({ user, onLogout }) {
         providerId: p.id,
         liveRating: p.liveRating,
         liveReviewCount: p.liveReviewCount,
-        avgResponseHrs: avgHrs,
+        avgResponseMins: avgMins,
       };
     });
 
@@ -3164,8 +3346,8 @@ function CustomerHome({ user, onLogout }) {
       }
       if (sortBy === "speed") {
         // null (no data) sorts last
-        const sa = a.avgResponseHrs ?? 99999;
-        const sb = b.avgResponseHrs ?? 99999;
+        const sa = a.avgResponseMins ?? 99999;
+        const sb = b.avgResponseMins ?? 99999;
         if (sa !== sb) return sa - sb;
         return b._score - a._score;
       }
@@ -3350,13 +3532,25 @@ function CustomerHome({ user, onLogout }) {
             </div>
             <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
           </div>
+
+          {/* Avatar + name */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 28 }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", marginBottom: 12 }}>
               {user.name?.charAt(0).toUpperCase()}
             </div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#F1F5F9" }}>{user.name}</div>
             <div style={{ color: "#475569", fontSize: 13 }}>{user.email}</div>
+            {user.refCode && (
+              <div style={{ marginTop: 6, fontSize: 11, color: "#64748B" }}>
+                Ref code: <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "#A5B4FC", letterSpacing: "0.1em" }}>{user.refCode}</span>
+              </div>
+            )}
           </div>
+
+          {/* Referral & Credits */}
+          <CreditWallet user={user} />
+
+          {/* Home address */}
           <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 18, marginBottom: 14 }}>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
               <Icon name="home" size={14} color="#0EA5E9" strokeWidth={1.8} />Home Address
@@ -4163,6 +4357,11 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
       });
     }
 
+    // 4. Check if this customer was referred — reward the referrer on their first completed job
+    if (job.customerId) {
+      await processReferralReward(job.customerId, job.customerName);
+    }
+
     await loadProviderJobs();
   };
   const now = new Date();
@@ -4324,11 +4523,11 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
 
             <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>This month</div>
 
-            {/* Stats grid */}
+            {/* Stats grid — row 1: views + leads */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
               {[
-                { val: views,      label: "Profile views",   color: "#6366F1" },
-                { val: totalLeads, label: "Total leads",      color: "#10B981" },
+                { val: views,      label: "Profile views", color: "#6366F1" },
+                { val: totalLeads, label: "Total leads",   color: "#10B981" },
               ].map(({ val, label, color }) => (
                 <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: 14 }}>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, color: "#F1F5F9" }}>{val}</div>
@@ -4336,27 +4535,37 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 </div>
               ))}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
-              {/* Response speed card */}
+            {/* Stats grid — row 2: jobs done + response speed + call taps */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
+              {/* Completed jobs */}
               {(() => {
-                const avgHrs = getResponseSpeed(providerJobs);
-                const tier   = getSpeedTier(avgHrs);
+                const completedCount = providerJobs.filter(j => j.status === "completed").length;
                 return (
-                  <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${tier ? tier.color+"22" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 14 }}>
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: tier ? 20 : 14, color: tier ? tier.color : "#334155" }}>
-                      {tier ? `${tier.icon} ${tier.short}` : "No data yet"}
-                    </div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: tier?.color || "#475569", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Avg response</div>
-                    {avgHrs !== null && <div style={{ fontSize: 9, color: "#334155", marginTop: 2 }}>{avgHrs < 1 ? `${Math.round(avgHrs * 60)}min avg` : `${avgHrs.toFixed(1)}hrs avg`}</div>}
+                  <div style={{ background: "rgba(16,185,129,0.07)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 12, padding: 12 }}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#10B981" }}>{completedCount}</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: "#10B981", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Jobs done</div>
                   </div>
                 );
               })()}
-              {[{ val: calls, label: "Call taps", color: "#10B981" }].map(({ val, label, color }) => (
-                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: 14 }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, color: "#F1F5F9" }}>{val}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>{label}</div>
-                </div>
-              ))}
+              {/* Response speed — now in minutes */}
+              {(() => {
+                const avgMins = getResponseSpeed(providerJobs);
+                const tier    = getSpeedTier(avgMins);
+                return (
+                  <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${tier ? tier.color+"33" : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: 12 }}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: avgMins !== null ? 18 : 11, color: tier ? tier.color : "#334155", lineHeight: 1.2 }}>
+                      {avgMins !== null ? formatResponseTime(avgMins) : "No data"}
+                    </div>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: tier?.color || "#475569", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Response</div>
+                    {avgMins !== null && <div style={{ fontSize: 9, color: "#334155", marginTop: 1 }}>{tier?.label}</div>}
+                  </div>
+                );
+              })()}
+              {/* Call taps */}
+              <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 12, padding: 12 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#F1F5F9" }}>{calls}</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "#10B981", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>Call taps</div>
+              </div>
             </div>
 
             {/* Weekly bar chart */}

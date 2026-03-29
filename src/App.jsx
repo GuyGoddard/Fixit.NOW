@@ -3389,7 +3389,7 @@ function CustomerHome({ user, onLogout }) {
     const searchLower = location.toLowerCase();
     const searchSuburb = searchLower.split(",")[0].trim();
 
-    const registeredProviders = allApproved.filter(p => {
+    const eligible = allApproved.filter(p => {
       if (!p.services?.includes(selectedService)) return false;
       const sa = p.serviceAreas?.[selectedService];
       if (!sa) return true;             // no restriction = shows everywhere

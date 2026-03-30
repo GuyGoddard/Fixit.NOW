@@ -3155,104 +3155,6 @@ function ServiceRecordExport({ customerId, userName }) {
   );
 }
 
-// ─── EMERGENCY SOS ────────────────────────────────────────────────────────────
-function EmergencySOS({ user, onClose }) {
-  const [step, setStep]           = useState("confirm"); // confirm | service | sending | sent
-  const [serviceId, setServiceId] = useState(null);
-  const [description, setDescription] = useState("");
-  const [sending, setSending]     = useState(false);
-
-  const emergencyServices = SERVICES.filter(s => s.emergency);
-  const svc = SERVICES.find(s => s.id === serviceId);
-
-  const sendSOS = async () => {
-    if (!serviceId) return;
-    setSending(true);
-    // Load approved emergency providers for this service
-    const raw = await store.get("providers");
-    const providers = raw ? JSON.parse(raw.value) : [];
-    const urgent = providers
-      .filter(p => p.status === "approved" && p.emergency && p.services?.includes(serviceId))
-      .sort((a, b) => (getResponseSpeed(b.jobs || []) || 999) - (getResponseSpeed(a.jobs || []) || 999))
-      .slice(0, 3);
-
-    for (const p of urgent) {
-      await pushNotif(p.id, {
-        title: "🚨 Emergency SOS request!",
-        body:  `${user.name} in ${user.suburb || "your area"} urgently needs ${svc?.label}: "${description || "Emergency help needed"}". Respond immediately.`,
-        type:  "booking",
-      });
-    }
-    await pushNotif(user.email, {
-      title: "SOS sent to top 3 emergency providers",
-      body:  `We've alerted the nearest available ${svc?.label?.toLowerCase()} providers. You'll hear back within minutes.`,
-      type:  "accepted",
-    });
-    setSending(false);
-    setStep("sent");
-  };
-
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px", border: "2px solid rgba(239,68,68,0.3)" }}>
-
-        {step === "confirm" && (
-          <>
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 48, marginBottom: 8 }}>🚨</div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#FCA5A5" }}>Emergency SOS</div>
-              <div style={{ fontSize: 13, color: "#64748B", marginTop: 8, lineHeight: 1.6 }}>
-                This will immediately alert the top 3 available emergency providers near you. Use only for genuine emergencies.
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Btn variant="ghost" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
-              <Btn onClick={() => setStep("service")} style={{ flex: 2, background: "linear-gradient(135deg,#EF4444,#DC2626)", border: "none" }}>I need emergency help</Btn>
-            </div>
-          </>
-        )}
-
-        {step === "service" && (
-          <>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>What do you need?</div>
-            <div style={{ fontSize: 12, color: "#475569", marginBottom: 16 }}>Select the emergency service you need right now.</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-              {emergencyServices.map(s => (
-                <div key={s.id} onClick={() => setServiceId(s.id)}
-                  style={{ background: serviceId === s.id ? `${s.color}20` : "rgba(255,255,255,0.04)", border: `2px solid ${serviceId === s.id ? s.color : "rgba(255,255,255,0.08)"}`, borderRadius: 12, padding: "12px 10px", cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}>
-                  <ServiceIcon serviceId={s.id} size={22} color={serviceId === s.id ? s.color : "#475569"} />
-                  <div style={{ fontSize: 12, fontWeight: 600, color: serviceId === s.id ? "#F1F5F9" : "#64748B", marginTop: 6 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Briefly describe the emergency (e.g. burst pipe flooding kitchen)…" rows={2}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
-            </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Btn variant="ghost" onClick={() => setStep("confirm")} style={{ flex: 1 }}>← Back</Btn>
-              <Btn onClick={sendSOS} disabled={!serviceId || sending} style={{ flex: 2, background: "linear-gradient(135deg,#EF4444,#DC2626)", border: "none" }}>
-                {sending ? "Alerting providers…" : "🚨 Send SOS"}
-              </Btn>
-            </div>
-          </>
-        )}
-
-        {step === "sent" && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#34D399", marginBottom: 8 }}>SOS sent!</div>
-            <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.7, marginBottom: 24 }}>
-              We've alerted the top 3 emergency {svc?.label?.toLowerCase()} providers near you. Check your notifications — you should hear back within minutes.
-            </div>
-            <Btn full onClick={onClose}>Got it</Btn>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── TRUSTED PROVIDERS (MY TEAM) ────────────────────────────────────────────
 function MyTeam({ customerId, onBookProvider }) {
   const [team, setTeam]   = useState([]);
@@ -4302,75 +4204,59 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
 // ─── CUSTOMER HOME ───────────────────────────────────────────────────────────────
 function CustomerHome({ user, onLogout }) {
-  const [tab, setTab] = useState("find");
+  const [tab, setTab]                   = useState("find");
   const [selectedService, setSelectedService] = useState(null);
-  const [location, setLocation] = useState(user.suburb ? `${user.suburb}, ${user.city}` : "");
-  const [providers, setProviders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [location, setLocation]         = useState(user.suburb ? `${user.suburb}, ${user.city}` : "");
+  const [providers, setProviders]       = useState([]);
+  const [loading, setLoading]           = useState(false);
   const [emergencyOnly, setEmergencyOnly] = useState(false);
-  const [sortBy, setSortBy] = useState("best");   // best | rating | speed | reviews | available
-  const [deals, setDeals]         = useState([]);
-  const [searchDone, setSearchDone] = useState(false);
-  const [error, setError] = useState("");
-  const [myJobs, setMyJobs]       = useState([]);
-  const [jobsBadge, setJobsBadge] = useState(0);
+  const [sortBy, setSortBy]             = useState("best");
+  const [deals, setDeals]               = useState([]);
+  const [searchDone, setSearchDone]     = useState(false);
+  const [error, setError]               = useState("");
+  const [myJobs, setMyJobs]             = useState([]);
+  const [jobsBadge, setJobsBadge]       = useState(0);
+  const [jobFilter, setJobFilter]       = useState("active"); // active | completed | all
   const [searchHistory, setSearchHistory] = useState([]);
-  const [showNotifs, setShowNotifs]       = useState(false);
-  const [reviewJob, setReviewJob]         = useState(null);
-  const [chatJob, setChatJob]             = useState(null);
-  const [gpsJob, setGpsJob]              = useState(null);
+  const [showNotifs, setShowNotifs]     = useState(false);
+  const [reviewJob, setReviewJob]       = useState(null);
+  const [chatJob, setChatJob]           = useState(null);
+  const [gpsJob, setGpsJob]             = useState(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [showSOS, setShowSOS]             = useState(false);
-  const [showJobBoard, setShowJobBoard]   = useState(false);
+  const [showJobBoard, setShowJobBoard] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [completionNotif, setCompletionNotif] = useState(null);
+  const [editForm, setEditForm]         = useState({ name: user.name||"", phone: user.phone||"", address: user.address||"", suburb: user.suburb||"", city: user.city||"", notifPref: user.notifPref||"sms" });
+  const [savingProfile, setSavingProfile] = useState(false);
   const resultsRef = useRef(null);
 
-  // Poll for completion/sales notifications every 10s
-  useEffect(() => {
-    const checkSalesNotifs = async () => {
-      const notifs = await getNotifs(user.email);
-      const salesNotif = notifs.find(n => n.isSalesNotif && !n.salesSeen);
-      if (salesNotif) {
-        // Mark as seen so it doesn't re-show
-        const key = `notifs:${user.email}`;
-        const raw = await store.get(key);
-        const all = raw ? JSON.parse(raw.value) : [];
-        await store.set(key, all.map(n => n.id === salesNotif.id ? { ...n, salesSeen: true } : n));
-        setCompletionNotif(salesNotif);
-      }
-    };
-    checkSalesNotifs();
-    const interval = setInterval(checkSalesNotifs, 15000);
-    return () => clearInterval(interval);
-  }, [user.email]);
-
   const loadMyJobs = async () => {
-    try {
-      const raw = await store.get("jobs");
-      const all = raw ? JSON.parse(raw.value) : [];
-      const mine = all.filter(j => j.customerId === user.email);
-      setMyJobs(mine);
-    } catch {}
+    const raw = await store.get("jobs");
+    const jobs = raw ? JSON.parse(raw.value) : [];
+    const mine = jobs.filter(j => j.customerId === user.email || j.customerName === user.name);
+    setMyJobs(mine.reverse());
+    const newPending = mine.filter(j => j.status === "accepted" && !j.seenByCustomer).length;
+    setJobsBadge(newPending);
+    // Check for completion notification
+    const notifRaw = await store.get(`notifs:${user.email}`);
+    if (notifRaw) {
+      const notifs = JSON.parse(notifRaw.value);
+      const salesNotif = notifs.find(n => n.isSalesNotif && !n.seen);
+      if (salesNotif) setCompletionNotif(salesNotif);
+    }
   };
 
-  useEffect(() => {
-    loadMyJobs();
-    getSearchHistory(user.email).then(setSearchHistory);
-  }, []);
+  useEffect(() => { loadMyJobs(); getSearchHistory(user.email).then(setSearchHistory); }, []);
   useEffect(() => { if (tab === "jobs") { loadMyJobs(); setJobsBadge(0); } }, [tab]);
 
-  const search = async () => {
-    if (!selectedService || !location.trim()) { setError(!selectedService ? "Select a service type." : "Enter your location."); return; }
-    setError(""); setLoading(true); setProviders([]); setSearchDone(false);
+  const handleSearch = async () => {
+    if (!selectedService || !location.trim()) return;
+    setLoading(true); setError(""); setSearchDone(false); setProviders([]);
     const svc = SERVICES.find(s => s.id === selectedService);
-
     await saveSearch(user.email, { serviceId: selectedService, location });
     getSearchHistory(user.email).then(setSearchHistory);
-
-    // Load deals for this service
     getDeals().then(all => setDeals(all.filter(d => !d.serviceId || d.serviceId === selectedService)));
 
-    // ── Step 1: Load registered providers immediately (never fails) ──────────
     const storedRaw = await store.get("providers");
     const allApproved = storedRaw ? JSON.parse(storedRaw.value).filter(p => p.status === "approved") : [];
     const searchLower = location.toLowerCase();
@@ -4379,57 +4265,35 @@ function CustomerHome({ user, onLogout }) {
     const eligible = allApproved.filter(p => {
       if (!p.services?.includes(selectedService)) return false;
       const sa = p.serviceAreas?.[selectedService];
-      if (!sa) return true;             // no restriction = shows everywhere
-      if (sa.allKZN) return true;       // covers all KZN
+      if (!sa) return true;
+      if (sa.allKZN) return true;
       return (sa.areas || []).some(area =>
-        searchLower.includes(area.toLowerCase()) ||
-        area.toLowerCase().includes(searchSuburb)
+        searchLower.includes(area.toLowerCase()) || area.toLowerCase().includes(searchSuburb)
       );
     });
 
-    // Load availability for all providers in parallel
     const registeredProviders = await Promise.all(eligible.map(async p => {
       const avgMins = getResponseSpeed(p.jobs || []);
       const avail   = await getAvailability(p.id);
       return {
-        name: p.bizName,
-        rating: p.liveRating || 4.5,
-        reviewCount: p.liveReviewCount || 0,
-        vicinity: `${p.suburb}, ${p.city}`,
-        phone: p.phone,
-        emergency: p.emergency,
-        openNow: true,
-        serviceType: selectedService,
-        plan: p.plan,
-        description: p.description,
-        tagline: p.tagline,
-        yearsInBusiness: p.yearsInBusiness,
-        priceRangeMin: p.priceRangeMin,
-        certifications: p.certifications,
-        logoUrl: p.logoUrl,
-        insuranceConfirmed: p.insuranceConfirmed,
-        verification: p.verification,
-        serviceAreas: p.serviceAreas || {},
-        providerId: p.id,
-        liveRating: p.liveRating,
-        liveReviewCount: p.liveReviewCount,
-        avgResponseMins: avgMins,
-        joinDate: p.joinDate,
-        avail,
+        name: p.bizName, rating: p.liveRating || 4.5, reviewCount: p.liveReviewCount || 0,
+        vicinity: `${p.suburb}, ${p.city}`, phone: p.phone, emergency: p.emergency,
+        openNow: true, serviceType: selectedService, plan: p.plan,
+        description: p.description, tagline: p.tagline, yearsInBusiness: p.yearsInBusiness,
+        priceRangeMin: p.priceRangeMin, certifications: p.certifications,
+        logoUrl: p.logoUrl, insuranceConfirmed: p.insuranceConfirmed,
+        verification: p.verification, serviceAreas: p.serviceAreas || {},
+        providerId: p.id, liveRating: p.liveRating, liveReviewCount: p.liveReviewCount,
+        avgResponseMins: avgMins, joinDate: p.joinDate, avail,
       };
     }));
 
-    // Show registered providers right away — don't wait for AI
     if (registeredProviders.length > 0) {
-      setProviders(registeredProviders);
-      setSearchDone(true);
-      setLoading(false);
+      setProviders(registeredProviders); setSearchDone(true); setLoading(false);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     }
 
-    // ── Step 2: Try to load AI-generated extras (optional, may fail silently) ─
     const prompt = `Generate 4 realistic mock ${svc.label} service providers near "${location}" in KwaZulu-Natal, South Africa. Return ONLY a JSON array, no markdown. Each object: {"name":"string","rating":number 3.8-4.9,"reviewCount":integer 12-180,"vicinity":"suburb near ${location}","phone":"SA mobile starting with 0","emergency":boolean,"openNow":boolean,"serviceType":"${selectedService}","plan":"basic","description":"one sentence about their specialty"}`;
-
     try {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -4437,451 +4301,460 @@ function CustomerHome({ user, onLogout }) {
       });
       if (resp.ok) {
         const data = await resp.json();
-        const text = data.content?.map(i => i.text || "").join("") || "";
-        const clean = text.replace(/```json|```/g, "").trim();
-        const aiProviders = JSON.parse(clean);
-        // Registered providers always first, AI fills in the rest
-        setProviders([...registeredProviders, ...aiProviders]);
+        const text = data.content?.[0]?.text || "";
+        const cleaned = text.replace(/```json|```/g, "").trim();
+        const aiProviders = JSON.parse(cleaned);
+        if (Array.isArray(aiProviders)) {
+          const merged = [...registeredProviders, ...aiProviders.map(p => ({ ...p, _aiGenerated: true }))];
+          setProviders(merged);
+        }
       }
-    } catch {
-      // AI failed — that's fine, registered providers are already showing
-    }
-
-    // If no registered providers and AI also failed, show helpful message
-    if (registeredProviders.length === 0) {
-      setSearchDone(true);
-      setError("");
-    }
-    setLoading(false);
+    } catch {}
+    setSearchDone(true); setLoading(false);
   };
 
+  // Sorted/filtered providers
   const filtered = providers
     .filter(p => !emergencyOnly || p.emergency)
     .filter(p => sortBy === "available" ? isAvailableToday(p.avail) : true)
-    .map(p => ({
-      ...p,
-      _score:     rankScore(p),
-      _available: isAvailableToday(p.avail),
-    }))
+    .map(p => ({ ...p, _score: rankScore(p), _available: isAvailableToday(p.avail) }))
     .sort((a, b) => {
-      // Unavailable providers always sort below available ones (unless filtering by available)
-      if (sortBy !== "available") {
-        if (a._available !== b._available) return a._available ? -1 : 1;
-      }
+      if (sortBy !== "available" && a._available !== b._available) return a._available ? -1 : 1;
       if (sortBy === "best" || sortBy === "available") return b._score - a._score;
-      if (sortBy === "rating") {
-        const ra = a.liveRating || a.rating || 0;
-        const rb = b.liveRating || b.rating || 0;
-        if (rb !== ra) return rb - ra;
-        return b._score - a._score;
-      }
-      if (sortBy === "speed") {
-        const sa = a.avgResponseMins ?? 99999;
-        const sb = b.avgResponseMins ?? 99999;
-        if (sa !== sb) return sa - sb;
-        return b._score - a._score;
-      }
-      if (sortBy === "reviews") {
-        const ra = a.liveReviewCount || a.reviewCount || 0;
-        const rb = b.liveReviewCount || b.reviewCount || 0;
-        if (rb !== ra) return rb - ra;
-        return b._score - a._score;
-      }
+      if (sortBy === "rating") { const d = (b.liveRating||b.rating||0) - (a.liveRating||a.rating||0); return d !== 0 ? d : b._score - a._score; }
+      if (sortBy === "speed")  { const d = (a.avgResponseMins??99999) - (b.avgResponseMins??99999); return d !== 0 ? d : b._score - a._score; }
+      if (sortBy === "reviews"){ const d = (b.liveReviewCount||b.reviewCount||0) - (a.liveReviewCount||a.reviewCount||0); return d !== 0 ? d : b._score - a._score; }
       return b._score - a._score;
     });
 
-  // Fresh picks: registered providers with <10 reviews, <90 days old, available
   const freshPicks = providers.filter(p =>
-    p.providerId &&
-    (p.liveReviewCount || 0) < 10 &&
-    p._available !== false &&
+    p.providerId && (p.liveReviewCount||0) < 10 && p._available !== false &&
     p.joinDate && (Date.now() - new Date(p.joinDate).getTime()) < 90 * 86400000
   );
 
+  // Filtered jobs
+  const activeStatuses   = ["pending","accepted","onroute","inprogress"];
+  const filteredJobs     = jobFilter === "active"    ? myJobs.filter(j => activeStatuses.includes(j.status))
+                         : jobFilter === "completed" ? myJobs.filter(j => j.status === "completed")
+                         : myJobs;
+
+  // Spending summary
+  const totalSpend = myJobs.filter(j => j.status === "completed" && j.estimatedValue)
+    .reduce((s, j) => s + parseFloat(j.discountedValue || j.estimatedValue || 0), 0);
+  const completedCount = myJobs.filter(j => j.status === "completed").length;
+
+  // Profile save
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    const updated = await updateCustomerData(user.email, editForm);
+    if (updated) Object.assign(user, editForm);
+    setSavingProfile(false);
+    setShowEditProfile(false);
+  };
+
+  // ── BOTTOM NAV ──────────────────────────────────────────────────────────
+  const BottomNav = () => (
+    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
+      {[["find","search","Find Pros"],["jobs","jobs","My Jobs"],["profile","profile","Profile"]].map(([id, iconName, label]) => (
+        <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
+          {id === "jobs" && jobsBadge > 0 && (
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />
+              <div style={{ position: "absolute", top: -4, right: -6, width: 14, height: 14, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
+            </div>
+          )}
+          {!(id === "jobs" && jobsBadge > 0) && <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />}
+          <span style={{ fontSize: 10, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  // ── SHARED HEADER ────────────────────────────────────────────────────────
+  const Header = ({ title, showBack }) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {showBack
+          ? <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}>← Back</button>
+          : <><Logo size={28} /><Wordmark size={15} /></>}
+        {title && <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>{title}</div>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
+        <div onClick={() => setTab("profile")} style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", cursor: "pointer" }}>
+          {user.name?.charAt(0).toUpperCase()}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto" }}>
+    <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}body{background:#060A14}
-        input,textarea,select{outline:none}
-        input::placeholder,textarea::placeholder{color:#475569}
+        input,textarea,select{outline:none}input::placeholder,textarea::placeholder{color:#475569}
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
         @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
         .fadeUp{animation:fadeUp 0.35s ease forwards}
         .shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.03) 25%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0.03) 75%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:14px;height:84px;margin-bottom:10px}
+        ::-webkit-scrollbar-track{background:transparent}
+        button{WebkitTapHighlightColor:transparent}
       `}</style>
 
+      {/* ── FIND TAB ── */}
       {tab === "find" && (
-        <div style={{ padding: "0 16px 100px" }}>
-          <div style={{ paddingTop: 44, paddingBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Logo size={32} />
-                <Wordmark size={17} />
+        <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
+          <Header />
+
+          {/* Personalised greeting */}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontSize: 22, fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#F1F5F9", lineHeight: 1.2 }}>
+              Hi {user.name?.split(" ")[0]} 👋
+            </div>
+            <div style={{ color: "#475569", fontSize: 13, marginTop: 4 }}>What do you need help with today?</div>
+          </div>
+
+          {/* Service grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+            {SERVICES.map(s => (
+              <div key={s.id} onClick={() => setSelectedService(s.id === selectedService ? null : s.id)}
+                style={{ background: selectedService === s.id ? `${s.color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${selectedService === s.id ? s.color+"55" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, padding: "14px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.15s", WebkitTapHighlightColor: "transparent" }}
+                onMouseEnter={e => { if (selectedService !== s.id) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
+                onMouseLeave={e => { if (selectedService !== s.id) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}>
+                <ServiceIcon serviceId={s.id} size={26} color={selectedService === s.id ? s.color : "#475569"} />
+                <div style={{ fontSize: 11, fontWeight: 600, color: selectedService === s.id ? "#F1F5F9" : "#64748B", marginTop: 7, lineHeight: 1.3 }}>{s.label}</div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button onClick={() => setShowSOS(true)}
-                  style={{ background: "rgba(239,68,68,0.12)", border: "1.5px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "7px 11px", fontSize: 11, fontWeight: 700, color: "#FCA5A5", cursor: "pointer", fontFamily: "'Syne',sans-serif" }}>
-                  🚨 SOS
-                </button>
-                <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
-                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", cursor: "pointer" }} onClick={() => setTab("profile")}>
-                  {user.name?.charAt(0).toUpperCase()}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 22, fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#F1F5F9", lineHeight: "1.2" }}>Hi {user.name?.split(" ")[0]} 👋</div>
-              <div style={{ color: "#475569", fontSize: 13, marginTop: 4 }}>What do you need help with today?</div>
-              {user.suburb && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(14,165,233,0.08)", border: "1px solid rgba(14,165,233,0.15)", borderRadius: 20, padding: "4px 10px", marginTop: 8 }}>
-                  <Icon name="pin" size={11} color="#0EA5E9" strokeWidth={1.8} />
-                  <span style={{ color: "#0EA5E9", fontSize: 11, fontWeight: 600 }}>{user.suburb}, {user.city}</span>
-                </div>
-              )}
-              {/* Recent searches */}
-              {searchHistory.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: "#334155", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Recent searches</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {searchHistory.slice(0, 4).map((s, i) => {
-                      const svc = SERVICES.find(sv => sv.id === s.serviceId);
-                      return (
-                        <div key={i} onClick={() => { setSelectedService(s.serviceId); setLocation(s.location); }}
-                          style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 20, padding: "4px 10px", cursor: "pointer", transition: "background 0.15s" }}
-                          onMouseEnter={e => e.currentTarget.style.background="rgba(255,255,255,0.09)"}
-                          onMouseLeave={e => e.currentTarget.style.background="rgba(255,255,255,0.05)"}>
-                          <ServiceIcon serviceId={svc?.id || "handyman"} size={13} color={svc?.color || "#94A3B8"} />
-                          <span style={{ fontSize: 11, color: "#94A3B8" }}>{svc?.label}</span>
-                          <span style={{ fontSize: 10, color: "#334155" }}>· {s.location}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+            ))}
           </div>
 
-          {/* Service picker */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10, fontFamily: "'DM Sans',sans-serif" }}>Select Service</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
-              {SERVICES.map(s => {
-                const sel = selectedService === s.id;
-                return (
-                  <div key={s.id} onClick={() => { setSelectedService(s.id); setError(""); }}
-                    style={{ background: sel ? `${s.color}18` : "rgba(255,255,255,0.03)", border: `1.5px solid ${sel ? s.color+"55" : "rgba(255,255,255,0.07)"}`, borderRadius: 13, padding: "13px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.2s", position: "relative" }}>
-                    {s.emergency && <div style={{ position: "absolute", top: 5, right: 6, width: 5, height: 5, borderRadius: "50%", background: sel ? "#EF4444" : "#374151" }} />}
-                    <div style={{ marginBottom: 5, display: "flex", justifyContent: "center" }}>
-                      <ServiceIcon serviceId={s.id} size={24} color={sel ? s.color : "#64748B"} />
-                    </div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: sel ? "#F1F5F9" : "#64748B", fontFamily: "'Syne',sans-serif", lineHeight: "1.2" }}>{s.label}</div>
-                  </div>
-                );
-              })}
+          {/* Location + search */}
+          <div style={{ position: "relative", marginBottom: 10 }}>
+            <div style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)" }}>
+              <Icon name="pin" size={15} color="#475569" strokeWidth={1.6} />
             </div>
+            <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Suburb, City (e.g. Hillcrest, Durban)"
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px 12px 40px", color: "#E2E8F0", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none" }}
+              onFocus={e => e.target.style.borderColor = "rgba(14,165,233,0.5)"}
+              onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+            />
           </div>
 
-          {/* Location */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8, fontFamily: "'DM Sans',sans-serif" }}>Search Area</div>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
-                <Icon name="pin" size={14} color="#475569" strokeWidth={1.8} />
-              </span>
-              <input value={location} onChange={e => setLocation(e.target.value)} onKeyDown={e => e.key==="Enter" && search()} placeholder="Suburb or city…"
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 80px 12px 38px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif" }} />
-              {user.suburb && <button onClick={() => setLocation(`${user.suburb}, ${user.city}`)} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "rgba(14,165,233,0.12)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 7, padding: "5px 9px", color: "#0EA5E9", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Home</button>}
-            </div>
+          {/* Emergency toggle + search */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+            <button onClick={() => setEmergencyOnly(v => !v)}
+              style={{ background: emergencyOnly ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)", border: `1.5px solid ${emergencyOnly ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 12, padding: "11px 14px", fontSize: 12, fontWeight: 700, color: emergencyOnly ? "#FCA5A5" : "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0, WebkitTapHighlightColor: "transparent" }}>
+              ⚡ Emergency only
+            </button>
+            <Btn full onClick={handleSearch} disabled={!selectedService || !location.trim() || loading} style={{ flex: 1 }}>
+              {loading ? "Searching…" : "Find Pros →"}
+            </Btn>
           </div>
 
-          {/* Emergency toggle */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 11, padding: "11px 14px", marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#FCA5A5" }}>Emergency / 24hr only</div>
-            <div onClick={() => setEmergencyOnly(e => !e)} style={{ width: 40, height: 22, borderRadius: 11, background: emergencyOnly ? "#EF4444" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
-              <div style={{ position: "absolute", top: 3, left: emergencyOnly ? 21 : 3, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
-            </div>
-          </div>
-
-          {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 9, padding: "10px 14px", marginBottom: 12, color: "#FCA5A5", fontSize: 12 }}>{error}</div>}
-
-          <button onClick={search} disabled={loading} style={{ width: "100%", background: loading ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg,#0EA5E9,#6366F1)", border: "none", borderRadius: 13, padding: 15, color: loading ? "#475569" : "white", fontSize: 14, fontWeight: 700, fontFamily: "'Syne',sans-serif", cursor: loading ? "default" : "pointer", boxShadow: loading ? "none" : "0 6px 24px rgba(14,165,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            {loading
-              ? <><span style={{ width: 14, height: 14, border: "2px solid #475569", borderTopColor: "#94A3B8", borderRadius: "50%", animation: "spin 0.8s linear infinite", display: "inline-block" }} />Finding pros…</>
-              : `Find ${SERVICES.find(s=>s.id===selectedService)?.label || "Pros"} Near Me →`}
-          </button>
-
-          <div ref={resultsRef}>
-            {loading && <div style={{ marginTop: 24 }}>{[0,1,2,3].map(i=><div key={i} className="shimmer" style={{ animationDelay: `${i*0.1}s` }} />)}</div>}
-            {searchDone && filtered.length > 0 && (
-              <div className="fadeUp" style={{ marginTop: 24 }}>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{filtered.length} Providers Found</div>
-                  <div style={{ color: "#475569", fontSize: 11, marginTop: 2 }}>Near {location}</div>
-                  <button onClick={() => setShowQuoteModal(true)}
-                    style={{ marginTop: 10, width: "100%", background: "rgba(99,102,241,0.12)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "10px 14px", color: "#A5B4FC", fontSize: 12, fontWeight: 700, fontFamily: "'Syne',sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    <Icon name="send" size={13} color="#A5B4FC" strokeWidth={2} />
-                    Get quotes from top 3 AI-matched pros
-                  </button>
-                </div>
-                {/* Sort / filter chips */}
-                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14, scrollbarWidth: "none" }}>
-                  {[
-                    { id: "best",      label: "Best match"     },
-                    { id: "available", label: "🟢 Available today" },
-                    { id: "rating",    label: "⭐ Top rated"   },
-                    { id: "speed",     label: "⚡ Fastest"     },
-                    { id: "reviews",   label: "Most reviewed"  },
-                  ].map(({ id, label }) => (
-                    <button key={id} onClick={() => setSortBy(id)}
-                      style={{
-                        flexShrink: 0,
-                        padding: "6px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600,
-                        fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "all 0.15s",
-                        background: sortBy === id ? "rgba(14,165,233,0.2)"  : "rgba(255,255,255,0.05)",
-                        border:     sortBy === id ? "1.5px solid #0EA5E9"   : "1px solid rgba(255,255,255,0.1)",
-                        color:      sortBy === id ? "#38BDF8"               : "#64748B",
-                      }}>
-                      {label}
+          {/* Search history chips */}
+          {searchHistory.length > 0 && !searchDone && (
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Recent searches</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {searchHistory.slice(0, 6).map((h, i) => {
+                  const s = SERVICES.find(sv => sv.id === h.serviceId);
+                  return (
+                    <button key={i} onClick={() => { setSelectedService(h.serviceId); setLocation(h.location); }}
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
+                      {s?.label} · {h.location.split(",")[0]}
                     </button>
-                  ))}
-                </div>
-
-                {/* ── DEALS BOARD ── */}
-                {deals.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F59E0B" }}>🏷️ Deals this week</div>
-                      <div style={{ flex: 1, height: 1, background: "rgba(245,158,11,0.2)" }} />
-                    </div>
-                    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
-                      {deals.map(deal => (
-                        <div key={deal.id} style={{ flexShrink: 0, width: 220, background: "linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05))", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 14, padding: 14 }}>
-                          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#F59E0B", marginBottom: 4 }}>{deal.headline}</div>
-                          <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.5, marginBottom: 8 }}>{deal.description}</div>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <div style={{ fontSize: 11, color: "#64748B" }}>{deal.providerName}</div>
-                            {deal.slotsLeft > 0 && <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", borderRadius: 6, padding: "2px 7px" }}>{deal.slotsLeft} slots left</div>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── FRESH PICKS — New providers ── */}
-                {freshPicks.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>✨ New to FixIt Now</div>
-                      <div style={{ flex: 1, height: 1, background: "rgba(16,185,129,0.2)" }} />
-                    </div>
-                    <div style={{ background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 14, padding: "12px 14px", marginBottom: 8 }}>
-                      <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, marginBottom: 10 }}>
-                        These providers are new to the platform. Give them a shot — your review could be their first.
-                      </div>
-                      {freshPicks.slice(0, 3).map((p, i) => (
-                        <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
-                          <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label || ""} near ${location}`} user={user} onBooked={(job) => { loadMyJobs(); setJobsBadge(b => b+1); }} />
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 14 }} />
-                  </div>
-                )}
-
-                {/* ── MAIN RESULTS ── */}
-                {filtered.filter(p => !freshPicks.find(fp => fp.providerId === p.providerId)).map((p,i) => (
-                  <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
-                    {/* Booked out badge */}
-                    {!p._available && (
-                      <div style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "12px 12px 0 0", padding: "6px 14px", marginBottom: -1, display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#EF4444" }} />
-                        <span style={{ fontSize: 10, fontWeight: 700, color: "#FCA5A5" }}>
-                          {p.avail?.slotsLeft === 0 ? "Fully booked this week — enquire anyway" : "Limited availability this week"}
-                        </span>
-                      </div>
-                    )}
-                    <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label || ""} near ${location}`} user={user} onBooked={(job) => { loadMyJobs(); setJobsBadge(b => b+1); }} />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-            )}
-            {searchDone && filtered.length === 0 && (
-              <div style={{ textAlign: "center", marginTop: 40, color: "#475569" }}>
-                <div style={{ marginBottom: 10 }}><Icon name="search" size={36} color="#475569" strokeWidth={1.4} /></div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 15 }}>No providers found nearby</div>
-                <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7, color: "#334155", maxWidth: 260, margin: "8px auto 0" }}>
-                  No registered {SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase() || "service"} providers in {location} yet.
-                  Try removing the emergency filter, or use the quote request above to reach providers directly.
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab === "profile" && (
-        <div style={{ padding: "44px 20px 100px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Logo size={28} />
-              <Wordmark size={16} />
             </div>
-            <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
-          </div>
+          )}
 
-          {/* Avatar + name */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 28 }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", marginBottom: 12 }}>
-              {user.name?.charAt(0).toUpperCase()}
+          {/* My Team quick access */}
+          <MyTeam customerId={user.email} onBookProvider={(p) => { setSelectedService(p.serviceType); setLocation(user.suburb ? `${user.suburb}, ${user.city}` : ""); }} />
+
+          {/* Get quote request */}
+          <button onClick={() => setShowQuoteModal(true)}
+            style={{ width: "100%", background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.22)", borderRadius: 13, padding: "13px 16px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="send" size={17} color="#818CF8" strokeWidth={1.8} />
             </div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#F1F5F9" }}>{user.name}</div>
-            <div style={{ color: "#475569", fontSize: 13 }}>{user.email}</div>
-            {user.refCode && (
-              <div style={{ marginTop: 6, fontSize: 11, color: "#64748B" }}>
-                Ref code: <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "#A5B4FC", letterSpacing: "0.1em" }}>{user.refCode}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Referral & Credits */}
-          <CreditWallet user={user} />
-
-          {/* Home Health Score */}
-          <HomeHealthScore customerId={user.email} onBookService={(svcId) => { setSelectedService(svcId); setTab("find"); }} />
-
-          {/* My Team */}
-          <MyTeam customerId={user.email} onBookProvider={() => setTab("find")} />
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC" }}>Request quotes from multiple pros</div>
+              <div style={{ fontSize: 11, color: "#312E81", marginTop: 2 }}>Describe your job — we'll find the right people</div>
+            </div>
+          </button>
 
           {/* Get It Done Board */}
           <button onClick={() => setShowJobBoard(true)}
-            style={{ width: "100%", background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", borderRadius: 12, padding: "13px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", textAlign: "left" }}>
+            style={{ width: "100%", background: "rgba(16,185,129,0.07)", border: "1.5px solid rgba(16,185,129,0.18)", borderRadius: 13, padding: "13px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Icon name="jobs" size={17} color="#10B981" strokeWidth={1.8} />
             </div>
-            <div>
+            <div style={{ textAlign: "left" }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>Get It Done Board</div>
-              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post a job · providers compete · save 10–25%</div>
+              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post your job · providers compete · save 10–25%</div>
             </div>
           </button>
 
-          {/* Home address */}
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 18, marginBottom: 14 }}>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="home" size={14} color="#0EA5E9" strokeWidth={1.8} />Home Address
-            </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {[["Street", user.address],["Suburb", user.suburb],["City", user.city],["Province", user.province],["Phone", user.phone]].map(([k,v]) => v && (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                  <span style={{ color: "#475569" }}>{k}</span>
-                  <span style={{ color: "#94A3B8", textAlign: "right", maxWidth: 200 }}>{v}</span>
+          {/* Search results */}
+          {(searchDone || loading) && (
+            <div ref={resultsRef}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>
+                  {loading ? "Finding pros…" : `${filtered.length} provider${filtered.length !== 1 ? "s" : ""} found`}
                 </div>
-              ))}
+                {searchDone && <button onClick={() => { setSearchDone(false); setProviders([]); }} style={{ background: "none", border: "none", color: "#475569", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Clear</button>}
+              </div>
+
+              {/* Loading shimmer */}
+              {loading && [1,2,3].map(i => <div key={i} className="shimmer" style={{ animationDelay: `${i*0.15}s` }} />)}
+
+              {searchDone && (
+                <>
+                  {/* Sort chips */}
+                  <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14, scrollbarWidth: "none" }}>
+                    {[
+                      { id: "best",      label: "Best match" },
+                      { id: "available", label: "🟢 Available today" },
+                      { id: "rating",    label: "⭐ Top rated" },
+                      { id: "speed",     label: "⚡ Fastest" },
+                      { id: "reviews",   label: "Most reviewed" },
+                    ].map(({ id, label }) => (
+                      <button key={id} onClick={() => setSortBy(id)} style={{ flexShrink: 0, padding: "6px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "all 0.15s", background: sortBy === id ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.05)", border: sortBy === id ? "1.5px solid #0EA5E9" : "1px solid rgba(255,255,255,0.1)", color: sortBy === id ? "#38BDF8" : "#64748B", WebkitTapHighlightColor: "transparent" }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Deals board */}
+                  {deals.length > 0 && (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F59E0B" }}>🏷️ Deals this week</div>
+                        <div style={{ flex: 1, height: 1, background: "rgba(245,158,11,0.2)" }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+                        {deals.map(deal => (
+                          <div key={deal.id} style={{ flexShrink: 0, width: 220, background: "linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05))", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 14, padding: 14 }}>
+                            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 17, color: "#F59E0B", marginBottom: 4 }}>{deal.headline}</div>
+                            <div style={{ fontSize: 11, color: "#94A3B8", lineHeight: 1.5, marginBottom: 8 }}>{deal.description}</div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <div style={{ fontSize: 11, color: "#64748B" }}>{deal.providerName}</div>
+                              {deal.slotsLeft > 0 && <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", borderRadius: 6, padding: "2px 7px" }}>{deal.slotsLeft} slots</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fresh Picks */}
+                  {freshPicks.length > 0 && (
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>✨ New to FixIt Now</div>
+                        <div style={{ flex: 1, height: 1, background: "rgba(16,185,129,0.2)" }} />
+                      </div>
+                      <div style={{ background: "rgba(16,185,129,0.04)", border: "1px solid rgba(16,185,129,0.12)", borderRadius: 14, padding: "10px 12px", marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, marginBottom: 8 }}>New on the platform — your review could be their first.</div>
+                        {freshPicks.slice(0, 3).map((p, i) => (
+                          <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
+                            <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label||""} near ${location}`} user={user} onBooked={() => { loadMyJobs(); setJobsBadge(b => b+1); }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 14 }} />
+                    </div>
+                  )}
+
+                  {/* Main results */}
+                  {filtered.filter(p => !freshPicks.find(fp => fp.providerId === p.providerId)).map((p, i) => (
+                    <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
+                      {!p._available && (
+                        <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: "12px 12px 0 0", padding: "5px 14px", marginBottom: -1, display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#EF4444" }} />
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#FCA5A5" }}>
+                            {p.avail?.slotsLeft === 0 ? "Fully booked this week — enquire anyway" : "Limited availability this week"}
+                          </span>
+                        </div>
+                      )}
+                      <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label||""} near ${location}`} user={user} onBooked={() => { loadMyJobs(); setJobsBadge(b => b+1); }} />
+                    </div>
+                  ))}
+
+                  {searchDone && filtered.length === 0 && (
+                    <div style={{ textAlign: "center", marginTop: 32, color: "#475569" }}>
+                      <div style={{ marginBottom: 10 }}><Icon name="search" size={36} color="#475569" strokeWidth={1.4} /></div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 14 }}>No providers found nearby</div>
+                      <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7, color: "#334155", maxWidth: 260, margin: "8px auto 0" }}>
+                        No {SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase()||"service"} providers in {location} yet. Try a quote request to reach providers directly.
+                      </div>
+                      <Btn onClick={() => setShowQuoteModal(true)} style={{ marginTop: 16 }}>Request Quotes →</Btn>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-          </div>
-          <ServiceRecordExport customerId={user.email} userName={user.name} />
-          <Btn full variant="ghost" onClick={onLogout} style={{ marginTop: 8 }}>Sign Out</Btn>
+          )}
         </div>
       )}
 
+      {/* ── MY JOBS TAB ── */}
       {tab === "jobs" && (
         <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Logo size={28} />
-              <Wordmark size={16} />
+          <Header title="My Jobs" />
+
+          {/* Spending summary — only show if they have completed jobs */}
+          {completedCount > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+              {[
+                { label: "Jobs done",    val: completedCount,                                               color: "#10B981" },
+                { label: "Total spent",  val: totalSpend > 0 ? `R${Math.round(totalSpend).toLocaleString()}` : "—", color: "#0EA5E9" },
+                { label: "Active now",   val: myJobs.filter(j => activeStatuses.includes(j.status)).length, color: "#F59E0B" },
+              ].map(({ label, val, color }) => (
+                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color }}>{val}</div>
+                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
             </div>
-            <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
-          </div>
+          )}
 
-          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#F1F5F9", marginBottom: 4 }}>My Jobs</div>
-          <div style={{ fontSize: 12, color: "#475569", marginBottom: 20 }}>Track your job requests and saved discounts.</div>
-
-          {/* Discount wallet */}
+          {/* Loyalty discount wallet */}
           <DiscountWallet customerId={user.email} />
 
-          {myJobs.length === 0 ? (
+          {/* Credit wallet — if they have credit */}
+          <CreditWallet user={user} />
+
+          {/* Filter chips */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            {[
+              ["active",    `Active (${myJobs.filter(j=>activeStatuses.includes(j.status)).length})`],
+              ["completed", `Completed (${myJobs.filter(j=>j.status==="completed").length})`],
+              ["all",       `All (${myJobs.length})`],
+            ].map(([val, label]) => (
+              <button key={val} onClick={() => setJobFilter(val)}
+                style={{ flex: 1, padding: "8px 6px", borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", WebkitTapHighlightColor: "transparent", background: jobFilter === val ? "rgba(14,165,233,0.18)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${jobFilter === val ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, color: jobFilter === val ? "#38BDF8" : "#475569" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {filteredJobs.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 0" }}>
               <div style={{ marginBottom: 16 }}><Icon name="jobs" size={44} color="#334155" strokeWidth={1.4} /></div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748B", marginBottom: 8 }}>No jobs yet</div>
-              <div style={{ fontSize: 12, color: "#334155", maxWidth: 240, margin: "0 auto", lineHeight: 1.7 }}>Browse providers and tap "Request a Job" to book your first service.</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748B", marginBottom: 8 }}>
+                {jobFilter === "active" ? "No active jobs" : "No jobs yet"}
+              </div>
+              <div style={{ fontSize: 12, color: "#334155", maxWidth: 240, margin: "0 auto", lineHeight: 1.7 }}>
+                {jobFilter === "active" ? "All your jobs are completed. Find your next pro below." : "Browse providers and request your first job."}
+              </div>
               <Btn onClick={() => setTab("find")} style={{ marginTop: 20 }}>Find Providers →</Btn>
             </div>
-          ) : myJobs.map((job, i) => {
-            const st = JOB_STATUS[job.status] || JOB_STATUS.pending;
+          ) : filteredJobs.map((job, i) => {
+            const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
             const svc = SERVICES.find(s => s.id === job.serviceType);
+            const isActive = activeStatuses.includes(job.status);
             return (
-              <div key={job.id} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: "rgba(255,255,255,0.04)", border: `1px solid ${st.color}30`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
-                {/* Header row */}
+              <div key={job.id} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: isActive ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", border: `1.5px solid ${isActive ? st.color+"40" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
+
+                {/* Header */}
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: `${svc?.color || "#0EA5E9"}18`, border: `1.5px solid ${svc?.color || "#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <ServiceIcon serviceId={job.serviceType || "handyman"} size={18} color={svc?.color || "#0EA5E9"} />
+                    <div style={{ width: 38, height: 38, borderRadius: 10, background: `${svc?.color||"#0EA5E9"}18`, border: `1.5px solid ${svc?.color||"#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <ServiceIcon serviceId={job.serviceType||"handyman"} size={18} color={svc?.color||"#0EA5E9"} />
                     </div>
                     <div>
                       <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{job.providerName}</div>
-                      <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{job.serviceName} · {job.dateLabel} {job.timeLabel}</div>
+                      <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{job.serviceName} · {job.dateLabel} {job.timeLabel}</div>
                     </div>
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "3px 10px", background: `${st.color}20`, border: `1px solid ${st.color}44`, color: st.color, flexShrink: 0, marginLeft: 8 }}>{st.label}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+                  </div>
                 </div>
 
-                {/* Status progress bar */}
-                <div style={{ display: "flex", gap: 3, marginBottom: 10 }}>
-                  {JOB_PROGRESS_STEPS.map((s, idx) => {
-                    const currentIdx = JOB_PROGRESS_STEPS.indexOf(job.status);
-                    const filled = job.status === "declined" ? false : idx <= currentIdx;
-                    const isCurrent = idx === currentIdx && job.status !== "declined";
-                    return (
-                      <div key={s} style={{ flex: 1, height: 3, borderRadius: 3, background: filled ? JOB_STATUS[s]?.color : "rgba(255,255,255,0.08)", opacity: isCurrent ? 1 : filled ? 0.7 : 1, transition: "background 0.3s" }} />
-                    );
-                  })}
-                </div>
-                <div style={{ fontSize: 11, color: st.color, marginBottom: 10 }}>{st.desc}{job.statusNote ? ` — "${job.statusNote}"` : ""}</div>
+                {/* Progress bar — only for active jobs */}
+                {isActive && (
+                  <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+                    {JOB_PROGRESS_STEPS.map((s, idx) => {
+                      const currentIdx = JOB_PROGRESS_STEPS.indexOf(job.status);
+                      const filled = job.status !== "declined" && idx <= currentIdx;
+                      return <div key={s} style={{ flex: 1, height: 3, borderRadius: 3, background: filled ? JOB_STATUS[s]?.color : "rgba(255,255,255,0.08)", transition: "background 0.3s" }} />;
+                    })}
+                  </div>
+                )}
+
+                <div style={{ fontSize: 11, color: st.color, marginBottom: 10, fontWeight: 600 }}>{st.desc}{job.statusNote ? ` — "${job.statusNote}"` : ""}</div>
 
                 {/* Job details */}
-                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 10 }}>
+                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 12 }}>
                   <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{job.description}</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.8} /> {job.address}</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}><Icon name="calendar" size={11} color="#475569" strokeWidth={1.8} /> {job.preferredDate} at {job.preferredTime}{job.isEmergency ? " · Emergency" : ""}</div>
-                  {job.discountApplied > 0 && job.estimatedValue ? (
-                    <div style={{ fontSize: 11, color: "#34D399", marginTop: 4, fontWeight: 600 }}>
-                      {job.discountApplied}% loyalty discount applied · You pay R{parseFloat(job.discountedValue || job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}
+                  <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>
+                    <Icon name="pin" size={10} color="#475569" strokeWidth={1.8} /> {job.address}
+                  </div>
+                  {(job.discountApplied > 0 && job.estimatedValue) ? (
+                    <div style={{ fontSize: 11, color: "#34D399", marginTop: 6, fontWeight: 600 }}>
+                      {job.discountApplied}% discount applied · R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString()}
                       <span style={{ color: "#475569", fontWeight: 400 }}> (was R{parseFloat(job.estimatedValue).toLocaleString()})</span>
                     </div>
                   ) : job.estimatedValue ? (
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee R{job.platformFee}</div>
+                    <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()}</div>
                   ) : null}
                 </div>
 
-                {/* Actions */}
+                {/* Actions — context-aware */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {/* In-app chat */}
-                  {job.providerId && (
+                  {/* Chat — always available for non-declined jobs */}
+                  {job.providerId && job.status !== "declined" && (
                     <button onClick={() => setChatJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                      <Icon name="message" size={11} color="#A5B4FC" strokeWidth={2} />Chat
+                      style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                      <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
                     </button>
                   )}
-                  {/* GPS tracking — show when provider is on route OR in progress */}
+
+                  {/* Track — on route or in progress */}
                   {(job.status === "onroute" || job.status === "inprogress") && job.providerId && (
                     <button onClick={() => setGpsJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: job.status === "onroute" ? "rgba(139,92,246,0.15)" : "rgba(16,185,129,0.12)", color: job.status === "onroute" ? "#C4B5FD" : "#34D399", border: `1px solid ${job.status === "onroute" ? "rgba(139,92,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                      <Icon name="location" size={11} color={job.status === "onroute" ? "#C4B5FD" : "#34D399"} strokeWidth={2} />{job.status === "onroute" ? "Track (On the way)" : "Track"}
+                      style={{ flex: 1, minWidth: 70, background: job.status === "onroute" ? "rgba(139,92,246,0.15)" : "rgba(16,185,129,0.15)", color: job.status === "onroute" ? "#C4B5FD" : "#34D399", border: `1px solid ${job.status === "onroute" ? "rgba(139,92,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                      <Icon name="location" size={12} color={job.status === "onroute" ? "#C4B5FD" : "#34D399"} strokeWidth={2} />{job.status === "onroute" ? "Track" : "In progress"}
                     </button>
                   )}
+
+                  {/* Cancel — only pending */}
+                  {job.status === "pending" && (
+                    <button onClick={async () => {
+                      await updateJobStatus(job.id, "declined", "Cancelled by customer");
+                      loadMyJobs();
+                    }}
+                      style={{ flex: 1, minWidth: 70, background: "rgba(239,68,68,0.08)", color: "#FCA5A5", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                      Cancel request
+                    </button>
+                  )}
+
+                  {/* Rebook — completed */}
+                  {job.status === "completed" && job.providerId && (
+                    <button onClick={() => { setSelectedService(job.serviceType); setTab("find"); }}
+                      style={{ flex: 1, minWidth: 80, background: "rgba(14,165,233,0.1)", color: "#38BDF8", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                      Book again
+                    </button>
+                  )}
+
+                  {/* Rate — completed, not yet reviewed */}
                   {job.status === "completed" && !job.reviewed && (
                     <button onClick={() => setReviewJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                      Rate
+                      style={{ flex: 1, minWidth: 60, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                      <Icon name="star" size={12} color="#F59E0B" strokeWidth={2} />Rate
                     </button>
                   )}
+
                   {job.status === "completed" && job.reviewed && (
-                    <div style={{ fontSize: 11, color: "#10B981", padding: "8px 10px" }}>✓ Reviewed</div>
+                    <div style={{ fontSize: 11, color: "#10B981", padding: "8px 10px", display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="check" size={11} color="#10B981" strokeWidth={2.5} />Reviewed
+                    </div>
                   )}
                 </div>
               </div>
@@ -4890,48 +4763,118 @@ function CustomerHome({ user, onLogout }) {
         </div>
       )}
 
-      {/* Notifications panel */}
-      {showNotifs && <NotificationsPanel userId={user.email} onClose={() => setShowNotifs(false)} />}
+      {/* ── PROFILE TAB ── */}
+      {tab === "profile" && (
+        <div style={{ padding: "44px 20px 100px" }} className="fadeUp">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Logo size={28} /><Wordmark size={15} /></div>
+              </div>
 
-      {chatJob && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
-      {gpsJob  && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
-      {showQuoteModal && <QuoteRequestModal user={user} onClose={() => setShowQuoteModal(false)} onDone={() => { setShowQuoteModal(false); loadMyJobs(); setTab("jobs"); }} />}
-      {showSOS && <EmergencySOS user={user} onClose={() => setShowSOS(false)} />}
-      {showJobBoard && <JobBoardPost user={user} onClose={() => setShowJobBoard(false)} onPosted={() => { loadMyJobs(); setTab("jobs"); }} />}
-
-      {completionNotif && (
-        <CompletionPopup
-          notification={completionNotif}
-          user={user}
-          onClose={() => { setCompletionNotif(null); loadMyJobs(); }}
-        />
-      )}
-
-      {/* Review modal */}
-      {reviewJob && (
-        <ReviewModal
-          job={reviewJob}
-          user={user}
-          onClose={() => setReviewJob(null)}
-          onDone={() => { setReviewJob(null); loadMyJobs(); }}
-        />
-      )}
-
-      {/* Bottom nav */}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.95)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", backdropFilter: "blur(20px)" }}>
-        {[["find","search","Find Pros"],["jobs","jobs","My Jobs"],["profile","profile","Profile"]].map(([id,iconName,label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
-            <Icon name={iconName} size={19} color={tab === id ? "#0EA5E9" : "#475569"} strokeWidth={1.6} />
-            {label.toUpperCase()}
-            {id === "jobs" && jobsBadge > 0 && (
-              <div style={{ position: "absolute", top: 10, right: "calc(50% - 14px)", width: 16, height: 16, borderRadius: "50%", background: "#EF4444", fontSize: 9, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
+          {/* Avatar + name + edit */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", marginBottom: 12 }}>
+              {user.name?.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#F1F5F9" }}>{user.name}</div>
+            <div style={{ color: "#475569", fontSize: 13, marginTop: 2 }}>{user.email}</div>
+            {user.refCode && (
+              <div style={{ marginTop: 6, fontSize: 11, color: "#64748B" }}>
+                Ref code: <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "#A5B4FC", letterSpacing: "0.1em" }}>{user.refCode}</span>
+              </div>
             )}
-          </button>
-        ))}
-      </div>
+          </div>
+
+          {/* Edit profile section */}
+          {showEditProfile ? (
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Edit profile</div>
+              <Input label="Full name" value={editForm.name} onChange={v => setEditForm(f=>({...f,name:v}))} />
+              <Input label="Phone number" value={editForm.phone} onChange={v => setEditForm(f=>({...f,phone:v}))} type="tel" />
+              <Input label="Street address" value={editForm.address} onChange={v => setEditForm(f=>({...f,address:v}))} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <Input label="Suburb" value={editForm.suburb} onChange={v => setEditForm(f=>({...f,suburb:v}))} />
+                <Input label="City" value={editForm.city} onChange={v => setEditForm(f=>({...f,city:v}))} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Notification preference</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[["sms","SMS"],["whatsapp","WhatsApp"]].map(([val, label]) => (
+                    <button key={val} onClick={() => setEditForm(f=>({...f,notifPref:val}))}
+                      style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent", background: editForm.notifPref === val ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.05)", border: `1.5px solid ${editForm.notifPref === val ? "#0EA5E9" : "rgba(255,255,255,0.1)"}`, color: editForm.notifPref === val ? "#38BDF8" : "#64748B" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <Btn variant="ghost" onClick={() => setShowEditProfile(false)} style={{ flex: 1 }}>Cancel</Btn>
+                <Btn variant="green" onClick={saveProfile} disabled={savingProfile} style={{ flex: 1 }}>{savingProfile ? "Saving…" : "Save changes"}</Btn>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#94A3B8" }}>Account details</div>
+                <Btn small variant="ghost" onClick={() => setShowEditProfile(true)}>Edit</Btn>
+              </div>
+              {[["Phone", user.phone||editForm.phone],["Address", user.suburb ? `${user.suburb}, ${user.city}` : "—"],["Notifications", (user.notifPref||editForm.notifPref||"SMS").toUpperCase()]].map(([k,v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 13 }}>
+                  <span style={{ color: "#475569" }}>{k}</span>
+                  <span style={{ color: "#94A3B8", textAlign: "right" }}>{v||"—"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Referral & Credits */}
+          <CreditWallet user={user} />
+
+          {/* Referral share */}
+          {user.refCode && (
+            <div style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#A5B4FC", marginBottom: 6 }}>Refer a friend · earn R{REFERRAL_CREDIT_AMOUNT}</div>
+              <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, marginBottom: 12 }}>
+                Share your link. When they complete their first job, you both earn R{REFERRAL_CREDIT_AMOUNT} platform credit — used as a fee reduction on your next booking.
+              </div>
+              <button onClick={() => {
+                const url = `${window.location.origin}?ref=${user.refCode}`;
+                if (navigator.share) { navigator.share({ title: "FixIt Now", text: "Find trusted home service pros in KZN", url }); }
+                else { navigator.clipboard?.writeText(url); }
+              }}
+                style={{ width: "100%", background: "rgba(99,102,241,0.15)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700, color: "#818CF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
+                Share your link →
+              </button>
+            </div>
+          )}
+
+          {/* Home Health Score */}
+          <HomeHealthScore customerId={user.email} onBookService={(svcId) => { setSelectedService(svcId); setTab("find"); }} />
+
+          {/* My Team */}
+          <MyTeam customerId={user.email} onBookProvider={(p) => { setSelectedService(p.serviceType); setTab("find"); }} />
+
+          {/* Service Record */}
+          <ServiceRecordExport customerId={user.email} userName={user.name} />
+
+          <Btn full variant="ghost" onClick={onLogout} style={{ marginTop: 12 }}>Sign Out</Btn>
+        </div>
+      )}
+
+      {/* ── BOTTOM NAV ── */}
+      <BottomNav />
+
+      {/* ── MODALS ── */}
+      {showNotifs   && <NotificationsPanel userId={user.email} onClose={() => setShowNotifs(false)} />}
+      {chatJob      && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
+      {gpsJob       && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
+      {showQuoteModal && <QuoteRequestModal user={user} onClose={() => setShowQuoteModal(false)} onDone={() => { setShowQuoteModal(false); loadMyJobs(); setTab("jobs"); }} />}
+      {showJobBoard && <JobBoardPost user={user} onClose={() => setShowJobBoard(false)} onPosted={() => { loadMyJobs(); }} />}
+      {reviewJob    && <ReviewModal job={reviewJob} user={user} onClose={() => setReviewJob(null)} onDone={() => { setReviewJob(null); loadMyJobs(); }} />}
+      {completionNotif && <CompletionPopup notification={completionNotif} user={user} onClose={() => { setCompletionNotif(null); loadMyJobs(); }} />}
     </div>
   );
 }
+
 
 // ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────────
 // ─── ADMIN HELPERS ───────────────────────────────────────────────────────────
@@ -5752,7 +5695,6 @@ function AdminDashboard({ onLogout }) {
                 { label: "WhatsApp taps",  val: events.filter(e=>e.type==="whatsapp").length,  color: "#25D366" },
                 { label: "Call taps",      val: events.filter(e=>e.type==="call").length,       color: "#10B981" },
                 { label: "Job requests",   val: events.filter(e=>e.type==="booking").length,    color: "#F59E0B" },
-                { label: "SOS sent",       val: events.filter(e=>e.type==="sos").length,        color: "#EF4444" },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
@@ -5988,7 +5930,47 @@ function ProviderReviews({ providerId }) {
   );
 }
 
-// ─── AVAILABILITY MANAGER ────────────────────────────────────────────────────────
+// ─── PROFILE COMPLETION SCORE ────────────────────────────────────────────────
+const getProfileScore = (provider) => {
+  const checks = [
+    { label: "Business name",       done: !!provider.bizName,              tip: "Add in Account tab" },
+    { label: "Profile photo / logo",done: !!provider.logoUrl,              tip: "Add logo URL in My Profile" },
+    { label: "Tagline",             done: !!provider.tagline,              tip: "Write a one-line pitch" },
+    { label: "About section",       done: (provider.description||"").length > 40, tip: "Add a detailed description" },
+    { label: "Certifications",      done: !!provider.certifications,       tip: "List your qualifications" },
+    { label: "Call-out price",      done: !!provider.priceRangeMin,        tip: "Add starting price" },
+    { label: "Insurance confirmed", done: !!provider.insuranceConfirmed,   tip: "Confirm in My Profile" },
+    { label: "Service areas set",   done: Object.keys(provider.serviceAreas||{}).length > 0, tip: "Set areas in My Profile" },
+    { label: "Availability set",    done: false,                           tip: "Set weekly availability" },
+    { label: "Emergency toggle",    done: !!provider.emergency,            tip: "Opt in to 24hr jobs" },
+  ];
+  const done = checks.filter(c => c.done).length;
+  return { score: Math.round((done / checks.length) * 100), checks, done, total: checks.length };
+};
+
+// ─── CUSTOMER DATA HELPERS ───────────────────────────────────────────────────
+const updateCustomerData = async (email, updates) => {
+  try {
+    const raw = await store.get("customers");
+    const customers = raw ? JSON.parse(raw.value) : [];
+    const updated = customers.map(c => c.email === email ? { ...c, ...updates } : c);
+    await store.set("customers", updated);
+    return updated.find(c => c.email === email);
+  } catch { return null; }
+};
+
+// ─── PROVIDER UPDATE HELPER ──────────────────────────────────────────────────
+const updateProviderData = async (providerId, updates) => {
+  try {
+    const raw = await store.get("providers");
+    const providers = raw ? JSON.parse(raw.value) : [];
+    const updated = providers.map(p => p.id === providerId ? { ...p, ...updates } : p);
+    await store.set("providers", updated);
+    return updated.find(p => p.id === providerId);
+  } catch { return null; }
+};
+
+────
 function AvailabilityManager({ providerId }) {
   const [avail, setAvail]       = useState(null);
   const [saving, setSaving]     = useState(false);
@@ -6159,10 +6141,10 @@ function DealsManager({ provider }) {
 
 // ─── PROVIDER DASHBOARD ───────────────────────────────────────────────────────────
 function ProviderDashboard({ provider: initialProvider, onLogout }) {
-  const [tab, setTab]         = useState("jobs");
+  const [tab, setTab]           = useState("jobs");
   const [provider, setProvider] = useState(initialProvider);
   const [available, setAvailable] = useState(true);
-  const [leads, setLeads]     = useState([]);
+  const [leads, setLeads]       = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState({
     description:    initialProvider.description    || "",
@@ -6179,23 +6161,27 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
   const [showAllAreas, setShowAllAreas]       = useState({});
   const [saving, setSaving]   = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
-  const [showNotifs, setShowNotifs] = useState(false);
+  const [showNotifs, setShowNotifs]       = useState(false);
+  const [providerJobs, setProviderJobs]   = useState([]);
+  const [jobsBadge, setJobsBadge]         = useState(0);
+  const [jobFilter, setJobFilter]         = useState("active");
+  const [salesJob, setSalesJob]           = useState(null);
+  const [providerChatJob, setProviderChatJob] = useState(null);
+  const [showTraining, setShowTraining]   = useState(false);
+  const [showJobBoardBrowse, setShowJobBoardBrowse] = useState(false);
+  const [potm, setPotm]                   = useState(null);
+  const [editContactMode, setEditContactMode] = useState(false);
+  const [contactForm, setContactForm]     = useState({ phone: provider.phone||"", email: provider.email||"", suburb: provider.suburb||"", city: provider.city||"" });
+  const [savingContact, setSavingContact] = useState(false);
 
-  // Load real leads from storage
   const loadLeads = async () => {
     try {
       const raw = await store.get("providers");
       const providers = raw ? JSON.parse(raw.value) : [];
       const me = providers.find(p => p.id === provider.id);
-      if (me) {
-        setLeads(me.leads || []);
-        setProvider(prev => ({ ...prev, ...me, role: "provider" }));
-      }
+      if (me) { setLeads(me.leads || []); setProvider(prev => ({ ...prev, ...me, role: "provider" })); }
     } catch {}
   };
-
-  const [providerJobs, setProviderJobs] = useState([]);
-  const [jobsBadge, setJobsBadge] = useState(0);
 
   const loadProviderJobs = async () => {
     try {
@@ -6204,7 +6190,6 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
       const me = providers.find(p => p.id === provider.id);
       const jobs = me?.jobs || [];
       setProviderJobs(jobs);
-      // Badge = count of new pending jobs
       setJobsBadge(jobs.filter(j => j.status === "pending").length);
     } catch {}
   };
@@ -6215,167 +6200,124 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
     if (tab === "jobs") { loadProviderJobs(); setJobsBadge(0); }
   }, [tab]);
 
-  const [salesJob, setSalesJob] = useState(null);
-  const [providerChatJob, setProviderChatJob] = useState(null);
-  const [showTraining, setShowTraining]     = useState(false);
-  const [showJobBoardBrowse, setShowJobBoardBrowse] = useState(false);
-  const [potm, setPotm]                     = useState(null);
-
   const handleJobAction = async (jobId, newStatus, note = "") => {
-    // Intercept "completed" — show sales moment modal first
     if (newStatus === "completed") {
       const job = providerJobs.find(j => j.id === jobId);
       if (job) { setSalesJob(job); return; }
     }
     await updateJobStatus(jobId, newStatus, note);
     const job = providerJobs.find(j => j.id === jobId);
-
-    // Auto-start GPS when provider taps "On My Way"
     if (newStatus === "onroute" && provider.id) {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           pos => updateProviderLocation(provider.id, pos.coords.latitude, pos.coords.longitude),
           () => {}
         );
-        // Start watching position
-        if (!window._gpsWatchId) {
-          window._gpsWatchId = navigator.geolocation.watchPosition(
-            pos => updateProviderLocation(provider.id, pos.coords.latitude, pos.coords.longitude),
-            () => {},
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
-          );
-        }
+        window._gpsWatchId = navigator.geolocation.watchPosition(
+          pos => updateProviderLocation(provider.id, pos.coords.latitude, pos.coords.longitude),
+          () => {}, { enableHighAccuracy: true, maximumAge: 30000 }
+        );
       }
     }
-    // Stop GPS when job is completed or declined
-    if (["completed","declined"].includes(newStatus) && window._gpsWatchId) {
-      navigator.geolocation?.clearWatch(window._gpsWatchId);
-      window._gpsWatchId = null;
+    if (newStatus === "completed" || newStatus === "declined") {
+      if (window._gpsWatchId) { navigator.geolocation?.clearWatch(window._gpsWatchId); window._gpsWatchId = null; }
     }
-
     if (job?.customerId) {
-      const messages = {
-        accepted:   { title: "Job accepted! ✅", body: `${provider.bizName} accepted your ${job.serviceName} request for ${job.preferredDate}.` },
-        onroute:    { title: "Provider on the way! 🚗", body: `${provider.bizName} is on their way to you. You can track their location in My Jobs.` },
-        inprogress: { title: "Work has started 🔧", body: `${provider.bizName} has started work on your ${job.serviceName} job.` },
-        declined:   { title: "Job declined", body: `${provider.bizName} couldn't take your ${job.serviceName} request. Try another provider.` },
-        completed:  { title: "Job complete! 🎉", body: `${provider.bizName} has marked your ${job.serviceName} job as complete. Please leave a review.` },
+      const notifMap = {
+        accepted:   { title: "Job accepted!", body: `${provider.bizName} has accepted your ${job.serviceName || "service"} request.` },
+        onroute:    { title: "Provider on the way!", body: `${provider.bizName} is on their way to you now.` },
+        inprogress: { title: "Work in progress", body: `${provider.bizName} has started your ${job.serviceName || "service"} job.` },
+        declined:   { title: "Job declined", body: `${provider.bizName} is unable to take your ${job.serviceName || "service"} job. Please book another provider.` },
       };
-      const msg = messages[newStatus];
-      if (msg) await pushNotif(job.customerId, { ...msg, type: newStatus, jobId });
+      if (notifMap[newStatus]) {
+        await pushNotif(job.customerId, { ...notifMap[newStatus], type: newStatus, jobId });
+      }
     }
     await loadProviderJobs();
   };
 
-  // Called from SalesMomentModal when provider confirms completion + discount
-  const confirmCompletion = async ({ discountPct, customNote, offerDiscount }) => {
-    const job = salesJob;
-    setSalesJob(null);
-
-    // 1. Mark job complete in storage
-    await updateJobStatus(job.id, "completed");
-
-    // 2. Store discount for the customer if offered
-    if (offerDiscount && discountPct > 0 && job.customerId) {
-      await saveDiscount({
-        customerId:   job.customerId,
-        providerId:   provider.id,
-        providerName: provider.contactName,
-        bizName:      provider.bizName,
-        discountPct,
-        jobId:        job.id,
-      });
+  const confirmCompletion = async (jobId, offerDiscount, discountPct, customNote) => {
+    await updateJobStatus(jobId, "completed", customNote);
+    const job = providerJobs.find(j => j.id === jobId);
+    if (offerDiscount && discountPct > 0 && job?.customerId) {
+      await saveDiscount({ customerId: job.customerId, providerId: provider.id, providerName: provider.contactName, bizName: provider.bizName, discountPct, jobId: job.id });
     }
-
-    // 3. Push a rich completion notification to customer
-    if (job.customerId) {
+    if (job?.customerId) {
       await pushNotif(job.customerId, {
-        title:       "Job complete!",
-        body:        customNote || `${provider.bizName} has finished your ${job.serviceName} job.`,
-        type:        "completed",
-        jobId:       job.id,
-        // Embed sales payload so CompletionPopup can read it
-        providerId:  provider.id,
-        providerName: provider.bizName,
-        serviceName: job.serviceName,
-        serviceType: job.serviceType,
-        discountPct: offerDiscount ? discountPct : 0,
-        customNote,
-        isSalesNotif: true,
+        title: "Job complete!", body: customNote || `${provider.bizName} has finished your ${job.serviceName} job.`,
+        type: "completed", jobId: job.id, providerId: provider.id, providerName: provider.bizName,
+        serviceName: job.serviceName, serviceType: job.serviceType,
+        discountPct: offerDiscount ? discountPct : 0, customNote, isSalesNotif: true,
       });
     }
-
-    // 4. Check if this customer was referred — reward the referrer on their first completed job
-    if (job.customerId) {
-      await processReferralReward(job.customerId, job.customerName);
-    }
-
-    // 5. Add to customer's home health log
-    if (job.customerId && job.serviceType) {
-      await addHomeServiceLog(job.customerId, { ...job, status: "completed" });
-    }
-
+    if (job?.customerId) await processReferralReward(job.customerId, job.customerName);
+    if (job?.customerId && job?.serviceType) await addHomeServiceLog(job.customerId, { ...job, status: "completed" });
     await loadProviderJobs();
   };
-  const now = new Date();
+
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      const raw = await store.get("providers");
+      const providers = raw ? JSON.parse(raw.value) : [];
+      const updated = providers.map(p => p.id === provider.id ? { ...p, ...editForm } : p);
+      await store.set("providers", updated);
+      setProvider(prev => ({ ...prev, ...editForm }));
+      setSaveMsg("Profile saved ✓"); setEditMode(false);
+      setTimeout(() => setSaveMsg(""), 3000);
+    } catch {}
+    setSaving(false);
+  };
+
+  const saveContactInfo = async () => {
+    setSavingContact(true);
+    await updateProviderData(provider.id, contactForm);
+    setProvider(prev => ({ ...prev, ...contactForm }));
+    setSavingContact(false);
+    setEditContactMode(false);
+  };
+
+  const toggleAvailability = async () => {
+    const next = !available;
+    setAvailable(next);
+    await updateProviderData(provider.id, { available: next });
+  };
+
+  // ── Derived stats ──────────────────────────────────────────────────────
+  const now        = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const thisMonth  = leads.filter(l => l.ts >= monthStart);
   const views      = thisMonth.filter(l => l.type === "view").length;
   const whatsapps  = thisMonth.filter(l => l.type === "whatsapp").length;
   const calls      = thisMonth.filter(l => l.type === "call").length;
   const totalLeads = whatsapps + calls;
-
-  // Referral billing: Featured = R15/lead, Premium = R10/lead
   const referralRate = provider.plan === "premium" ? 10 : provider.plan === "featured" ? 15 : 0;
-  const referralCredits = (provider.plan === "featured" || provider.plan === "premium")
-    ? totalLeads * referralRate : 0;
+  const referralCredits = (provider.plan === "featured" || provider.plan === "premium") ? totalLeads * referralRate : 0;
+  const plan       = PLANS.find(p => p.id === provider.plan) || PLANS[0];
+  const planColor  = plan.color;
+  const initials   = provider.bizName?.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() || "??";
+  const streak     = getStarStreak(provider._reviews || []);
+  const profileScore = getProfileScore(provider);
 
-  // Weekly bar chart — last 7 days by day-of-week label
-  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  const barData = days.map(d => leads.filter(l => l.dayLabel === d).length);
+  const days    = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const barData = days.map((d, i) => leads.filter(l => { const ld = new Date(l.ts); return ld.getDay() === (i + 1) % 7; }).length);
   const barMax  = Math.max(...barData, 1);
 
-  const plan = PLANS.find(p=>p.id===provider.plan) || PLANS[0];
-
-  const saveProfile = async () => {
-    setSaving(true);
-    const raw = await store.get("providers");
-    const providers = raw ? JSON.parse(raw.value) : [];
-    const updated = providers.map(p => p.id === provider.id
-      ? { ...p, description: editForm.description, tagline: editForm.tagline, yearsInBusiness: editForm.yearsInBusiness, priceRangeMin: editForm.priceRangeMin, certifications: editForm.certifications, logoUrl: editForm.logoUrl, insuranceConfirmed: editForm.insuranceConfirmed, backgroundCheckConsent: editForm.backgroundCheckConsent, emergency: editForm.emergency, serviceAreas: provider.serviceAreas }
-      : p
-    );
-    await store.set("providers", updated);
-    setProvider(p => ({ ...p, description: editForm.description, tagline: editForm.tagline, yearsInBusiness: editForm.yearsInBusiness, priceRangeMin: editForm.priceRangeMin, certifications: editForm.certifications, logoUrl: editForm.logoUrl, insuranceConfirmed: editForm.insuranceConfirmed, backgroundCheckConsent: editForm.backgroundCheckConsent, emergency: editForm.emergency }));
-    setSaving(false); setSaveMsg("Saved ✓"); setEditMode(false);
-    setTimeout(() => setSaveMsg(""), 3000);
-  };
-
-  // Area editing helpers (reused from registration)
-  const toggleArea = (serviceId, area) => {
-    const current = provider.serviceAreas?.[serviceId] || {};
-    if (current.allKZN) return;
-    const areas = current.areas || [];
-    const next = areas.includes(area) ? areas.filter(a=>a!==area) : [...areas, area];
-    setProvider(p => ({ ...p, serviceAreas: { ...p.serviceAreas, [serviceId]: { allKZN: false, areas: next } } }));
-  };
-  const toggleAllKZN = (serviceId) => {
-    const isAll = provider.serviceAreas?.[serviceId]?.allKZN;
-    setProvider(p => ({ ...p, serviceAreas: { ...p.serviceAreas, [serviceId]: { allKZN: !isAll, areas: [] } } }));
-  };
-
-  const initials = provider.bizName?.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase() || "??";
-  const planColor = plan.color;
-
-  const SBadge = ({ children, color }) => (
-    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "2px 8px", background: `${color}20`, border: `1px solid ${color}44`, color }}>{children}</span>
-  );
+  // ── Job lists ──────────────────────────────────────────────────────────
+  const activeStatuses   = ["pending","accepted","onroute","inprogress"];
+  const filteredProvJobs = jobFilter === "active"    ? providerJobs.filter(j => activeStatuses.includes(j.status))
+                         : jobFilter === "completed" ? providerJobs.filter(j => j.status === "completed")
+                         : providerJobs;
 
   const LeadIcon = ({ type }) => {
     if (type === "whatsapp") return <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="whatsapp" size={13} color="#25D366" strokeWidth={1.8} /></span>;
     if (type === "call")     return <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="phone" size={13} color="#10B981" strokeWidth={1.8} /></span>;
-    return                          <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="search" size={13} color="#6366F1" strokeWidth={1.8} /></span>;
+    return <span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Icon name="search" size={13} color="#6366F1" strokeWidth={1.8} /></span>;
   };
+
+  const SBadge = ({ color, children }) => (
+    <span style={{ fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 8px", letterSpacing: "0.05em" }}>{children}</span>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
@@ -6386,102 +6328,262 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
         @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         .fadeUp{animation:fadeUp 0.3s ease forwards}
+        button{WebkitTapHighlightColor:transparent}
       `}</style>
 
       {/* ── HEADER ── */}
       <div style={{ padding: "44px 18px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Logo size={32} />
-            <div>
-              <Wordmark size={16} />
-              <div style={{ fontSize: 9, color: "#334155", letterSpacing: "0.14em", marginTop: 1 }}>PROVIDER PORTAL</div>
-            </div>
+            <Logo size={32} /><Wordmark size={16} />
+            <div style={{ fontSize: 9, color: "#334155", letterSpacing: "0.14em", marginTop: 1 }}>PROVIDER</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: available ? "#10B981" : "#475569" }} />
-            <span style={{ fontSize: 11, color: available ? "#10B981" : "#475569", fontWeight: 600 }}>{available ? "Active" : "Paused"}</span>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: available ? "#10B981" : "#EF4444" }} />
+            <span style={{ fontSize: 11, color: available ? "#10B981" : "#EF4444", fontWeight: 600 }}>{available ? "Online" : "Offline"}</span>
             <NotificationBell userId={provider.id} onOpen={() => setShowNotifs(true)} />
           </div>
         </div>
 
-        {/* Business card */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 14, marginBottom: 20 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 12, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 17, color: "white", flexShrink: 0 }}>{initials}</div>
+        {/* Business identity card */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 14, marginBottom: 18 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 17, color: "white", flexShrink: 0, overflow: "hidden" }}>
+            {provider.logoUrl
+              ? <img src={provider.logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }} onError={e => e.target.style.display="none"} />
+              : initials
+            }
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{provider.bizName}</div>
             <div style={{ fontSize: 11, color: "#475569", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{provider.email}</div>
             <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>
               <SBadge color={planColor}>{plan.label}</SBadge>
               {provider.emergency && <SBadge color="#EF4444">24hr</SBadge>}
-              {provider.services?.slice(0,2).map(id => { const s = SERVICES.find(sv=>sv.id===id); return s ? <SBadge key={id} color={s.color}>{s.label}</SBadge> : null; })}
-              {(provider.services?.length||0) > 2 && <SBadge color="#64748B">+{provider.services.length-2}</SBadge>}
+              {provider.verification?.status === "verified" && <SBadge color="#10B981">Verified</SBadge>}
+              {provider.liveRating && <SBadge color="#F59E0B">★{provider.liveRating}</SBadge>}
             </div>
           </div>
+          {/* Profile completion indicator */}
+          <div style={{ textAlign: "center", flexShrink: 0 }}>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: `conic-gradient(${profileScore.score >= 80 ? "#10B981" : profileScore.score >= 50 ? "#F59E0B" : "#EF4444"} ${profileScore.score * 3.6}deg, rgba(255,255,255,0.06) 0deg)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#060A14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 10, color: profileScore.score >= 80 ? "#10B981" : "#F59E0B" }}>{profileScore.score}%</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 9, color: "#334155", marginTop: 3 }}>Profile</div>
+          </div>
         </div>
+      </div>
+
+      {/* ── BOTTOM NAV ── */}
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {[["jobs","jobs","Jobs"],["dashboard","overview","Dashboard"],["profile","profile","My Profile"],["account","settings","Account"]].map(([id,iconName,label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ position: "relative" }}>
+              <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />
+              {id === "jobs" && jobsBadge > 0 && (
+                <div style={{ position: "absolute", top: -4, right: -6, width: 14, height: 14, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
+              )}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* ── TAB CONTENT ── */}
       <div style={{ padding: "0 18px 100px" }}>
 
-        {/* ── OVERVIEW ── */}
+        {/* ── JOBS TAB ── */}
+        {tab === "jobs" && (
+          <div className="fadeUp">
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9" }}>Jobs</div>
+                <button onClick={loadProviderJobs} style={{ background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 10px", color: "#64748B", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>↻ Refresh</button>
+              </div>
+
+              {/* Status summary chips */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                {[
+                  { status: "pending",    label: "New",         color: "#F59E0B" },
+                  { status: "accepted",   label: "Accepted",    color: "#0EA5E9" },
+                  { status: "onroute",    label: "On the way",  color: "#8B5CF6" },
+                  { status: "inprogress", label: "In progress", color: "#06B6D4" },
+                  { status: "completed",  label: "Done",        color: "#10B981" },
+                ].map(({ status, label, color }) => {
+                  const count = providerJobs.filter(j => j.status === status).length;
+                  if (!count) return null;
+                  return (
+                    <div key={status} style={{ display: "flex", alignItems: "center", gap: 5, background: `${color}15`, border: `1px solid ${color}35`, borderRadius: 20, padding: "4px 10px" }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color }}>{count} {label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Filter chips */}
+              <div style={{ display: "flex", gap: 6 }}>
+                {[
+                  ["active",    `Active (${providerJobs.filter(j=>activeStatuses.includes(j.status)).length})`],
+                  ["completed", `Done (${providerJobs.filter(j=>j.status==="completed").length})`],
+                  ["all",       `All (${providerJobs.length})`],
+                ].map(([val, label]) => (
+                  <button key={val} onClick={() => setJobFilter(val)}
+                    style={{ flex: 1, padding: "7px 6px", borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", WebkitTapHighlightColor: "transparent", background: jobFilter === val ? "rgba(14,165,233,0.18)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${jobFilter === val ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, color: jobFilter === val ? "#38BDF8" : "#475569" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {filteredProvJobs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 0" }}>
+                <div style={{ marginBottom: 12 }}><Icon name="jobs" size={36} color="#334155" strokeWidth={1.4} /></div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#475569" }}>
+                  {jobFilter === "active" ? "No active jobs" : "No jobs yet"}
+                </div>
+                <div style={{ fontSize: 12, marginTop: 6, color: "#334155", lineHeight: 1.6 }}>
+                  {jobFilter === "active" ? "All caught up — new requests appear here." : "Job requests from customers appear here."}
+                </div>
+              </div>
+            ) : filteredProvJobs.map((job, i) => {
+              const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
+              const svc = SERVICES.find(s => s.id === job.serviceType);
+              const isActive = activeStatuses.includes(job.status);
+              return (
+                <div key={job.id} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: isActive ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", border: `1.5px solid ${isActive ? st.color+"40" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                  {/* Job header */}
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 9, background: `${svc?.color||"#0EA5E9"}18`, border: `1.5px solid ${svc?.color||"#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <ServiceIcon serviceId={job.serviceType||"handyman"} size={17} color={svc?.color||"#0EA5E9"} />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F1F5F9" }}>{job.serviceName}</div>
+                        <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{job.customerName} · {job.dateLabel} {job.timeLabel}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+                    </div>
+                  </div>
+
+                  {/* Job detail */}
+                  <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{job.description}</div>
+                    <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>
+                      <Icon name="pin" size={10} color="#475569" strokeWidth={1.8} /> {job.address}
+                    </div>
+                    {job.estimatedValue && (
+                      <div style={{ fontSize: 11, color: "#10B981", marginTop: 4 }}>
+                        R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee: R{Math.round(parseFloat(job.estimatedValue) * PLATFORM_FEE_PCT)}
+                      </div>
+                    )}
+                    {job.isEmergency && <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", marginTop: 4 }}>⚡ EMERGENCY JOB</div>}
+                  </div>
+
+                  {/* Returning customer discount banner */}
+                  {job.discountApplied > 0 && (
+                    <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 9, padding: "8px 12px", marginBottom: 12 }}>
+                      <div style={{ fontSize: 11, color: "#34D399", fontWeight: 600 }}>🎁 Returning client · {job.discountApplied}% loyalty discount applied</div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {/* Chat */}
+                    {job.status !== "declined" && job.status !== "pending" && (
+                      <button onClick={() => setProviderChatJob(job)}
+                        style={{ flex: 1, minWidth: 60, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                        <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
+                      </button>
+                    )}
+
+                    {/* WhatsApp customer directly */}
+                    {job.customerPhone && job.status !== "declined" && (
+                      <a href={`https://wa.me/${(job.customerPhone||"").replace(/[\s-()+]/g,"")}?text=Hi ${job.customerName}, this is ${provider.bizName} regarding your job request on FixIt Now.`}
+                        onClick={() => trackEvent({ providerId: provider.id, providerName: provider.bizName, type: "whatsapp", serviceType: job.serviceType })}
+                        style={{ flex: 1, minWidth: 60, background: "rgba(37,211,102,0.12)", color: "#25D366", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, textDecoration: "none", WebkitTapHighlightColor: "transparent" }}>
+                        <Icon name="whatsapp" size={12} color="#25D366" strokeWidth={2} />WA
+                      </a>
+                    )}
+
+                    {/* Status action buttons */}
+                    {job.status === "pending" && (
+                      <>
+                        <Btn small variant="green" onClick={() => handleJobAction(job.id, "accepted")} style={{ flex: 2 }}>Accept job</Btn>
+                        <Btn small variant="ghost"  onClick={() => handleJobAction(job.id, "declined")} style={{ flex: 1 }}>Decline</Btn>
+                      </>
+                    )}
+                    {job.status === "accepted" && (
+                      <Btn small variant="primary" onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", border: "none" }}>On My Way →</Btn>
+                    )}
+                    {job.status === "onroute" && (
+                      <Btn small variant="primary" onClick={() => handleJobAction(job.id, "inprogress")} style={{ flex: 1, background: "linear-gradient(135deg,#06B6D4,#0EA5E9)", border: "none" }}>Start Work</Btn>
+                    )}
+                    {job.status === "inprogress" && (
+                      <Btn small variant="green" onClick={() => handleJobAction(job.id, "completed")} style={{ flex: 1 }}>Mark Complete ✓</Btn>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── DASHBOARD TAB ── */}
         {tab === "dashboard" && (
           <div className="fadeUp">
 
-            {/* ── STRIKE BANNER ── */}
+            {/* Strike banner */}
             {(() => {
               const activeStrikes = (provider.strikeLog || []).filter(s => !s.cleared).length;
               if (!activeStrikes) return null;
               const isSuspended = provider.status === "suspended";
-              const remaining   = MAX_STRIKES - activeStrikes;
-              const bgColor     = isSuspended ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.08)";
-              const bdColor     = isSuspended ? "rgba(239,68,68,0.35)" : "rgba(245,158,11,0.35)";
-              const iconColor   = isSuspended ? "#EF4444" : "#F59E0B";
+              const color = isSuspended ? "#EF4444" : "#F59E0B";
               return (
-                <div style={{ background: bgColor, border: `1px solid ${bdColor}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ background: `${color}0D`, border: `1px solid ${color}35`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <Icon name="warning" size={16} color={iconColor} strokeWidth={1.8} />
+                    <Icon name="warning" size={16} color={color} strokeWidth={1.8} />
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: isSuspended ? "#FCA5A5" : "#FCD34D" }}>
                       {isSuspended ? "Account suspended" : `${activeStrikes} of ${MAX_STRIKES} quality strikes`}
                     </div>
                     <div style={{ display: "flex", gap: 5, marginLeft: "auto" }}>
-                      {[1,2,3].map(i => (
-                        <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i <= activeStrikes ? iconColor : "rgba(255,255,255,0.12)" }} />
-                      ))}
+                      {[1,2,3].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i <= activeStrikes ? color : "rgba(255,255,255,0.12)" }} />)}
                     </div>
                   </div>
                   <div style={{ fontSize: 12, color: isSuspended ? "#FCA5A5" : "#B45309", lineHeight: 1.6 }}>
-                    {isSuspended
-                      ? "Your account has been suspended after 3 negative reviews. Contact FixIt Now support to appeal."
-                      : `${remaining} more strike${remaining !== 1 ? "s" : ""} will suspend your account. A strike is issued for a 1 or 2 star review.`}
+                    {isSuspended ? "Contact FixIt Now support to appeal." : `${MAX_STRIKES - activeStrikes} more strike${MAX_STRIKES - activeStrikes !== 1 ? "s" : ""} = automatic suspension.`}
                   </div>
                 </div>
               );
             })()}
 
-            {/* ── AVAILABILITY ── top priority, most important toggle */}
-            <div onClick={() => setAvailable(a=>!a)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: available ? "rgba(16,185,129,0.09)" : "rgba(239,68,68,0.07)", border: `1.5px solid ${available ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 16, cursor: "pointer" }}>
+            {/* Availability toggle — top priority */}
+            <div onClick={toggleAvailability} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: available ? "rgba(16,185,129,0.09)" : "rgba(239,68,68,0.07)", border: `1.5px solid ${available ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 16, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
               <div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: available ? "#34D399" : "#FCA5A5" }}>
                   {available ? "🟢 Open for business" : "🔴 Not available"}
                 </div>
                 <div style={{ fontSize: 11, color: available ? "#065F46" : "#7F1D1D", marginTop: 3 }}>
-                  {available ? "You appear in search results — tap to go offline" : "You're hidden from all searches — tap to go online"}
+                  {available ? "You appear in search results — tap to go offline" : "Hidden from search — tap to go online"}
                 </div>
               </div>
-              <div style={{ width: 46, height: 25, borderRadius: 13, background: available ? "#10B981" : "#EF4444", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+              <div style={{ width: 46, height: 25, borderRadius: 13, background: available ? "#10B981" : "#EF4444", position: "relative", flexShrink: 0 }}>
                 <div style={{ position: "absolute", top: 3, left: available ? 24 : 3, width: 19, height: 19, borderRadius: "50%", background: "white", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)" }} />
               </div>
             </div>
 
-            {/* ── THIS MONTH STATS ── */}
+            {/* This month stats */}
             <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
-              Performance · {new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}
+              {new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
               {[
-                { val: views,                                                label: "Profile views",  color: "#6366F1", icon: "search" },
-                { val: totalLeads,                                           label: "New leads",       color: "#10B981", icon: "send"   },
+                { val: views,      label: "Profile views", color: "#6366F1", icon: "search" },
+                { val: totalLeads, label: "New leads",      color: "#10B981", icon: "send"   },
               ].map(({ val, label, color, icon }) => (
                 <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -6501,9 +6603,9 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 const avgMins   = getResponseSpeed(providerJobs);
                 const tier      = getSpeedTier(avgMins);
                 return [
-                  { val: completed, label: "Jobs done",  color: "#10B981" },
-                  { val: pending,   label: "Awaiting",   color: "#F59E0B" },
-                  { val: avgMins !== null ? formatResponseTime(avgMins) : "—", label: "Avg response", color: tier?.color || "#64748B" },
+                  { val: completed,                                                          label: "Jobs done",   color: "#10B981" },
+                  { val: pending,                                                            label: "Awaiting",    color: "#F59E0B" },
+                  { val: avgMins !== null ? formatResponseTime(avgMins) : "—",               label: "Avg response", color: tier?.color || "#64748B" },
                 ].map(({ val, label, color }) => (
                   <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "11px 10px", textAlign: "center" }}>
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color }}>{val}</div>
@@ -6513,7 +6615,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               })()}
             </div>
 
-            {/* ── EARNINGS ESTIMATE ── */}
+            {/* Earnings */}
             {(() => {
               const completedWithValue = providerJobs.filter(j => j.status === "completed" && j.estimatedValue);
               const totalEarned = completedWithValue.reduce((s, j) => s + (parseFloat(j.discountedValue || j.estimatedValue) || 0), 0);
@@ -6521,15 +6623,15 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               if (!completedWithValue.length) return null;
               return (
                 <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 13, padding: 14, marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#10B981", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Earnings (declared jobs)</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#10B981", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Earnings — declared jobs</div>
                   <div style={{ display: "flex", gap: 16 }}>
                     <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#34D399" }}>R{totalEarned.toLocaleString("en-ZA", {maximumFractionDigits: 0})}</div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#34D399" }}>R{totalEarned.toLocaleString("en-ZA",{maximumFractionDigits:0})}</div>
                       <div style={{ fontSize: 10, color: "#065F46" }}>Total job value</div>
                     </div>
                     <div style={{ width: 1, background: "rgba(16,185,129,0.2)" }} />
                     <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#94A3B8" }}>R{commissionPaid.toLocaleString("en-ZA", {maximumFractionDigits: 0})}</div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#94A3B8" }}>R{commissionPaid.toLocaleString("en-ZA",{maximumFractionDigits:0})}</div>
                       <div style={{ fontSize: 10, color: "#334155" }}>Platform fees (8%)</div>
                     </div>
                   </div>
@@ -6537,10 +6639,10 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               );
             })()}
 
-            {/* ── WEEKLY ACTIVITY CHART ── */}
+            {/* Weekly chart */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 13, padding: 16, marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Weekly activity</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>This week</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   {[{label:"Calls",val:calls,color:"#10B981"},{label:"WA",val:whatsapps,color:"#25D366"},{label:"Views",val:views,color:"#6366F1"}].map(({ label, val, color }) => (
                     <div key={label} style={{ fontSize: 10, fontWeight: 600, color, background: `${color}18`, borderRadius: 6, padding: "2px 7px" }}>{val} {label}</div>
@@ -6550,11 +6652,11 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 60 }}>
                 {days.map((d, i) => {
                   const h = barMax > 0 ? Math.round((barData[i] / barMax) * 100) : 0;
-                  const isToday = i === new Date().getDay() - 1;
+                  const isToday = i === (new Date().getDay() + 6) % 7;
                   return (
                     <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%" }}>
                       <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
-                        <div style={{ width: "100%", background: isToday ? "#0EA5E9" : "rgba(255,255,255,0.1)", borderRadius: "3px 3px 0 0", height: `${Math.max(h, 4)}%`, transition: "height 0.4s ease" }} />
+                        <div style={{ width: "100%", background: isToday ? "#0EA5E9" : "rgba(255,255,255,0.1)", borderRadius: "3px 3px 0 0", height: `${Math.max(h, 4)}%` }} />
                       </div>
                       <div style={{ fontSize: 9, color: isToday ? "#0EA5E9" : "#334155", fontWeight: isToday ? 700 : 400 }}>{d}</div>
                     </div>
@@ -6563,59 +6665,80 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               </div>
             </div>
 
-            {/* ── RECENT ACTIVITY FEED ── (was "Leads" tab) */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Recent activity</div>
-              {leads.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "28px 0", color: "#334155", background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ marginBottom: 8 }}><Icon name="search" size={28} color="#334155" strokeWidth={1.4} /></div>
-                  <div style={{ fontSize: 12, color: "#475569" }}>No activity yet</div>
-                  <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Profile views and customer contacts appear here</div>
-                </div>
-              ) : leads.slice(0, 8).map((lead, i) => (
-                <div key={lead.id || i} className="fadeUp" style={{ animationDelay: `${i * 0.03}s`, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "10px 12px", marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
-                  <LeadIcon type={lead.type} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0", textTransform: "capitalize" }}>
-                      {lead.type === "whatsapp" ? "WhatsApp contact" : lead.type === "call" ? "Phone call tapped" : "Profile viewed"}
+            {/* Recent activity */}
+            {leads.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Recent activity</div>
+                {leads.slice(0, 6).map((lead, i) => (
+                  <div key={lead.id || i} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, padding: "10px 12px", marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
+                    <LeadIcon type={lead.type} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0", textTransform: "capitalize" }}>
+                        {lead.type === "whatsapp" ? "WhatsApp contact" : lead.type === "call" ? "Phone call tapped" : "Profile viewed"}
+                      </div>
+                      {lead.searchArea && <div style={{ fontSize: 10, color: "#475569", marginTop: 1 }}>{lead.searchArea}{lead.searchQuery ? ` · "${lead.searchQuery.slice(0,40)}"` : ""}</div>}
                     </div>
-                    {lead.searchArea && <div style={{ fontSize: 10, color: "#475569", marginTop: 1 }}>{lead.searchArea}{lead.searchQuery ? ` · "${lead.searchQuery.slice(0,40)}"` : ""}</div>}
+                    <div style={{ fontSize: 10, color: "#334155", flexShrink: 0, textAlign: "right" }}>
+                      <div>{lead.timeLabel}</div><div style={{ marginTop: 1 }}>{lead.dateLabel}</div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 10, color: "#334155", flexShrink: 0, textAlign: "right" }}>
-                    <div>{lead.timeLabel}</div><div style={{ marginTop: 1 }}>{lead.dateLabel}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
-            {/* ── PLAN & BILLING ── */}
+            {/* Plan */}
             <div style={{ background: `${planColor}0A`, border: `1px solid ${planColor}25`, borderRadius: 13, padding: 14, marginBottom: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <div>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{plan.label} Plan</div>
-                  <div style={{ fontSize: 11, color: planColor, marginTop: 2 }}>{plan.priceLabel} · Next billing 1 Apr 2026</div>
+                  <div style={{ fontSize: 11, color: planColor, marginTop: 2 }}>{plan.priceLabel}/mo</div>
                 </div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: planColor }}>{plan.priceLabel}</div>
               </div>
               {referralCredits > 0 && (
                 <div style={{ fontSize: 11, color: "#10B981", marginBottom: 8 }}>
-                  Referral credits this month: <strong>R{referralCredits.toLocaleString()}</strong> ({totalLeads} leads × R{referralRate})
+                  Lead credits this month: <strong>R{referralCredits.toLocaleString()}</strong>
                 </div>
               )}
               <Btn small variant="ghost" onClick={() => setTab("account")} style={{ fontSize: 11 }}>Manage plan →</Btn>
             </div>
 
-            {/* ── RANKING TIPS ── */}
-            <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 13, padding: 14 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 10 }}>
-                How your search ranking works
+            {/* Milestones */}
+            <MilestoneTracker completedCount={providerJobs.filter(j => j.status === "completed").length} />
+
+            {/* Streak */}
+            {streak >= 3 && (
+              <div style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.05))", border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 13, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ fontSize: 28 }}>🔥</div>
+                <div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#F59E0B" }}>{streak}-star streak</div>
+                  <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>{streak} consecutive 5-star reviews</div>
+                </div>
               </div>
+            )}
+
+            {/* POTM */}
+            {potm && potm.id === provider.id && (
+              <div style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.08))", border: "2px solid rgba(245,158,11,0.4)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div style={{ fontSize: 28 }}>🏆</div>
+                  <div>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: "#F59E0B" }}>Provider of the Month</div>
+                    <div style={{ fontSize: 12, color: "#78350F" }}>{new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>You're the top-rated provider this month. This badge shows on your listing.</div>
+              </div>
+            )}
+
+            {/* Ranking tips */}
+            <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 13, padding: 14, marginBottom: 14 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 10 }}>How your search ranking works</div>
               {[
-                { label: "Star rating",     weight: "40%", tip: "Higher ratings = top of results", icon: "star" },
-                { label: "Response speed",  weight: "25%", tip: "Accept jobs fast to rank higher", icon: "lightning" },
-                { label: "Review count",    weight: "15%", tip: "More reviews builds more trust", icon: "message" },
-                { label: "Plan tier",       weight: "15%", tip: "Featured & Premium get boosted", icon: "chart" },
-                { label: "24hr emergency",  weight: "5%",  tip: "Being on-call adds ranking points", icon: "emergency" },
+                { label: "Star rating",    weight: "40%", tip: "Higher ratings = top of results",     icon: "star"      },
+                { label: "Response speed", weight: "25%", tip: "Accept jobs fast to rank higher",     icon: "lightning" },
+                { label: "Review count",   weight: "15%", tip: "More reviews builds trust",           icon: "message"   },
+                { label: "Plan tier",      weight: "15%", tip: "Featured & Premium get boosted",      icon: "chart"     },
+                { label: "24hr emergency", weight: "5%",  tip: "Being on-call adds ranking points",   icon: "emergency" },
               ].map(({ label, weight, tip, icon }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 800, color: "#6366F1", minWidth: 32, flexShrink: 0 }}>{weight}</div>
@@ -6630,50 +6753,15 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               ))}
             </div>
 
-            {/* ── MILESTONE TRACKER ── */}
-            <MilestoneTracker completedCount={providerJobs.filter(j => j.status === "completed").length} />
-
-            {/* ── 5-STAR STREAK BADGE ── */}
-            {(() => {
-              const reviews = providerJobs.flatMap(j => []).concat([]); // fetched separately in reviews tab
-              const streak = provider.liveReviewCount > 0 ? getStarStreak(provider._reviews || []) : 0;
-              if (streak < 3) return null;
-              return (
-                <div style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.05))", border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 13, padding: "14px 16px", marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ fontSize: 28 }}>🔥</div>
-                  <div>
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#F59E0B" }}>{streak}-star streak!</div>
-                    <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>{streak} consecutive 5-star reviews — keep it up to stay top of results.</div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* ── PROVIDER OF THE MONTH ── */}
-            {potm && potm.id === provider.id && (
-              <div style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.15),rgba(251,191,36,0.08))", border: "2px solid rgba(245,158,11,0.4)", borderRadius: 14, padding: "16px 18px", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <div style={{ fontSize: 28 }}>🏆</div>
-                  <div>
-                    <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: "#F59E0B" }}>Provider of the Month</div>
-                    <div style={{ fontSize: 12, color: "#78350F" }}>{new Date().toLocaleDateString("en-ZA", { month: "long", year: "numeric" })}</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>
-                  You're the top-rated provider on FixIt Now this month. This badge shows on your listing and we feature you in customer recommendations.
-                </div>
-              </div>
-            )}
-
-            {/* ── QUICK ACTIONS ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 4 }}>
+            {/* Quick action cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button onClick={() => setShowJobBoardBrowse(true)}
-                style={{ background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left" }}>
+                style={{ background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left", WebkitTapHighlightColor: "transparent" }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399", marginBottom: 3 }}>Job Board</div>
-                <div style={{ fontSize: 11, color: "#065F46", lineHeight: 1.4 }}>Browse customer posts &amp; submit quotes</div>
+                <div style={{ fontSize: 11, color: "#065F46", lineHeight: 1.4 }}>Browse &amp; quote customer posts</div>
               </button>
               <button onClick={() => setShowTraining(true)}
-                style={{ background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left" }}>
+                style={{ background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left", WebkitTapHighlightColor: "transparent" }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 3 }}>Provider Academy</div>
                 <div style={{ fontSize: 11, color: "#312E81", lineHeight: 1.4 }}>5 guides to grow your business</div>
               </button>
@@ -6681,57 +6769,54 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           </div>
         )}
 
-        {/* ── OLD LEADS TAB — now merged into dashboard ── */}
-        {(false) && (
-          <div className="fadeUp">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>All leads</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {[
-                  { val: whatsapps, label: "WA", color: "#25D366" },
-                  { val: calls,     label: "Calls", color: "#10B981" },
-                  { val: views,     label: "Views", color: "#6366F1" },
-                ].map(({ val, label, color }) => (
-                  <div key={label} style={{ background: `${color}15`, border: `1px solid ${color}33`, borderRadius: 8, padding: "3px 8px", display: "flex", alignItems: "center", gap: 4 }}>
-                    <span style={{ fontSize: 12 }}>{label}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color }}>{val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {leads.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px 0", color: "#334155" }}>
-                <div style={{ marginBottom: 12 }}><Icon name="message" size={32} color="#334155" strokeWidth={1.4} /></div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#475569" }}>No leads yet</div>
-                <div style={{ fontSize: 12, marginTop: 6, color: "#334155" }}>When customers view or contact you, leads appear here in real time.</div>
-              </div>
-            ) : leads.map((lead, i) => (
-              <div key={lead.id} className="fadeUp" style={{ animationDelay: `${i * 0.03}s`, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 13, marginBottom: 7, display: "flex", alignItems: "center", gap: 12 }}>
-                <LeadIcon type={lead.type} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", textTransform: "capitalize" }}>
-                      {lead.type === "whatsapp" ? "WhatsApp" : lead.type === "call" ? "Call" : "Profile view"}
-                    </span>
-                    {lead.searchArea && <><span style={{ fontSize: 10, color: "#475569" }}>·</span><span style={{ fontSize: 11, color: "#475569" }}>{lead.searchArea}</span></>}
-                  </div>
-                  {lead.searchQuery && <div style={{ fontSize: 11, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{lead.searchQuery}"</div>}
-                </div>
-                <div style={{ fontSize: 10, color: "#334155", flexShrink: 0, textAlign: "right" }}>
-                  <div>{lead.timeLabel}</div>
-                  <div style={{ marginTop: 1 }}>{lead.dateLabel}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── PROFILE ── */}
+        {/* ── MY PROFILE TAB ── */}
         {tab === "profile" && (
           <div className="fadeUp">
+            {/* Profile completion score */}
+            {profileScore.score < 100 && (
+              <div style={{ background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 14, padding: 14, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#38BDF8" }}>Profile {profileScore.score}% complete</div>
+                  <div style={{ fontSize: 11, color: "#475569" }}>{profileScore.done}/{profileScore.total} items</div>
+                </div>
+                <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden", marginBottom: 10 }}>
+                  <div style={{ height: "100%", width: `${profileScore.score}%`, background: profileScore.score >= 80 ? "#10B981" : profileScore.score >= 50 ? "#0EA5E9" : "#F59E0B", borderRadius: 3 }} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {profileScore.checks.filter(c => !c.done).slice(0, 3).map(c => (
+                    <div key={c.label} style={{ fontSize: 11, color: "#F59E0B", display: "flex", gap: 6 }}>
+                      <span>→</span><span>{c.label} — {c.tip}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Profile share URL */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "11px 14px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8" }}>Your public profile</div>
+                <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>Share this link on WhatsApp or Instagram</div>
+              </div>
+              <button onClick={() => {
+                const url = `${window.location.origin}?provider=${provider.id}`;
+                if (navigator.share) navigator.share({ title: provider.bizName, url });
+                else navigator.clipboard?.writeText(url);
+              }}
+                style={{ background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.3)", borderRadius: 9, padding: "7px 12px", fontSize: 11, fontWeight: 700, color: "#38BDF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0, WebkitTapHighlightColor: "transparent" }}>
+                Share ↗
+              </button>
+            </div>
+
+            {/* Availability Manager — moved to top, most important */}
+            <AvailabilityManager providerId={provider.id} />
+
+            {/* Deals Manager */}
+            <DealsManager provider={provider} />
+
+            {/* Listing edit */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>Your listing</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>Your listing</div>
               {!editMode
                 ? <Btn small variant="ghost" onClick={() => setEditMode(true)}>Edit</Btn>
                 : <div style={{ display: "flex", gap: 8 }}>
@@ -6740,270 +6825,227 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   </div>}
             </div>
 
-            {saveMsg && <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 9, padding: "9px 14px", marginBottom: 12, color: "#6EE7B7", fontSize: 12 }}>{saveMsg}</div>}
+            {saveMsg && <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#34D399" }}>{saveMsg}</div>}
 
-            {/* Preview card — how customers see them */}
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Customer view</div>
-              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${SERVICES.find(s=>s.id===provider.services?.[0])?.color || "#0EA5E9"}18`, border: `1.5px solid ${SERVICES.find(s=>s.id===provider.services?.[0])?.color || "#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
-                  {SERVICES.find(s=>s.id===provider.services?.[0]) && (
-                    <ServiceIcon serviceId={provider.services[0]} size={18} color={SERVICES.find(s=>s.id===provider.services[0])?.color || "#0EA5E9"} />
-                  )}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 4 }}>{provider.bizName}</div>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
-                    {provider.emergency && <SBadge color="#EF4444">24hr</SBadge>}
-                    <SBadge color={planColor}>{plan.label}</SBadge>
-                  </div>
-                  <div style={{ fontSize: 11, color: "#475569" }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.8} /> {provider.suburb}, {provider.city}</div>
-                </div>
-              </div>
-              {/* Service areas preview */}
-              {provider.serviceAreas && Object.entries(provider.serviceAreas).length > 0 && (
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                  {Object.entries(provider.serviceAreas).map(([id, sa]) => {
-                    const s = SERVICES.find(sv=>sv.id===id);
-                    if (!s) return null;
-                    return (
-                      <div key={id} style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 5 }}>
-                        <span style={{ fontSize: 11, color: "#475569", minWidth: 72 }}>{s.icon} {s.label}</span>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-                          {sa.allKZN ? (
-                            <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "2px 8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399" }}>All KZN</span>
-                          ) : (
-                            sa.areas?.slice(0,4).map(a => (
-                              <span key={a} style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: "2px 7px", background: `${s.color}15`, border: `1px solid ${s.color}35`, color: s.color }}>{a}</span>
-                            ))
-                          )}
-                          {!sa.allKZN && (sa.areas?.length||0) > 4 && <span style={{ fontSize: 10, color: "#475569" }}>+{sa.areas.length - 4}</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            {/* Tagline */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Tagline</div>
+              {editMode
+                ? <input value={editForm.tagline} onChange={e => setEditForm(f=>({...f,tagline:e.target.value}))} placeholder="e.g. KZN's most trusted plumber since 2008" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                : <div style={{ fontSize: 13, color: provider.tagline ? "#E2E8F0" : "#334155", fontStyle: provider.tagline ? "italic" : "normal" }}>{provider.tagline || "No tagline set — add one to stand out"}</div>
+              }
             </div>
 
-            {/* Editable fields */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Tagline</div>
-              {editMode ? (
-                <input value={editForm.tagline} onChange={e => setEditForm(f=>({...f,tagline:e.target.value}))}
-                  placeholder="e.g. KZN's most trusted plumber since 2008"
-                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-              ) : (
-                <p style={{ fontSize: 13, color: editForm.tagline ? "#94A3B8" : "#334155", fontStyle: editForm.tagline ? "italic" : "normal" }}>
-                  {editForm.tagline ? `"${editForm.tagline}"` : "No tagline added yet."}
-                </p>
-              )}
+            {/* About */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>About</div>
+              {editMode
+                ? <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} placeholder="Describe your experience, specialties, and what makes you stand out…" rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                : <div style={{ fontSize: 13, color: provider.description ? "#94A3B8" : "#334155", lineHeight: 1.6 }}>{provider.description || "No description set"}</div>
+              }
             </div>
 
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>About your business</div>
-              {editMode ? (
-                <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} rows={4}
-                  placeholder="Tell customers what makes you great…"
-                  style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", resize: "none", outline: "none" }}/>
-              ) : (
-                <p style={{ fontSize: 13, color: provider.description ? "#94A3B8" : "#334155", lineHeight: 1.6 }}>{provider.description || "No description added yet. Tap Edit to add one."}</p>
-              )}
-            </div>
-
-            {/* Emergency toggle */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+            {/* Years + Price + Certs in one row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#FCA5A5" }}>24/7 emergency available</div>
-                <div style={{ fontSize: 11, color: "#7F1D1D", marginTop: 2 }}>Shows the 24hr badge on your listing</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Years experience</div>
+                {editMode
+                  ? <input type="number" value={editForm.yearsInBusiness} onChange={e => setEditForm(f=>({...f,yearsInBusiness:e.target.value}))} placeholder="e.g. 8" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  : <div style={{ fontSize: 13, color: provider.yearsInBusiness ? "#E2E8F0" : "#334155" }}>{provider.yearsInBusiness ? `${provider.yearsInBusiness} years` : "Not set"}</div>
+                }
               </div>
-              {editMode ? (
-                <div onClick={() => setEditForm(f=>({...f,emergency:!f.emergency}))} style={{ width: 42, height: 23, borderRadius: 12, background: editForm.emergency ? "#EF4444" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
-                  <div style={{ position: "absolute", top: 3, left: editForm.emergency ? 22 : 3, width: 17, height: 17, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
-                </div>
-              ) : (
-                <SBadge color={provider.emergency ? "#EF4444" : "#475569"}>{provider.emergency ? "On" : "Off"}</SBadge>
-              )}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Call-out from (R)</div>
+                {editMode
+                  ? <input type="number" value={editForm.priceRangeMin} onChange={e => setEditForm(f=>({...f,priceRangeMin:e.target.value}))} placeholder="e.g. 350" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  : <div style={{ fontSize: 13, color: provider.priceRangeMin ? "#34D399" : "#334155" }}>{provider.priceRangeMin ? `R${provider.priceRangeMin}` : "Not set"}</div>
+                }
+              </div>
             </div>
 
-            {/* Credentials & brand */}
-            <div style={{ background: "rgba(14,165,233,0.04)", border: "1px solid rgba(14,165,233,0.14)", borderRadius: 13, padding: 14, marginBottom: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#38BDF8", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Credentials & brand</div>
+            {/* Certifications */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Certifications &amp; licences</div>
+              {editMode
+                ? <input value={editForm.certifications} onChange={e => setEditForm(f=>({...f,certifications:e.target.value}))} placeholder="e.g. Licensed Electrician · COC Certified · ECSA Registered" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                : <div style={{ fontSize: 13, color: provider.certifications ? "#E2E8F0" : "#334155" }}>{provider.certifications || "None listed — add your qualifications"}</div>
+              }
+            </div>
 
-              {/* Years in business */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Years in business</div>
-                {editMode ? (
-                  <input type="number" value={editForm.yearsInBusiness} onChange={e => setEditForm(f=>({...f,yearsInBusiness:e.target.value}))} placeholder="e.g. 12"
-                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                ) : (
-                  <div style={{ fontSize: 13, color: "#94A3B8" }}>{provider.yearsInBusiness ? `${provider.yearsInBusiness} years` : "Not set"}</div>
-                )}
-              </div>
+            {/* Logo URL */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Logo URL</div>
+              {editMode
+                ? <input value={editForm.logoUrl} onChange={e => setEditForm(f=>({...f,logoUrl:e.target.value}))} placeholder="https://imgur.com/your-logo.png" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                : <div style={{ fontSize: 13, color: provider.logoUrl ? "#0EA5E9" : "#334155" }}>{provider.logoUrl ? "✓ Logo set" : "No logo — upload to imgur.com and paste the link"}</div>
+              }
+            </div>
 
-              {/* Call-out fee */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Call-out fee from (R)</div>
-                {editMode ? (
-                  <input type="number" value={editForm.priceRangeMin} onChange={e => setEditForm(f=>({...f,priceRangeMin:e.target.value}))} placeholder="e.g. 350"
-                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                ) : (
-                  <div style={{ fontSize: 13, color: "#94A3B8" }}>{provider.priceRangeMin ? `From R${provider.priceRangeMin}` : "Not set"}</div>
-                )}
-              </div>
-
-              {/* Certifications */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Certifications & licences</div>
-                {editMode ? (
-                  <input value={editForm.certifications} onChange={e => setEditForm(f=>({...f,certifications:e.target.value}))} placeholder="e.g. ECSA registered, COC certified"
-                    style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                ) : (
-                  <div style={{ fontSize: 13, color: "#94A3B8" }}>{provider.certifications || "Not set"}</div>
-                )}
-              </div>
-
-              {/* Logo URL */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Logo URL</div>
-                {editMode ? (
-                  <>
-                    <input value={editForm.logoUrl} onChange={e => setEditForm(f=>({...f,logoUrl:e.target.value}))} placeholder="https://imgur.com/your-logo.png"
-                      style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 9, padding: "8px 11px", color: "#E2E8F0", fontSize: 12, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                    <div style={{ fontSize: 10, color: "#334155", marginTop: 3 }}>Free upload at imgur.com — paste the image link here</div>
-                  </>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {provider.logoUrl
-                      ? <img src={provider.logoUrl} alt="logo" style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)" }} />
-                      : <div style={{ fontSize: 12, color: "#334155" }}>No logo uploaded</div>
-                    }
-                  </div>
-                )}
-              </div>
-
-              {/* Trust declarations */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {/* Trust checkboxes */}
+            {editMode && (
+              <div style={{ marginBottom: 14 }}>
                 {[
-                  ["insuranceConfirmed", "Public liability insurance"],
-                  ["backgroundCheckConsent", "Background check consented"],
+                  ["insuranceConfirmed",     "I confirm I hold valid public liability insurance"],
+                  ["backgroundCheckConsent", "I consent to a background check"],
+                  ["emergency",              "I offer 24-hour emergency services"],
                 ].map(([key, label]) => (
-                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    onClick={() => editMode && setEditForm(f => ({...f, [key]: !f[key]}))}>
-                    <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${(editMode ? editForm[key] : provider[key]) ? "#10B981" : "rgba(255,255,255,0.2)"}`, background: (editMode ? editForm[key] : provider[key]) ? "#10B981" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: editMode ? "pointer" : "default", transition: "all 0.15s" }}>
-                      {(editMode ? editForm[key] : provider[key]) && <Icon name="check" size={9} color="white" strokeWidth={2.5} />}
+                  <div key={key} onClick={() => setEditForm(f => ({...f, [key]: !f[key]}))}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${editForm[key] ? "#10B981" : "rgba(255,255,255,0.2)"}`, background: editForm[key] ? "#10B981" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {editForm[key] && <Icon name="check" size={10} color="white" strokeWidth={2.5} />}
                     </div>
-                    <span style={{ fontSize: 11, color: (editMode ? editForm[key] : provider[key]) ? "#6EE7B7" : "#475569", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
+                    <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
 
-            {/* Service areas edit */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Service areas</div>
-              {provider.services?.map(id => {
-                const s = SERVICES.find(sv=>sv.id===id);
-                if (!s) return null;
-                const sa = provider.serviceAreas?.[id] || {};
-                const expanded = expandedService === id;
-                const showingAll = showAllAreas[id];
-                const hints = SERVICE_AREA_HINTS[id] || [];
-                const displayAreas = showingAll ? KZN_AREAS : hints;
-                return (
-                  <div key={id} style={{ marginBottom: 10 }}>
-                    <div onClick={() => editMode && setExpandedService(expanded ? null : id)}
-                      style={{ display: "flex", alignItems: "center", gap: 8, cursor: editMode ? "pointer" : "default", marginBottom: expanded && editMode ? 8 : 0 }}>
-                      <ServiceIcon serviceId={id} size={15} color="#94A3B8" />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#94A3B8", flex: 1 }}>{s.label}</span>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-                        {sa.allKZN ? (
-                          <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "2px 8px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399" }}>All KZN</span>
-                        ) : (
-                          (sa.areas||[]).slice(0,3).map(a => (
-                            <span key={a} style={{ fontSize: 10, fontWeight: 600, borderRadius: 20, padding: "2px 7px", background: `${s.color}15`, border: `1px solid ${s.color}35`, color: s.color }}>{a}</span>
-                          ))
-                        )}
-                        {!sa.allKZN && (sa.areas?.length||0) > 3 && <span style={{ fontSize: 10, color: "#475569" }}>+{sa.areas.length-3}</span>}
-                      </div>
-                      {editMode && <span style={{ fontSize: 11, color: "#0EA5E9" }}>{expanded ? "▲" : "▼"}</span>}
-                    </div>
-                    {editMode && expanded && (
-                      <div style={{ paddingLeft: 24, marginTop: 8 }}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
-                          <div onClick={() => toggleAllKZN(id)} style={{ fontSize: 11, fontWeight: 700, borderRadius: 20, padding: "4px 10px", cursor: "pointer", background: sa.allKZN ? "rgba(16,185,129,0.25)" : "rgba(16,185,129,0.08)", border: `1.5px solid ${sa.allKZN ? "#10B98188" : "rgba(16,185,129,0.25)"}`, color: sa.allKZN ? "#34D399" : "#10B981" }}>
-                            {sa.allKZN ? "✓ " : ""}All KZN
-                          </div>
+            {/* Service areas */}
+            {provider.services?.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Service areas by trade</div>
+                {provider.services.map(id => {
+                  const svc = SERVICES.find(s => s.id === id);
+                  if (!svc) return null;
+                  const areaData = provider.serviceAreas?.[id] || {};
+                  const isExpanded = expandedService === id;
+                  const selectedAreas = areaData.areas || [];
+                  const showingAll = showAllAreas[id];
+                  return (
+                    <div key={id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: 14, marginBottom: 8 }}>
+                      <div onClick={() => setExpandedService(isExpanded ? null : id)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", marginBottom: isExpanded ? 10 : 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <ServiceIcon serviceId={id} size={14} color={svc.color} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{svc.label}</span>
                         </div>
-                        {!sa.allKZN && (
-                          <>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
-                              {displayAreas.map(area => {
-                                const sel = (sa.areas||[]).includes(area);
-                                return (
-                                  <div key={area} onClick={() => toggleArea(id, area)} style={{ fontSize: 11, fontWeight: 600, borderRadius: 20, padding: "3px 9px", cursor: "pointer", background: sel ? `${s.color}22` : "rgba(255,255,255,0.04)", border: `1px solid ${sel ? s.color+"55" : "rgba(255,255,255,0.1)"}`, color: sel ? s.color : "#64748B" }}>
-                                    {sel ? "✓ " : ""}{area}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            <button onClick={() => setShowAllAreas(p=>({...p,[id]:!showingAll}))} style={{ background: "none", border: "none", color: "#0EA5E9", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: "'DM Sans',sans-serif" }}>
-                              {showingAll ? "▲ Show less" : `▼ Show all ${KZN_AREAS.length} areas`}
-                            </button>
-                          </>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {areaData.allKZN
+                            ? <span style={{ fontSize: 10, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.12)", borderRadius: 20, padding: "2px 8px" }}>All KZN</span>
+                            : selectedAreas.length > 0
+                              ? <span style={{ fontSize: 10, color: "#475569" }}>{selectedAreas.length} area{selectedAreas.length !== 1 ? "s" : ""}</span>
+                              : <span style={{ fontSize: 10, color: "#334155" }}>No areas set</span>
+                          }
+                          <span style={{ color: "#334155", fontSize: 12 }}>{isExpanded ? "▲" : "▼"}</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      {isExpanded && (
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, color: "#475569" }}>Select areas you serve</span>
+                            <div onClick={async () => {
+                              const updated_providers_raw = await store.get("providers");
+                              const updated_providers = updated_providers_raw ? JSON.parse(updated_providers_raw.value) : [];
+                              const me = updated_providers.find(p => p.id === provider.id);
+                              const current = me?.serviceAreas?.[id] || {};
+                              const newAll = !current.allKZN;
+                              const updatedAreas = { ...me?.serviceAreas, [id]: { ...current, allKZN: newAll, areas: newAll ? [] : (current.areas || []) } };
+                              const updatedProviders = updated_providers.map(p => p.id === provider.id ? { ...p, serviceAreas: updatedAreas } : p);
+                              await store.set("providers", updatedProviders);
+                              setProvider(prev => ({ ...prev, serviceAreas: updatedAreas }));
+                            }}
+                              style={{ fontSize: 11, fontWeight: 600, color: areaData.allKZN ? "#10B981" : "#475569", cursor: "pointer" }}>
+                              {areaData.allKZN ? "✓ Covering all KZN" : "Cover all KZN"}
+                            </div>
+                          </div>
+                          {!areaData.allKZN && (
+                            <>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                                {(showingAll ? KZN_AREAS : KZN_AREAS.slice(0, 12)).map(area => {
+                                  const selected = selectedAreas.includes(area);
+                                  return (
+                                    <div key={area} onClick={async () => {
+                                      const pRaw = await store.get("providers");
+                                      const ps = pRaw ? JSON.parse(pRaw.value) : [];
+                                      const me = ps.find(p => p.id === provider.id);
+                                      const current = me?.serviceAreas?.[id] || {};
+                                      const newAreas = selected ? (current.areas||[]).filter(a => a !== area) : [...(current.areas||[]), area];
+                                      const updatedAreas = { ...me?.serviceAreas, [id]: { ...current, areas: newAreas } };
+                                      const updatedPs = ps.map(p => p.id === provider.id ? { ...p, serviceAreas: updatedAreas } : p);
+                                      await store.set("providers", updatedPs);
+                                      setProvider(prev => ({ ...prev, serviceAreas: updatedAreas }));
+                                    }}
+                                      style={{ fontSize: 11, fontWeight: 600, color: selected ? svc.color : "#475569", background: selected ? `${svc.color}18` : "rgba(255,255,255,0.04)", border: `1px solid ${selected ? svc.color+"44" : "rgba(255,255,255,0.08)"}`, borderRadius: 20, padding: "5px 11px", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+                                      {area}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <button onClick={() => setShowAllAreas(p=>({...p,[id]:!showingAll}))} style={{ background: "none", border: "none", color: "#0EA5E9", fontSize: 11, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: "'DM Sans',sans-serif" }}>
+                                {showingAll ? "▲ Show less" : `▼ Show all ${KZN_AREAS.length} areas`}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-            {/* Live reviews from customers */}
+            {/* Reviews */}
             <ProviderReviews providerId={provider.id} />
-
-            {/* Availability & deals — discovery tools */}
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Availability & deals</div>
-              <AvailabilityManager providerId={provider.id} />
-              <DealsManager provider={provider} />
-            </div>
           </div>
         )}
+
+        {/* ── ACCOUNT TAB ── */}
         {tab === "account" && (
           <div className="fadeUp">
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Account settings</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Account</div>
 
-            {/* Contact info */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#64748B", marginBottom: 10 }}>Contact info</div>
-              {[["Business", provider.bizName],["Contact", provider.contactName],["Email", provider.email],["Phone", provider.phone],["Location", `${provider.suburb}, ${provider.city}`]].map(([k,v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 12 }}>
-                  <span style={{ color: "#475569" }}>{k}</span>
-                  <span style={{ color: "#94A3B8", maxWidth: "55%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
+            {/* Contact info — editable */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>Contact info</div>
+                {!editContactMode
+                  ? <Btn small variant="ghost" onClick={() => setEditContactMode(true)}>Edit</Btn>
+                  : <div style={{ display: "flex", gap: 8 }}>
+                      <Btn small variant="ghost" onClick={() => setEditContactMode(false)}>Cancel</Btn>
+                      <Btn small variant="green" onClick={saveContactInfo} disabled={savingContact}>{savingContact ? "Saving…" : "Save"}</Btn>
+                    </div>
+                }
+              </div>
+              {editContactMode ? (
+                <div>
+                  <Input label="Phone" value={contactForm.phone} onChange={v => setContactForm(f=>({...f,phone:v}))} type="tel" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <Input label="Suburb" value={contactForm.suburb} onChange={v => setContactForm(f=>({...f,suburb:v}))} />
+                    <Input label="City" value={contactForm.city} onChange={v => setContactForm(f=>({...f,city:v}))} />
+                  </div>
                 </div>
-              ))}
+              ) : (
+                [["Business", provider.bizName],["Contact", provider.contactName],["Email", provider.email],["Phone", provider.phone||contactForm.phone],["Location", `${provider.suburb||contactForm.suburb}, ${provider.city||contactForm.city}`]].map(([k,v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 12 }}>
+                    <span style={{ color: "#475569" }}>{k}</span>
+                    <span style={{ color: "#94A3B8", maxWidth: "55%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v}</span>
+                  </div>
+                ))
+              )}
             </div>
 
-            {/* Plan upgrade */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#64748B", marginBottom: 12 }}>Subscription plan</div>
+            {/* Plan */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#64748B", marginBottom: 12 }}>Subscription plan</div>
               {PLANS.map(p => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: provider.plan === p.id ? "#F1F5F9" : "#64748B" }}>{p.label}</div>
-                    <div style={{ fontSize: 11, color: p.color, marginTop: 2 }}>{p.priceLabel}</div>
+                    <div style={{ fontSize: 11, color: p.color, marginTop: 2 }}>{p.priceLabel}/month · {p.description}</div>
                   </div>
                   {provider.plan === p.id
-                    ? <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "3px 10px", background: `${p.color}20`, border: `1px solid ${p.color}44`, color: p.color }}>Current</span>
-                    : <Btn small variant="ghost" style={{ fontSize: 11 }}>Switch</Btn>}
+                    ? <span style={{ fontSize: 10, fontWeight: 700, color: p.color, background: `${p.color}18`, borderRadius: 20, padding: "3px 10px" }}>Current</span>
+                    : <Btn small variant="ghost" onClick={async () => {
+                        await updateProviderData(provider.id, { plan: p.id });
+                        setProvider(prev => ({ ...prev, plan: p.id }));
+                      }} style={{ fontSize: 11 }}>Switch</Btn>
+                  }
                 </div>
               ))}
             </div>
 
             {/* Notifications */}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#64748B", marginBottom: 12 }}>Notifications</div>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#64748B", marginBottom: 12 }}>Notifications</div>
               <NotifToggles />
             </div>
 
@@ -7013,161 +7055,21 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             {/* GPS location sharing */}
             <GPSShareToggle providerId={provider.id} />
 
-            <Btn full variant="ghost" onClick={onLogout}>Sign Out</Btn>
+            <Btn full variant="ghost" onClick={onLogout} style={{ marginTop: 12 }}>Sign Out</Btn>
           </div>
         )}
-
-        {/* ── JOBS ── */}
-        {tab === "jobs" && (
-          <div className="fadeUp">
-            {/* Jobs header with status summary */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9" }}>Jobs</div>
-                <button onClick={loadProviderJobs} style={{ background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "5px 10px", color: "#64748B", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                  Refresh
-                </button>
-              </div>
-              {/* Status summary chips */}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {[
-                  { status: "pending",    label: "New",        color: "#F59E0B" },
-                  { status: "accepted",   label: "Accepted",   color: "#0EA5E9" },
-                  { status: "onroute",    label: "On the way", color: "#8B5CF6" },
-                  { status: "inprogress", label: "In progress",color: "#06B6D4" },
-                  { status: "completed",  label: "Done",       color: "#10B981" },
-                ].map(({ status, label, color }) => {
-                  const count = providerJobs.filter(j => j.status === status).length;
-                  if (!count) return null;
-                  return (
-                    <div key={status} style={{ display: "flex", alignItems: "center", gap: 5, background: `${color}15`, border: `1px solid ${color}33`, borderRadius: 20, padding: "4px 10px" }}>
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color }}>{count} {label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {providerJobs.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px 0", color: "#334155" }}>
-                <div style={{ marginBottom: 12 }}><Icon name="message" size={32} color="#334155" strokeWidth={1.4} /></div>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#475569" }}>No job requests yet</div>
-                <div style={{ fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>When customers book you through FixIt Now, their requests appear here.</div>
-              </div>
-            ) : providerJobs.map((job, i) => {
-              const st = JOB_STATUS[job.status] || JOB_STATUS.pending;
-              const svc = SERVICES.find(s => s.id === job.serviceType);
-              return (
-                <div key={job.id} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: "rgba(255,255,255,0.04)", border: `1px solid ${st.color}30`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
-                  {/* Header */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 9, background: `${svc?.color || "#0EA5E9"}18`, border: `1.5px solid ${svc?.color || "#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><ServiceIcon serviceId={job.serviceType || "handyman"} size={17} color={svc?.color || "#0EA5E9"} /></div>
-                      <div>
-                        <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F1F5F9" }}>{job.customerName}</div>
-                        <div style={{ fontSize: 11, color: "#475569" }}>{job.serviceName} · {job.dateLabel} {job.timeLabel}</div>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "3px 10px", background: `${st.color}20`, border: `1px solid ${st.color}44`, color: st.color }}>{st.label}</span>
-                  </div>
-
-                  {/* Details */}
-                  <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{job.description}</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 5 }}><Icon name="pin" size={11} color="#475569" strokeWidth={1.8} /> {job.address}</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}><Icon name="calendar" size={11} color="#475569" strokeWidth={1.8} /> {job.preferredDate} at {job.preferredTime}{job.isEmergency ? " · Emergency" : ""}</div>
-                    {job.recurring && job.recurring !== "once" && (
-                      <div style={{ fontSize: 11, color: "#0EA5E9", marginTop: 2 }}>🔄 {job.recurring === "weekly" ? "Weekly" : "Monthly"} recurring job</div>
-                    )}
-                    {job.estimatedValue && !job.discountApplied && <div style={{ fontSize: 11, color: "#F59E0B", marginTop: 2 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()} · Platform fee R{job.platformFee}</div>}
-                    {job.customerPhone && <div style={{ fontSize: 11, color: "#475569", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}><Icon name="phone" size={11} color="#475569" strokeWidth={1.8} /> {job.customerPhone}</div>}
-                  </div>
-
-                  {/* Loyalty discount banner — visible to provider */}
-                  {job.discountApplied > 0 && (
-                    <div style={{ background: "linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06))", border: "1.5px solid rgba(16,185,129,0.3)", borderRadius: 10, padding: "10px 12px", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                      <Icon name="star" size={16} color="#10B981" strokeWidth={2} />
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#34D399" }}>Returning client — {job.discountApplied}% loyalty discount</div>
-                        <div style={{ fontSize: 10, color: "#065F46", marginTop: 1 }}>
-                          {job.estimatedValue ? `Original R${parseFloat(job.estimatedValue).toLocaleString()} → Client pays R${parseFloat(job.discountedValue || job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}` : "Discount applies to final invoice"}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action buttons based on status */}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {job.status === "pending" && (<>
-                      <Btn small variant="green"  onClick={() => handleJobAction(job.id, "accepted")}   style={{ flex: 1 }}>Accept</Btn>
-                      <Btn small variant="danger" onClick={() => handleJobAction(job.id, "declined", "Sorry, unavailable at this time")} style={{ flex: 1 }}>Decline</Btn>
-                    </>)}
-                    {job.status === "accepted" && (
-                      <Btn small onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", color: "white", border: "none" }}>
-                        🚗 On My Way
-                      </Btn>
-                    )}
-                    {job.status === "onroute" && (
-                      <Btn small onClick={() => handleJobAction(job.id, "inprogress")} style={{ flex: 1, background: "linear-gradient(135deg,#06B6D4,#0EA5E9)", color: "white", border: "none" }}>
-                        🔧 Start Work
-                      </Btn>
-                    )}
-                    {job.status === "inprogress" && (
-                      <Btn small variant="green" onClick={() => handleJobAction(job.id, "completed")} style={{ flex: 1 }}>Mark Complete</Btn>
-                    )}
-                    {/* In-app chat */}
-                    <button onClick={() => setProviderChatJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 8, padding: "8px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                      <Icon name="message" size={11} color="#A5B4FC" strokeWidth={2} />Chat
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
       </div>
 
-      {showNotifs && <NotificationsPanel userId={provider.id} onClose={() => setShowNotifs(false)} />}
-
-      {providerChatJob && (
-        <ChatModal
-          job={providerChatJob}
-          user={{ email: provider.id, name: provider.bizName, ...provider }}
-          userRole="provider"
-          onClose={() => setProviderChatJob(null)}
-        />
-      )}
-
-      {showTraining && <TrainingContent onClose={() => setShowTraining(false)} />}
+      {/* ── MODALS ── */}
+      {showNotifs       && <NotificationsPanel userId={provider.id} onClose={() => setShowNotifs(false)} />}
+      {providerChatJob  && <ChatModal job={providerChatJob} user={{ email: provider.id, name: provider.bizName, ...provider }} userRole="provider" onClose={() => setProviderChatJob(null)} />}
+      {showTraining     && <TrainingContent onClose={() => setShowTraining(false)} />}
       {showJobBoardBrowse && <JobBoardBrowse provider={provider} onClose={() => setShowJobBoardBrowse(false)} />}
-
-      {salesJob && (
-        <SalesMomentModal
-          job={salesJob}
-          provider={provider}
-          onCancel={() => setSalesJob(null)}
-          onConfirm={confirmCompletion}
-        />
-      )}
-
-      {/* ── BOTTOM NAV ── */}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", backdropFilter: "blur(20px)" }}>
-        {[["jobs","jobs","Jobs"],["dashboard","overview","Dashboard"],["profile","profile","My Profile"],["account","settings","Account"]].map(([id,iconName,label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "13px 0 17px", background: "none", border: "none", color: tab === id ? "#0EA5E9" : "#475569", fontSize: 10, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, letterSpacing: "0.06em", transition: "color 0.2s", position: "relative" }}>
-            <Icon name={iconName} size={18} color={tab === id ? "#0EA5E9" : "#475569"} strokeWidth={1.6} />
-            {label.toUpperCase()}
-            {id === "jobs" && jobsBadge > 0 && (
-              <div style={{ position: "absolute", top: 10, right: "calc(50% - 14px)", width: 15, height: 15, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
-            )}
-          </button>
-        ))}
-      </div>
+      {salesJob         && <SalesMomentModal job={salesJob} provider={provider} onClose={() => setSalesJob(null)} onConfirm={confirmCompletion} />}
     </div>
   );
 }
+
 
 // ─── ROOT ────────────────────────────────────────────────────────────────────────
 // Register service worker — only in real deployments, not inside Claude or localhost

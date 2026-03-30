@@ -2601,7 +2601,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
             </div>
 
             <Btn full onClick={submit} disabled={!serviceId || !description.trim() || !location.trim() || submitting}>
-              {submitting ? "Matching providers..." : "Get Quotes from Top Pros ->"}
+              {submitting ? "Matching providers..." : "Get Quotes from Top Pros →"}
             </Btn>
           </>
         )}
@@ -3335,7 +3335,7 @@ function JobBoardPost({ user, onClose, onPosted }) {
         </div>
 
         <Btn full onClick={post} disabled={posting || !serviceId || !description.trim()}>
-          {posting ? "Posting..." : "Post to Job Board ->"}
+          {posting ? "Posting..." : "Post to Job Board →"}
         </Btn>
       </div>
     </div>
@@ -3421,7 +3421,7 @@ function JobBoardBrowse({ provider, onClose }) {
               </div>
             ) : (
               <Btn small full onClick={() => { setQuoteJob(job); setQuoteAmount(""); setQuoteNote(""); }}>
-                Submit quote ->
+                Submit quote →
               </Btn>
             )}
           </div>
@@ -3814,7 +3814,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               </div>
               {baseValue > 0 && activeDiscount && (
                 <div style={{ marginTop: 6, background: "rgba(16,185,129,0.08)", borderRadius: 8, padding: "6px 10px" }}>
-                  <div style={{ fontSize: 10, color: "#34D399" }}>Original: R{baseValue.toLocaleString()} -> After {activeDiscount.discountPct}% discount: <strong>R{discounted.toLocaleString("en-ZA", {maximumFractionDigits:0})}</strong></div>
+                  <div style={{ fontSize: 10, color: "#34D399" }}>Original: R{baseValue.toLocaleString()} → After {activeDiscount.discountPct}% discount: <strong>R{discounted.toLocaleString("en-ZA", {maximumFractionDigits:0})}</strong></div>
                   <div style={{ fontSize: 10, color: "#065F46", marginTop: 2 }}>You save R{saving.toLocaleString("en-ZA", {maximumFractionDigits:0})} · Platform fee: R{fee}</div>
                 </div>
               )}
@@ -4156,7 +4156,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           <button onClick={() => setShowProfile(true)}
             style={{ width: "100%", background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 12px", fontSize: 11, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            View full profile & all {reviewCount > 0 ? `${reviewCount} ` : ""}reviews ->
+            View full profile & all {reviewCount > 0 ? `${reviewCount} ` : ""}reviews →
           </button>
 
           {/* Save to My Team + Community Recommend */}
@@ -4449,7 +4449,7 @@ function CustomerHome({ user, onLogout }) {
               ⚡ Emergency only
             </button>
             <Btn full onClick={handleSearch} disabled={!selectedService || !location.trim() || loading} style={{ flex: 1 }}>
-              {loading ? "Searching..." : "Find Pros ->"}
+              {loading ? "Searching..." : "Find Pros →"}
             </Btn>
           </div>
 
@@ -4842,7 +4842,7 @@ function CustomerHome({ user, onLogout }) {
                 else { navigator.clipboard?.writeText(url); }
               }}
                 style={{ width: "100%", background: "rgba(99,102,241,0.15)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700, color: "#818CF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
-                Share your link ->
+                Share your link →
               </button>
             </div>
           )}
@@ -5620,7 +5620,7 @@ function AdminDashboard({ onLogout }) {
                 {stuckJobs.map(j => (
                   <div key={j.id} style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 14, marginBottom: 8 }}>
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#FCA5A5", marginBottom: 4 }}>{j.serviceName}</div>
-                    <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>{j.customerName} -> {j.providerName}</div>
+                    <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>→ {j.customerName} → {j.providerName}</div>
                     <div style={{ fontSize: 11, color: "#475569" }}>Posted: {j.dateLabel || "Unknown"} · {j.address}</div>
                   </div>
                 ))}
@@ -5636,7 +5636,7 @@ function AdminDashboard({ onLogout }) {
                   <div key={j.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${st.color}22`, borderRadius: 12, padding: "12px 14px", marginBottom: 7 }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName || j.serviceType} · {j.customerName} -> {j.providerName}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName || j.serviceType} · {j.customerName} → {j.providerName}</div>
                         <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{j.description?.slice(0, 60)}</div>
                         <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{j.dateLabel} · {j.address?.slice(0,40)}</div>
                       </div>

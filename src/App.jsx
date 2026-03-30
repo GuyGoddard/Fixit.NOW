@@ -1409,7 +1409,7 @@ function AuthScreen({ onLogin }) {
 
   if (mode === "adminLogin") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <Logo size={36} />
         <Wordmark size={20} showTagline />
@@ -1436,7 +1436,7 @@ function AuthScreen({ onLogin }) {
 
   if (mode === "login") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <Logo size={36} />
         <Wordmark size={20} showTagline />
@@ -1452,7 +1452,7 @@ function AuthScreen({ onLogin }) {
 
   if (mode === "signup") return (
     <div style={{ minHeight: "100vh", padding: "48px 24px 48px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 28, fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 28, fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
         <Logo size={32} />
         <Wordmark size={18} />
@@ -1498,7 +1498,7 @@ function AuthScreen({ onLogin }) {
 
   if (mode === "providerLogin") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <Logo size={36} />
         <div>
@@ -1606,7 +1606,7 @@ function ProviderRegistration({ onBack, onDone }) {
 
   return (
     <div style={{ minHeight: "100vh", padding: "40px 24px 60px", background: "#060A14", maxWidth: 480, margin: "0 auto" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 24, fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 24, fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
         <Logo size={32} />
         <Wordmark size={18} />
@@ -1842,7 +1842,7 @@ function ProviderRegistration({ onBack, onDone }) {
           )}
 
           <div style={{ display: "flex", gap: 10 }}>
-            <Btn variant="ghost" onClick={() => setStep(1)}><- Back</Btn>
+            <Btn variant="ghost" onClick={() => setStep(1)}>← Back</Btn>
             <Btn full onClick={() => setStep(3)} disabled={form.services.length === 0 || form.services.some(id => !getAreaSummary(id))}>Continue -></Btn>
           </div>
         </>
@@ -1867,7 +1867,7 @@ function ProviderRegistration({ onBack, onDone }) {
             </div>
           ))}
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <Btn variant="ghost" onClick={() => setStep(2)}><- Back</Btn>
+            <Btn variant="ghost" onClick={() => setStep(2)}>← Back</Btn>
             <Btn full variant="green" onClick={submit}>Submit Application ✓</Btn>
           </div>
         </>
@@ -2265,7 +2265,7 @@ function CompletionPopup({ notification, user, onClose }) {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn variant="ghost" onClick={() => setStep("offer")}><- Back</Btn>
+              <Btn variant="ghost" onClick={() => setStep("offer")}>← Back</Btn>
               <Btn full variant="green" onClick={submitRating} disabled={!rating || saving}>{saving ? "Saving..." : "Submit Review"}</Btn>
             </div>
           </>
@@ -3571,7 +3571,7 @@ function TrainingContent({ onClose }) {
         ) : (
           <>
             <button onClick={() => setSelected(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 16, padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <- All guides
+              ← All guides
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
               <div style={{ width: 40, height: 40, borderRadius: 11, background: `${module.color}18`, border: `1.5px solid ${module.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -3895,7 +3895,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn variant="ghost" onClick={() => setStep(1)}><- Edit</Btn>
+              <Btn variant="ghost" onClick={() => setStep(1)}>← Edit</Btn>
               <Btn full variant="green" onClick={submit} disabled={submitting}>{submitting ? "Sending..." : "Send Job Request ✓"}</Btn>
             </div>
           </>
@@ -4375,7 +4375,7 @@ function CustomerHome({ user, onLogout }) {
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {showBack
-          ? <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}><- Back</button>
+          ? <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}>← Back</button>
           : <><Logo size={28} /><Wordmark size={15} /></>}
         {title && <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>{title}</div>}
       </div>

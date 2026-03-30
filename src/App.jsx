@@ -1430,7 +1430,7 @@ function AuthScreen({ onLogin }) {
         {adminError && <div style={{ color: "#EF4444", fontSize: 12, marginTop: 6, fontFamily: "'DM Sans',sans-serif" }}>{adminError}</div>}
       </div>
 
-      <Btn full onClick={tryAdminLogin} style={{ marginTop: 8 }}>Access Admin Portal -></Btn>
+      <Btn full onClick={tryAdminLogin} style={{ marginTop: 8 }}>Access Admin Portal →</Btn>
     </div>
   );
 
@@ -1445,7 +1445,7 @@ function AuthScreen({ onLogin }) {
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Sign in to find home service pros near you.</p>
       <Input label="Email" value={form.email} onChange={v => set("email", v)} placeholder="you@email.com" type="email" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
-      <Btn full onClick={doLogin} style={{ marginTop: 8 }}>Sign In -></Btn>
+      <Btn full onClick={doLogin} style={{ marginTop: 8 }}>Sign In →</Btn>
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 20 }}>Don't have an account? <span onClick={() => setMode("signup")} style={{ color: "#0EA5E9", cursor: "pointer" }}>Sign up free</span></p>
     </div>
   );
@@ -1489,7 +1489,7 @@ function AuthScreen({ onLogin }) {
         </div>
         <Input label="Province" value={form.province} onChange={v => set("province", v)} placeholder="KwaZulu-Natal" />
       </div>
-      <Btn full onClick={doSignup}>Create Account & Find Pros -></Btn>
+      <Btn full onClick={doSignup}>Create Account & Find Pros →</Btn>
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 16 }}>Already have an account? <span onClick={() => setMode("login")} style={{ color: "#0EA5E9", cursor: "pointer" }}>Sign in</span></p>
     </div>
   );
@@ -1510,7 +1510,7 @@ function AuthScreen({ onLogin }) {
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Sign in with the email you used to register your business.</p>
       <Input label="Business Email" value={form.email} onChange={v => set("email", v)} placeholder="you@business.co.za" type="email" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
-      <Btn full onClick={doProviderLogin} style={{ marginTop: 8 }}>Sign In to Dashboard -></Btn>
+      <Btn full onClick={doProviderLogin} style={{ marginTop: 8 }}>Sign In to Dashboard →</Btn>
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 20 }}>Not registered yet? <span onClick={() => setMode("provider")} style={{ color: "#0EA5E9", cursor: "pointer" }}>Register your business</span></p>
     </div>
   );
@@ -1701,7 +1701,7 @@ function ProviderRegistration({ onBack, onDone }) {
             if (!form.bizName || !form.email || !form.phone) return alert("Please fill in all required fields.");
             if (!form.password || form.password.length < 6) return alert("Please set a password of at least 6 characters.");
             setStep(2);
-          }}>Continue -></Btn>
+          }}>Continue →</Btn>
         </>
       )}
 
@@ -1843,7 +1843,7 @@ function ProviderRegistration({ onBack, onDone }) {
 
           <div style={{ display: "flex", gap: 10 }}>
             <Btn variant="ghost" onClick={() => setStep(1)}>← Back</Btn>
-            <Btn full onClick={() => setStep(3)} disabled={form.services.length === 0 || form.services.some(id => !getAreaSummary(id))}>Continue -></Btn>
+            <Btn full onClick={() => setStep(3)} disabled={form.services.length === 0 || form.services.some(id => !getAreaSummary(id))}>Continue →</Btn>
           </div>
         </>
       )}
@@ -2227,7 +2227,7 @@ function CompletionPopup({ notification, user, onClose }) {
               </div>
             )}
 
-            <Btn full onClick={() => setStep("rate")} style={{ marginBottom: 10 }}>Rate your experience -></Btn>
+            <Btn full onClick={() => setStep("rate")} style={{ marginBottom: 10 }}>Rate your experience →</Btn>
             <Btn full variant="ghost" onClick={onClose}>Close</Btn>
           </>
         )}
@@ -2725,7 +2725,7 @@ function GPSTrackerModal({ job, onClose }) {
           </div>
           {lastUpdate && <div style={{ fontSize: 11, color: "#065F46" }}>Updated {lastUpdate.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>}
           {!location && <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Provider hasn't shared location yet</div>}
-          <div style={{ marginTop: 12, fontSize: 12, color: "#10B981", fontWeight: 600 }}>Tap to open in Maps -></div>
+          <div style={{ marginTop: 12, fontSize: 12, color: "#10B981", fontWeight: 600 }}>Tap to open in Maps →</div>
         </div>
 
         <Btn full variant="ghost" onClick={onClose}>Close</Btn>
@@ -3834,7 +3834,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               </div>
             )}
 
-            <Btn full onClick={() => setStep(2)} disabled={!canSubmit}>Review & Send Request -></Btn>
+            <Btn full onClick={() => setStep(2)} disabled={!canSubmit}>Review & Send Request →</Btn>
 
             {showAddrBook && (
               <AddressBookModal
@@ -4591,7 +4591,7 @@ function CustomerHome({ user, onLogout }) {
                       <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7, color: "#334155", maxWidth: 260, margin: "8px auto 0" }}>
                         No {SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase()||"service"} providers in {location} yet. Try a quote request to reach providers directly.
                       </div>
-                      <Btn onClick={() => setShowQuoteModal(true)} style={{ marginTop: 16 }}>Request Quotes -></Btn>
+                      <Btn onClick={() => setShowQuoteModal(true)} style={{ marginTop: 16 }}>Request Quotes →</Btn>
                     </div>
                   )}
                 </>
@@ -4651,7 +4651,7 @@ function CustomerHome({ user, onLogout }) {
               <div style={{ fontSize: 12, color: "#334155", maxWidth: 240, margin: "0 auto", lineHeight: 1.7 }}>
                 {jobFilter === "active" ? "All your jobs are completed. Find your next pro below." : "Browse providers and request your first job."}
               </div>
-              <Btn onClick={() => setTab("find")} style={{ marginTop: 20 }}>Find Providers -></Btn>
+              <Btn onClick={() => setTab("find")} style={{ marginTop: 20 }}>Find Providers →</Btn>
             </div>
           ) : filteredJobs.map((job, i) => {
             const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
@@ -6517,7 +6517,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                       </>
                     )}
                     {job.status === "accepted" && (
-                      <Btn small variant="primary" onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", border: "none" }}>On My Way -></Btn>
+                      <Btn small variant="primary" onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", border: "none" }}>On My Way →</Btn>
                     )}
                     {job.status === "onroute" && (
                       <Btn small variant="primary" onClick={() => handleJobAction(job.id, "inprogress")} style={{ flex: 1, background: "linear-gradient(135deg,#06B6D4,#0EA5E9)", border: "none" }}>Start Work</Btn>
@@ -6698,7 +6698,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   Lead credits this month: <strong>R{referralCredits.toLocaleString()}</strong>
                 </div>
               )}
-              <Btn small variant="ghost" onClick={() => setTab("account")} style={{ fontSize: 11 }}>Manage plan -></Btn>
+              <Btn small variant="ghost" onClick={() => setTab("account")} style={{ fontSize: 11 }}>Manage plan →</Btn>
             </div>
 
             {/* Milestones */}
@@ -6784,7 +6784,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {profileScore.checks.filter(c => !c.done).slice(0, 3).map(c => (
                     <div key={c.label} style={{ fontSize: 11, color: "#F59E0B", display: "flex", gap: 6 }}>
-                      <span>-></span><span>{c.label} -- {c.tip}</span>
+                      <span>→</span><span>{c.label} -- {c.tip}</span>
                     </div>
                   ))}
                 </div>

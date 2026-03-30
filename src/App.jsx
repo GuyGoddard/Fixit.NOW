@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-// ─── DESIGN TOKENS ───────────────────────────────────────────────────────────────
+// --- DESIGN TOKENS ---------------------------------------------------------------
 // Single source of truth for colors, spacing, radius. Edit here = updates everywhere.
 const C = {
   // Brand
@@ -23,13 +23,13 @@ const F = { xs: 10, sm: 11, md: 13, lg: 15, xl: 18, h2: 22, h1: 28 }; // font-si
 
 
 
-// ─── SUPABASE STORE ──────────────────────────────────────────────────────────────
-// Live database — data persists across all devices and users.
+// --- SUPABASE STORE --------------------------------------------------------------
+// Live database -- data persists across all devices and users.
 // Project: GuyGoddard's Project (eu-west-1, Ireland)
 const SUPABASE_URL = "https://qyqyjavjusxsvlkkvftg.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5cXlqYXZqdXN4c3Zsa2t2ZnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MjQwMjYsImV4cCI6MjA5MDMwMDAyNn0.ttAQxloQ0MPIv1RI-5-qXwuooj1B5AtqbpNmQqKaYrg";
 
-// Minimal Supabase REST client — no npm package needed
+// Minimal Supabase REST client -- no npm package needed
 const supa = {
   async from(table) {
     const base = `${SUPABASE_URL}/rest/v1/${table}`;
@@ -104,12 +104,12 @@ const _supaDel = async (key) => {
   } catch {}
 };
 
-// The store object — same interface as before, now backed by Supabase
+// The store object -- same interface as before, now backed by Supabase
 const store = {
   get: async (key) => {
     const val = await _supaGet(key);
     if (val === null) return null;
-    // Supabase returns jsonb already parsed — re-stringify so existing
+    // Supabase returns jsonb already parsed -- re-stringify so existing
     // JSON.parse(raw.value) calls throughout the app still work
     return { value: typeof val === "string" ? val : JSON.stringify(val) };
   },
@@ -121,9 +121,9 @@ const store = {
   del: async (key) => { await _supaDel(key); },
 };
 
-// ─── REFERRAL TRACKER ───────────────────────────────────────────────────────────
+// --- REFERRAL TRACKER -----------------------------------------------------------
 // Writes a lead event to storage and increments the provider's referral count.
-// providerId is null for AI-generated (mock) providers — we still log the event
+// providerId is null for AI-generated (mock) providers -- we still log the event
 // under a "untracked" bucket so admin can see total platform activity.
 const trackEvent = async ({ providerId, providerName, type, serviceType, searchArea, searchQuery, plan }) => {
   const now = new Date();
@@ -171,7 +171,7 @@ const trackEvent = async ({ providerId, providerName, type, serviceType, searchA
   return event;
 };
 
-// ─── CONSTANTS ──────────────────────────────────────────────────────────────────
+// --- CONSTANTS ------------------------------------------------------------------
 const SERVICES = [
   { id: "plumber",     label: "Plumber",      icon: "🔧", color: "#0EA5E9", emergency: true,  desc: "Burst pipes, leaks, drains" },
   { id: "electrician", label: "Electrician",  icon: "⚡", color: "#F59E0B", emergency: true,  desc: "Power failures, wiring" },
@@ -187,7 +187,7 @@ const PLANS = [
   { id: "premium",  label: "Premium",  price: 1299, priceLabel: "R1 299/mo", color: "#F59E0B", features: ["Top of results","All service categories","Dedicated profile page","R10 per referral tracked","WhatsApp integration","Monthly performance report"] },
 ];
 
-// ─── BOOKING HELPERS ────────────────────────────────────────────────────────────
+// --- BOOKING HELPERS ------------------------------------------------------------
 const JOB_STATUS = {
   pending:    { label: "Pending",     color: "#F59E0B", desc: "Waiting for provider to respond" },
   accepted:   { label: "Accepted",    color: "#0EA5E9", desc: "Provider has accepted your job" },
@@ -239,8 +239,8 @@ const updateJobStatus = async (jobId, status, note = "") => {
   } catch { return []; }
 };
 
-// ─── SMS / NOTIFICATION HELPERS ─────────────────────────────────────────────────
-// Clickatell API — replace with your API key from portal.clickatell.com
+// --- SMS / NOTIFICATION HELPERS -------------------------------------------------
+// Clickatell API -- replace with your API key from portal.clickatell.com
 const CLICKATELL_API_KEY = "YOUR_CLICKATELL_API_KEY";
 
 const sendSMS = async (phone, message) => {
@@ -263,7 +263,7 @@ const sendNotification = async (user, message, jobId = null) => {
   if (pref === "sms" && user.phone) {
     await sendSMS(user.phone, message);
   } else if (user.phone) {
-    // WhatsApp deep link — opens WhatsApp with pre-filled message
+    // WhatsApp deep link -- opens WhatsApp with pre-filled message
     // (In a real app this would be sent server-side via WhatsApp Business API)
     // For now we log it; provider-side WA is already handled via buttons
   }
@@ -278,7 +278,7 @@ const sendNotification = async (user, message, jobId = null) => {
   }
 };
 
-// ─── ADDRESS BOOK HELPERS ────────────────────────────────────────────────────────
+// --- ADDRESS BOOK HELPERS --------------------------------------------------------
 const saveAddress = async (customerId, address) => {
   try {
     const key = `addresses:${customerId}`;
@@ -298,7 +298,7 @@ const getAddresses = async (customerId) => {
   } catch { return []; }
 };
 
-// ─── CHAT HELPERS ────────────────────────────────────────────────────────────────
+// --- CHAT HELPERS ----------------------------------------------------------------
 const sendChatMessage = async (jobId, senderId, senderName, senderRole, message) => {
   try {
     const key = `chat:${jobId}`;
@@ -321,7 +321,7 @@ const getChatMessages = async (jobId) => {
   } catch { return []; }
 };
 
-// ─── QUOTE HELPERS ───────────────────────────────────────────────────────────────
+// --- QUOTE HELPERS ---------------------------------------------------------------
 const saveQuoteRequest = async (request) => {
   try {
     const raw = await store.get("quote_requests");
@@ -353,7 +353,7 @@ const submitQuote = async (requestId, providerId, providerName, amount, note) =>
   } catch {}
 };
 
-// ─── GPS LOCATION HELPERS ────────────────────────────────────────────────────────
+// --- GPS LOCATION HELPERS --------------------------------------------------------
 const updateProviderLocation = async (providerId, lat, lng) => {
   try {
     await store.set(`location:${providerId}`, { lat, lng, ts: new Date().toISOString() });
@@ -367,7 +367,7 @@ const getProviderLocation = async (providerId) => {
   } catch { return null; }
 };
 
-// ─── VERIFICATION BADGE HELPERS ──────────────────────────────────────────────────
+// --- VERIFICATION BADGE HELPERS --------------------------------------------------
 const submitVerification = async (providerId, docType, docNumber) => {
   try {
     const raw = await store.get("providers");
@@ -385,7 +385,7 @@ const submitVerification = async (providerId, docType, docNumber) => {
 };
 
 
-// Calculates average hours between job created → accepted from a provider's job log
+// Calculates average hours between job created -> accepted from a provider's job log
 const getResponseSpeed = (providerJobs = []) => {
   const accepted = providerJobs.filter(j =>
     ["accepted","inprogress","completed"].includes(j.status) && j.createdAt && j.updatedAt
@@ -418,13 +418,13 @@ const getSpeedTier = (avgMins) => {
   return SPEED_TIERS.find(t => avgMins <= t.maxMins) || SPEED_TIERS[SPEED_TIERS.length - 1];
 };
 
-// ─── RANKING SCORE ────────────────────────────────────────────────────────────────
+// --- RANKING SCORE ----------------------------------------------------------------
 // Returns a composite score 0-100 for sorting. Weights:
-//   Rating        40% (0-5 → 0-40)
-//   Response speed 25% (tier 1-4 → 0-25)
-//   Review count  15% (capped at 50 reviews → 0-15)
+//   Rating        40% (0-5 -> 0-40)
+//   Response speed 25% (tier 1-4 -> 0-25)
+//   Review count  15% (capped at 50 reviews -> 0-15)
 //   Plan tier     15% (basic=5, featured=10, premium=15)
-//   Emergency      5% (boolean → 0-5)
+//   Emergency      5% (boolean -> 0-5)
 const rankScore = (p) => {
   const rating    = (p.liveRating || p.rating || 0);
   const reviews   = Math.min(p.liveReviewCount || p.reviewCount || 0, 50);
@@ -438,7 +438,7 @@ const rankScore = (p) => {
     (p.emergency ? 5 : 0)
   );
 };
-// ─── AVAILABILITY & DEALS HELPERS ───────────────────────────────────────────────
+// --- AVAILABILITY & DEALS HELPERS -----------------------------------------------
 
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -498,7 +498,7 @@ const deleteDeal = async (providerId) => {
 const MAX_STRIKES      = 3;
 const STRIKE_THRESHOLD = 2; // ratings at or below this trigger a strike
 
-// ─── DISCOUNT HELPERS ────────────────────────────────────────────────────────────
+// --- DISCOUNT HELPERS ------------------------------------------------------------
 const saveDiscount = async ({ customerId, providerId, providerName, bizName, discountPct, jobId }) => {
   try {
     const key = `discounts:${customerId}`;
@@ -536,7 +536,7 @@ const redeemDiscount = async (customerId, discountId) => {
     ));
   } catch {}
 };
-// ─── HOME HEALTH SCORE HELPERS ───────────────────────────────────────────────
+// --- HOME HEALTH SCORE HELPERS -----------------------------------------------
 const HOME_SERVICE_INTERVALS = {
   plumber:     { label: "Plumbing check",      months: 12, icon: "check" },
   electrician: { label: "Electrical inspection",months: 24, icon: "lightning" },
@@ -597,7 +597,7 @@ const getHomeHealthScore = (log) => {
   return { score, status, due, upToDate };
 };
 
-// ─── TRUSTED PROVIDER HELPERS ────────────────────────────────────────────────
+// --- TRUSTED PROVIDER HELPERS ------------------------------------------------
 const saveTrustedProvider = async (customerId, provider) => {
   try {
     const key = `trusted:${customerId}`;
@@ -626,7 +626,7 @@ const getTrustedProviders = async (customerId) => {
   } catch { return []; }
 };
 
-// ─── COMMUNITY REVIEW HELPERS ────────────────────────────────────────────────
+// --- COMMUNITY REVIEW HELPERS ------------------------------------------------
 const saveCommunityReview = async ({ providerId, providerName, reviewerName, reviewerEmail, relationship, comment }) => {
   try {
     const key = `community:${providerId}`;
@@ -653,7 +653,7 @@ const getCommunityReviews = async (providerId) => {
   } catch { return []; }
 };
 
-// ─── GET IT DONE BOARD HELPERS ───────────────────────────────────────────────
+// --- GET IT DONE BOARD HELPERS -----------------------------------------------
 const postJobBoard = async (job) => {
   try {
     const raw = await store.get("job_board");
@@ -685,7 +685,7 @@ const submitJobBoardQuote = async (jobId, providerId, providerName, amount, note
   } catch {}
 };
 
-// ─── 5-STAR STREAK HELPERS ───────────────────────────────────────────────────
+// --- 5-STAR STREAK HELPERS ---------------------------------------------------
 const getStarStreak = (reviews) => {
   if (!reviews?.length) return 0;
   const sorted = [...reviews].sort((a, b) => new Date(b.ts) - new Date(a.ts));
@@ -697,7 +697,7 @@ const getStarStreak = (reviews) => {
   return streak;
 };
 
-// ─── MILESTONE DEFINITIONS ───────────────────────────────────────────────────
+// --- MILESTONE DEFINITIONS ---------------------------------------------------
 const MILESTONES = [
   { id: "first_job",    jobs: 1,  label: "First job",         reward: "Response speed badge unlocked",        icon: "check"    },
   { id: "5_jobs",       jobs: 5,  label: "5 jobs done",        reward: "Priority placement for 1 week",        icon: "lightning"},
@@ -712,7 +712,7 @@ const getProviderMilestone = (completedCount) => {
   return { achieved, next, completedCount };
 };
 
-// ─── PROVIDER OF THE MONTH HELPERS ──────────────────────────────────────────
+// --- PROVIDER OF THE MONTH HELPERS ------------------------------------------
 const getProviderOfMonth = async (serviceId) => {
   try {
     const raw = await store.get("providers");
@@ -736,7 +736,7 @@ const getProviderOfMonth = async (serviceId) => {
 
 
 
-// ─── REFERRAL SYSTEM ─────────────────────────────────────────────────────────────
+// --- REFERRAL SYSTEM -------------------------------------------------------------
 const makeRefCode = (email) => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
@@ -745,7 +745,7 @@ const makeRefCode = (email) => {
   return code;
 };
 
-const REFERRAL_CREDIT_AMOUNT = 50; // R50 platform credit — applied as fee reduction on next booking (Option B)
+const REFERRAL_CREDIT_AMOUNT = 50; // R50 platform credit -- applied as fee reduction on next booking (Option B)
 const REFERRAL_CREDIT_IS_PLATFORM = true; // credit applies to any provider, not provider-specific
 const REFERRAL_FRIEND_DISCOUNT = 10; // 10% off friend's first job
 
@@ -775,7 +775,7 @@ const getCredits = async (customerId) => {
 const getTotalCredit = (credits) =>
   credits.filter(c => !c.redeemed).reduce((sum, c) => sum + c.amount, 0);
 
-// Called when a job is completed — checks if referrer should be rewarded
+// Called when a job is completed -- checks if referrer should be rewarded
 const processReferralReward = async (customerEmail, customerName) => {
   try {
     const cusRaw = await store.get("customers");
@@ -816,7 +816,7 @@ const saveReview = async ({ jobId, providerId, providerName, customerId, custome
     await store.set("reviews", reviews);
   } catch {}
 
-  // 2. Provider record — update rating, attach review, apply strike logic
+  // 2. Provider record -- update rating, attach review, apply strike logic
   if (providerId) {
     try {
       const raw = await store.get("providers");
@@ -894,7 +894,7 @@ const saveReview = async ({ jobId, providerId, providerName, customerId, custome
   return review;
 };
 
-// Admin helper — clear a specific strike from a provider
+// Admin helper -- clear a specific strike from a provider
 const clearStrike = async (providerId, strikeIndex) => {
   try {
     const raw = await store.get("providers");
@@ -912,7 +912,7 @@ const clearStrike = async (providerId, strikeIndex) => {
   } catch { return []; }
 };
 
-// ─── NOTIFICATION HELPERS ────────────────────────────────────────────────────────
+// --- NOTIFICATION HELPERS --------------------------------------------------------
 const pushNotif = async (userId, { title, body, type, jobId }) => {
   try {
     const key = `notifs:${userId}`;
@@ -933,7 +933,7 @@ const markNotifsRead = async (userId) => {
   } catch {}
 };
 
-// ─── SEARCH HISTORY HELPERS ──────────────────────────────────────────────────────
+// --- SEARCH HISTORY HELPERS ------------------------------------------------------
 const saveSearch = async (userId, { serviceId, location }) => {
   try {
     const key = `searches:${userId}`;
@@ -967,7 +967,7 @@ const SERVICE_AREA_HINTS = {
   gate_repair: ["Umhlanga", "La Lucia", "Morningside", "Hillcrest", "Westville", "Durban North", "Ballito", "Musgrave", "Berea", "Pinetown"],
 };
 
-// ─── HOME MARK LOGO ─────────────────────────────────────────────────────────────
+// --- HOME MARK LOGO -------------------------------------------------------------
 function Logo({ size = 36 }) {
   const s = size;
   // Scale factor relative to our 80×72 viewBox
@@ -1012,7 +1012,7 @@ function Logo({ size = 36 }) {
   );
 }
 
-// ─── WORDMARK ───────────────────────────────────────────────────────────────────
+// --- WORDMARK -------------------------------------------------------------------
 function Wordmark({ size = 20, showTagline = false }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -1034,7 +1034,7 @@ function Wordmark({ size = 20, showTagline = false }) {
   );
 }
 
-// ─── SHARED UI ──────────────────────────────────────────────────────────────────
+// --- SHARED UI ------------------------------------------------------------------
 function Input({ label, value, onChange, placeholder, type = "text", icon }) {
   return (
     <div style={{ marginBottom: 14 }}>
@@ -1126,8 +1126,8 @@ function Badge({ children, color = "#0EA5E9" }) {
   );
 }
 
-// ─── BRAND ICON SYSTEM ───────────────────────────────────────────────────────────
-// All icons are pure SVG paths — brand colours, consistent 16px grid.
+// --- BRAND ICON SYSTEM -----------------------------------------------------------
+// All icons are pure SVG paths -- brand colours, consistent 16px grid.
 // Usage: <Icon name="phone" size={14} color="#10B981" />
 const ICON_PATHS = {
   // Services
@@ -1196,7 +1196,7 @@ function Icon({ name, size = 14, color = "currentColor", strokeWidth = 1.5 }) {
   );
 }
 
-// Service icons — custom geometric SVG matching each trade
+// Service icons -- custom geometric SVG matching each trade
 function ServiceIcon({ serviceId, size = 20, color = "#0EA5E9" }) {
   const iconName = serviceId === "gate_repair" ? "gate_repair" : serviceId;
   return (
@@ -1208,7 +1208,7 @@ function ServiceIcon({ serviceId, size = 20, color = "#0EA5E9" }) {
   );
 }
 
-// Speed badge — brand-coloured pill with inline SVG icon, no emoji
+// Speed badge -- brand-coloured pill with inline SVG icon, no emoji
 function SpeedBadge({ avgResponseMins }) {
   const tier = getSpeedTier(avgResponseMins ?? null);
   if (!tier) return null;
@@ -1243,7 +1243,7 @@ function StatusBadge({ status }) {
   );
 }
 
-// Notification type icon — small coloured dot with SVG
+// Notification type icon -- small coloured dot with SVG
 function NotifIcon({ type }) {
   const map = {
     booking:    { name: "booking",   color: "#F59E0B" },
@@ -1263,7 +1263,7 @@ function NotifIcon({ type }) {
   );
 }
 
-// ─── AUTH SCREEN ────────────────────────────────────────────────────────────────
+// --- AUTH SCREEN ----------------------------------------------------------------
 function AuthScreen({ onLogin }) {
   const [mode, setMode] = useState("welcome");
   const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", address: "", suburb: "", city: "", province: "" });
@@ -1327,10 +1327,10 @@ function AuthScreen({ onLogin }) {
     await store.set("customers", customers);
     // If referred, give friend their 10% first-booking discount immediately
     if (referredBy) {
-      await saveReferralCredit(form.email, 0, ""); // placeholder — discount applied at booking
+      await saveReferralCredit(form.email, 0, ""); // placeholder -- discount applied at booking
       await pushNotif(form.email, {
         title: "Welcome! You have a referral bonus 🎁",
-        body:  `You were referred by a friend — enjoy ${REFERRAL_FRIEND_DISCOUNT}% off your first completed booking. It's already in your wallet!`,
+        body:  `You were referred by a friend -- enjoy ${REFERRAL_FRIEND_DISCOUNT}% off your first completed booking. It's already in your wallet!`,
         type:  "completed",
       });
     }
@@ -1381,7 +1381,7 @@ function AuthScreen({ onLogin }) {
           <div style={{ background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.15)", borderRadius: 16, padding: "16px 16px 12px" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>I need a service</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <Btn full onClick={() => setMode("signup")}>Sign up — find pros near me</Btn>
+              <Btn full onClick={() => setMode("signup")}>Sign up -- find pros near me</Btn>
               <Btn full variant="ghost" onClick={() => setMode("login")}>Sign in to my account</Btn>
             </div>
           </div>
@@ -1409,7 +1409,7 @@ function AuthScreen({ onLogin }) {
 
   if (mode === "adminLogin") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <Logo size={36} />
         <Wordmark size={20} showTagline />
@@ -1430,13 +1430,13 @@ function AuthScreen({ onLogin }) {
         {adminError && <div style={{ color: "#EF4444", fontSize: 12, marginTop: 6, fontFamily: "'DM Sans',sans-serif" }}>{adminError}</div>}
       </div>
 
-      <Btn full onClick={tryAdminLogin} style={{ marginTop: 8 }}>Access Admin Portal →</Btn>
+      <Btn full onClick={tryAdminLogin} style={{ marginTop: 8 }}>Access Admin Portal -></Btn>
     </div>
   );
 
   if (mode === "login") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <Logo size={36} />
         <Wordmark size={20} showTagline />
@@ -1445,14 +1445,14 @@ function AuthScreen({ onLogin }) {
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Sign in to find home service pros near you.</p>
       <Input label="Email" value={form.email} onChange={v => set("email", v)} placeholder="you@email.com" type="email" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
-      <Btn full onClick={doLogin} style={{ marginTop: 8 }}>Sign In →</Btn>
+      <Btn full onClick={doLogin} style={{ marginTop: 8 }}>Sign In -></Btn>
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 20 }}>Don't have an account? <span onClick={() => setMode("signup")} style={{ color: "#0EA5E9", cursor: "pointer" }}>Sign up free</span></p>
     </div>
   );
 
   if (mode === "signup") return (
     <div style={{ minHeight: "100vh", padding: "48px 24px 48px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 28, fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 28, fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
         <Logo size={32} />
         <Wordmark size={18} />
@@ -1479,7 +1479,7 @@ function AuthScreen({ onLogin }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "#0EA5E9", fontFamily: "'DM Sans',sans-serif" }}>Your Home Address</span>
           <button onClick={gps} style={{ background: "rgba(14,165,233,0.15)", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 8, padding: "5px 10px", color: "#0EA5E9", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-            {locating ? "Locating…" : "Use GPS"}
+            {locating ? "Locating..." : "Use GPS"}
           </button>
         </div>
         <Input label="Street Address" value={form.address} onChange={v => set("address", v)} placeholder="123 Oak Street" />
@@ -1489,7 +1489,7 @@ function AuthScreen({ onLogin }) {
         </div>
         <Input label="Province" value={form.province} onChange={v => set("province", v)} placeholder="KwaZulu-Natal" />
       </div>
-      <Btn full onClick={doSignup}>Create Account & Find Pros →</Btn>
+      <Btn full onClick={doSignup}>Create Account & Find Pros -></Btn>
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 16 }}>Already have an account? <span onClick={() => setMode("login")} style={{ color: "#0EA5E9", cursor: "pointer" }}>Sign in</span></p>
     </div>
   );
@@ -1498,7 +1498,7 @@ function AuthScreen({ onLogin }) {
 
   if (mode === "providerLogin") return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "48px 24px 32px", background: "#060A14", maxWidth: 420, margin: "0 auto" }}>
-      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
+      <button onClick={() => setMode("welcome")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 32, textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <Logo size={36} />
         <div>
@@ -1510,13 +1510,13 @@ function AuthScreen({ onLogin }) {
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Sign in with the email you used to register your business.</p>
       <Input label="Business Email" value={form.email} onChange={v => set("email", v)} placeholder="you@business.co.za" type="email" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
-      <Btn full onClick={doProviderLogin} style={{ marginTop: 8 }}>Sign In to Dashboard →</Btn>
+      <Btn full onClick={doProviderLogin} style={{ marginTop: 8 }}>Sign In to Dashboard -></Btn>
       <p style={{ color: "#475569", fontSize: 12, textAlign: "center", marginTop: 20 }}>Not registered yet? <span onClick={() => setMode("provider")} style={{ color: "#0EA5E9", cursor: "pointer" }}>Register your business</span></p>
     </div>
   );
 }
 
-// ─── PROVIDER REGISTRATION ──────────────────────────────────────────────────────
+// --- PROVIDER REGISTRATION ------------------------------------------------------
 function ProviderRegistration({ onBack, onDone }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -1606,7 +1606,7 @@ function ProviderRegistration({ onBack, onDone }) {
 
   return (
     <div style={{ minHeight: "100vh", padding: "40px 24px 60px", background: "#060A14", maxWidth: 480, margin: "0 auto" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 24, fontFamily: "'DM Sans',sans-serif" }}>← Back</button>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", marginBottom: 24, fontFamily: "'DM Sans',sans-serif" }}><- Back</button>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
         <Logo size={32} />
         <Wordmark size={18} />
@@ -1619,7 +1619,7 @@ function ProviderRegistration({ onBack, onDone }) {
         ))}
       </div>
       <div style={{ color: "#475569", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 20 }}>
-        Step {step} of 3 — {["Business Details","Services & Coverage","Choose Your Plan"][step-1]}
+        Step {step} of 3 -- {["Business Details","Services & Coverage","Choose Your Plan"][step-1]}
       </div>
 
       {step === 1 && (
@@ -1701,7 +1701,7 @@ function ProviderRegistration({ onBack, onDone }) {
             if (!form.bizName || !form.email || !form.phone) return alert("Please fill in all required fields.");
             if (!form.password || form.password.length < 6) return alert("Please set a password of at least 6 characters.");
             setStep(2);
-          }}>Continue →</Btn>
+          }}>Continue -></Btn>
         </>
       )}
 
@@ -1842,8 +1842,8 @@ function ProviderRegistration({ onBack, onDone }) {
           )}
 
           <div style={{ display: "flex", gap: 10 }}>
-            <Btn variant="ghost" onClick={() => setStep(1)}>← Back</Btn>
-            <Btn full onClick={() => setStep(3)} disabled={form.services.length === 0 || form.services.some(id => !getAreaSummary(id))}>Continue →</Btn>
+            <Btn variant="ghost" onClick={() => setStep(1)}><- Back</Btn>
+            <Btn full onClick={() => setStep(3)} disabled={form.services.length === 0 || form.services.some(id => !getAreaSummary(id))}>Continue -></Btn>
           </div>
         </>
       )}
@@ -1867,7 +1867,7 @@ function ProviderRegistration({ onBack, onDone }) {
             </div>
           ))}
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <Btn variant="ghost" onClick={() => setStep(2)}>← Back</Btn>
+            <Btn variant="ghost" onClick={() => setStep(2)}><- Back</Btn>
             <Btn full variant="green" onClick={submit}>Submit Application ✓</Btn>
           </div>
         </>
@@ -1876,10 +1876,10 @@ function ProviderRegistration({ onBack, onDone }) {
   );
 }
 
-// ─── REVIEW MODAL ────────────────────────────────────────────────────────────────
+// --- REVIEW MODAL ----------------------------------------------------------------
 // Accepts either:
-//   job  – a booking job object (has job.id, job.providerId, job.providerName, job.serviceName)
-//   provider + serviceType – a provider card object (direct rating, no booking required)
+//   job  - a booking job object (has job.id, job.providerId, job.providerName, job.serviceName)
+//   provider + serviceType - a provider card object (direct rating, no booking required)
 function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp, user, onClose, onDone }) {
   const [rating, setRating]   = useState(0);
   const [hover, setHover]     = useState(0);
@@ -1887,7 +1887,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
   const [saving, setSaving]   = useState(false);
   const [done, setDone]       = useState(false);
 
-  // Normalise source — works whether triggered from My Jobs or a provider card
+  // Normalise source -- works whether triggered from My Jobs or a provider card
   const providerId   = job?.providerId   ?? providerProp?.providerId ?? null;
   const providerName = job?.providerName ?? providerProp?.name       ?? "Provider";
   const serviceType  = job?.serviceType  ?? serviceTypeProp          ?? null;
@@ -1956,13 +1956,13 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Comments (optional)</label>
               <textarea value={comment} onChange={e => setComment(e.target.value)}
-                placeholder="Quality of work, punctuality, professionalism…" rows={3}
+                placeholder="Quality of work, punctuality, professionalism..." rows={3}
                 style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
               <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-              <Btn full variant="green" onClick={submit} disabled={!rating || saving}>{saving ? "Saving…" : "Submit Review ★"}</Btn>
+              <Btn full variant="green" onClick={submit} disabled={!rating || saving}>{saving ? "Saving..." : "Submit Review ★"}</Btn>
             </div>
           </>
         )}
@@ -1971,7 +1971,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
   );
 }
 
-// ─── NOTIFICATION BELL ────────────────────────────────────────────────────────────
+// --- NOTIFICATION BELL ------------------------------------------------------------
 function NotificationBell({ userId, onOpen }) {
   const [unread, setUnread] = useState(0);
 
@@ -1995,7 +1995,7 @@ function NotificationBell({ userId, onOpen }) {
   );
 }
 
-// ─── NOTIFICATIONS PANEL ─────────────────────────────────────────────────────────
+// --- NOTIFICATIONS PANEL ---------------------------------------------------------
 function NotificationsPanel({ userId, onClose }) {
   const [notifs, setNotifs] = useState([]);
 
@@ -2030,8 +2030,8 @@ function NotificationsPanel({ userId, onClose }) {
   );
 }
 
-// ─── SALES MOMENT MODAL ──────────────────────────────────────────────────────────
-// Provider sees this when tapping "Mark Complete" — they can set a discount offer
+// --- SALES MOMENT MODAL ----------------------------------------------------------
+// Provider sees this when tapping "Mark Complete" -- they can set a discount offer
 // and personalise a thank-you note before completing the job.
 function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
   const [discountPct, setDiscountPct] = useState(provider.defaultDiscount || 10);
@@ -2061,7 +2061,7 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
 
         {/* What happens */}
         <div style={{ background: "rgba(14,165,233,0.07)", border: "1px solid rgba(14,165,233,0.18)", borderRadius: 11, padding: "12px 14px", marginBottom: 18, fontSize: 11, color: "#7DD3FC", lineHeight: 1.7 }}>
-          When you complete this job, {job.customerName} will get an in-app popup asking them to rate you, plus your discount offer — encouraging them to rebook and refer friends.
+          When you complete this job, {job.customerName} will get an in-app popup asking them to rate you, plus your discount offer -- encouraging them to rebook and refer friends.
         </div>
 
         {/* Thank-you note */}
@@ -2131,8 +2131,8 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
   );
 }
 
-// ─── COMPLETION POPUP ─────────────────────────────────────────────────────────────
-// Customer sees this after provider marks job complete — rating prompt + discount card
+// --- COMPLETION POPUP -------------------------------------------------------------
+// Customer sees this after provider marks job complete -- rating prompt + discount card
 function CompletionPopup({ notification, user, onClose }) {
   const [step, setStep]     = useState("offer");  // offer | rate | done
   const [rating, setRating] = useState(0);
@@ -2193,7 +2193,7 @@ function CompletionPopup({ notification, user, onClose }) {
               </div>
             </div>
 
-            {/* Discount card — only if provider offered one */}
+            {/* Discount card -- only if provider offered one */}
             {discount && (
               <div style={{ background: "linear-gradient(135deg, #0EA5E905, #F59E0B08)", border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 14, padding: 18, marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -2213,7 +2213,7 @@ function CompletionPopup({ notification, user, onClose }) {
                 </div>
                 {/* Referral section */}
                 <div style={{ background: "rgba(14,165,233,0.08)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 10, padding: "12px 13px" }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#38BDF8", marginBottom: 6 }}>Share with a friend — they get it too</div>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#38BDF8", marginBottom: 6 }}>Share with a friend -- they get it too</div>
                   <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, marginBottom: 10 }}>
                     If a friend books {discount.bizName} through your referral, they also get {discount.discountPct}% off their first job.
                   </div>
@@ -2227,7 +2227,7 @@ function CompletionPopup({ notification, user, onClose }) {
               </div>
             )}
 
-            <Btn full onClick={() => setStep("rate")} style={{ marginBottom: 10 }}>Rate your experience →</Btn>
+            <Btn full onClick={() => setStep("rate")} style={{ marginBottom: 10 }}>Rate your experience -></Btn>
             <Btn full variant="ghost" onClick={onClose}>Close</Btn>
           </>
         )}
@@ -2261,12 +2261,12 @@ function CompletionPopup({ notification, user, onClose }) {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Comments (optional)</label>
-              <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Quality of work, punctuality, professionalism…" rows={3} style={inputStyle} />
+              <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Quality of work, punctuality, professionalism..." rows={3} style={inputStyle} />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn variant="ghost" onClick={() => setStep("offer")}>← Back</Btn>
-              <Btn full variant="green" onClick={submitRating} disabled={!rating || saving}>{saving ? "Saving…" : "Submit Review"}</Btn>
+              <Btn variant="ghost" onClick={() => setStep("offer")}><- Back</Btn>
+              <Btn full variant="green" onClick={submitRating} disabled={!rating || saving}>{saving ? "Saving..." : "Submit Review"}</Btn>
             </div>
           </>
         )}
@@ -2286,8 +2286,8 @@ function CompletionPopup({ notification, user, onClose }) {
   );
 }
 
-// ─── DISCOUNT WALLET ─────────────────────────────────────────────────────────────
-// ─── CREDIT WALLET ───────────────────────────────────────────────────────────────
+// --- DISCOUNT WALLET -------------------------------------------------------------
+// --- CREDIT WALLET ---------------------------------------------------------------
 function CreditWallet({ user }) {
   const [credits, setCredits] = useState([]);
   const [open, setOpen]       = useState(false);
@@ -2298,7 +2298,7 @@ function CreditWallet({ user }) {
 
   useEffect(() => { getCredits(user.email).then(setCredits); }, []);
 
-  const shareMsg = `Hi! I use FixIt Now to find trusted home service pros in KZN — plumbers, electricians, handymen and more. Sign up with my link and get ${REFERRAL_FRIEND_DISCOUNT}% off your first booking! 🏠 ${refLink}`;
+  const shareMsg = `Hi! I use FixIt Now to find trusted home service pros in KZN -- plumbers, electricians, handymen and more. Sign up with my link and get ${REFERRAL_FRIEND_DISCOUNT}% off your first booking! 🏠 ${refLink}`;
 
   return (
     <div style={{ marginBottom: 12 }}>
@@ -2319,7 +2319,7 @@ function CreditWallet({ user }) {
         {/* How it works */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
           {[
-            { icon: "send",    color: "#A5B4FC", text: `Share your link — friend signs up` },
+            { icon: "send",    color: "#A5B4FC", text: `Share your link -- friend signs up` },
             { icon: "booking", color: "#34D399", text: `Friend completes their first booking` },
             { icon: "chart",   color: "#F59E0B", text: `You earn R${REFERRAL_CREDIT_AMOUNT} · Friend gets ${REFERRAL_FRIEND_DISCOUNT}% off` },
           ].map(({ icon, color, text }) => (
@@ -2376,7 +2376,7 @@ function CreditWallet({ user }) {
   );
 }
 
-// ─── DISCOUNT WALLET ──────────────────────────────────────────────────────────────
+// --- DISCOUNT WALLET --------------------------------------------------------------
 function DiscountWallet({ customerId }) {
   const [discounts, setDiscounts] = useState([]);
 
@@ -2412,7 +2412,7 @@ function DiscountWallet({ customerId }) {
   );
 }
 
-// ─── CHAT MODAL ──────────────────────────────────────────────────────────────────
+// --- CHAT MODAL ------------------------------------------------------------------
 function ChatModal({ job, user, userRole, onClose }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput]       = useState("");
@@ -2481,7 +2481,7 @@ function ChatModal({ job, user, userRole, onClose }) {
         <div style={{ padding: "12px 16px 32px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", gap: 8 }}>
           <input value={input} onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === "Enter" && send()}
-            placeholder="Type a message…"
+            placeholder="Type a message..."
             style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 11, padding: "10px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
           <button onClick={send} disabled={!input.trim() || sending}
             style={{ width: 42, height: 42, borderRadius: 11, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: !input.trim() ? 0.4 : 1 }}>
@@ -2493,7 +2493,7 @@ function ChatModal({ job, user, userRole, onClose }) {
   );
 }
 
-// ─── QUOTE REQUEST MODAL ─────────────────────────────────────────────────────────
+// --- QUOTE REQUEST MODAL ---------------------------------------------------------
 function QuoteRequestModal({ user, onClose, onDone }) {
   const [step, setStep]           = useState(1);
   const [serviceId, setServiceId] = useState(null);
@@ -2580,7 +2580,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Describe the problem</label>
               <textarea value={description} onChange={e => setDescription(e.target.value)}
-                placeholder="e.g. My geyser burst, water leaking in kitchen ceiling…"
+                placeholder="e.g. My geyser burst, water leaking in kitchen ceiling..."
                 rows={3}
                 style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
             </div>
@@ -2601,7 +2601,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
             </div>
 
             <Btn full onClick={submit} disabled={!serviceId || !description.trim() || !location.trim() || submitting}>
-              {submitting ? "Matching providers…" : "Get Quotes from Top Pros →"}
+              {submitting ? "Matching providers..." : "Get Quotes from Top Pros ->"}
             </Btn>
           </>
         )}
@@ -2610,7 +2610,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
   );
 }
 
-// ─── ADDRESS BOOK MODAL ──────────────────────────────────────────────────────────
+// --- ADDRESS BOOK MODAL ----------------------------------------------------------
 function AddressBookModal({ user, onSelect, onClose }) {
   const [addresses, setAddresses] = useState([]);
   const [adding, setAdding]       = useState(false);
@@ -2683,7 +2683,7 @@ function AddressBookModal({ user, onSelect, onClose }) {
   );
 }
 
-// ─── GPS TRACKER (Customer view) ─────────────────────────────────────────────────
+// --- GPS TRACKER (Customer view) -------------------------------------------------
 function GPSTrackerModal({ job, onClose }) {
   const [location, setLocation] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
@@ -2716,7 +2716,7 @@ function GPSTrackerModal({ job, onClose }) {
           </div>
         </div>
 
-        {/* Map placeholder — links to Google Maps */}
+        {/* Map placeholder -- links to Google Maps */}
         <div onClick={() => window.open(mapsUrl, "_blank")}
           style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 14, padding: 24, marginBottom: 16, textAlign: "center", cursor: "pointer" }}>
           <div style={{ marginBottom: 10 }}><Icon name="location" size={36} color="#10B981" strokeWidth={1.4} /></div>
@@ -2725,7 +2725,7 @@ function GPSTrackerModal({ job, onClose }) {
           </div>
           {lastUpdate && <div style={{ fontSize: 11, color: "#065F46" }}>Updated {lastUpdate.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>}
           {!location && <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Provider hasn't shared location yet</div>}
-          <div style={{ marginTop: 12, fontSize: 12, color: "#10B981", fontWeight: 600 }}>Tap to open in Maps →</div>
+          <div style={{ marginTop: 12, fontSize: 12, color: "#10B981", fontWeight: 600 }}>Tap to open in Maps -></div>
         </div>
 
         <Btn full variant="ghost" onClick={onClose}>Close</Btn>
@@ -2734,7 +2734,7 @@ function GPSTrackerModal({ job, onClose }) {
   );
 }
 
-// ─── VERIFICATION BADGE COMPONENT ────────────────────────────────────────────────
+// --- VERIFICATION BADGE COMPONENT ------------------------------------------------
 function VerificationBadge({ verification, compact = false }) {
   if (!verification) return null;
   const { status } = verification;
@@ -2753,7 +2753,7 @@ function VerificationBadge({ verification, compact = false }) {
   );
 }
 
-// ─── COMMUNITY SECTION (shown on provider profile page) ─────────────────────
+// --- COMMUNITY SECTION (shown on provider profile page) ---------------------
 function CommunitySection({ providerId }) {
   const [reviews, setReviews] = useState([]);
   useEffect(() => { getCommunityReviews(providerId).then(setReviews); }, [providerId]);
@@ -2764,7 +2764,7 @@ function CommunitySection({ providerId }) {
         Community recommendations ({reviews.length})
       </div>
       <div style={{ fontSize: 11, color: "#334155", marginBottom: 10, fontStyle: "italic" }}>
-        Personal vouches from people who know this provider — not tied to a booking.
+        Personal vouches from people who know this provider -- not tied to a booking.
       </div>
       {reviews.map(r => (
         <div key={r.id} style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 12, padding: "13px 15px", marginBottom: 8 }}>
@@ -2784,7 +2784,7 @@ function CommunitySection({ providerId }) {
   );
 }
 
-// ─── PROVIDER PROFILE PAGE ───────────────────────────────────────────────────────
+// --- PROVIDER PROFILE PAGE -------------------------------------------------------
 // Full-screen modal shown when customer taps "View Profile"
 // Designed to build confidence and trust before booking
 function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
@@ -2838,7 +2838,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
 
       <div style={{ padding: "0 0 100px" }}>
 
-        {/* Hero — logo + name + rating */}
+        {/* Hero -- logo + name + rating */}
         <div style={{ background: `linear-gradient(180deg, ${svc.color}12 0%, transparent 100%)`, padding: "28px 20px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
             {/* Logo or initials */}
@@ -2871,8 +2871,8 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             {[
               { val: rating > 0 ? rating.toFixed(1) : "New", sub: `${reviewCount} review${reviewCount !== 1 ? "s" : ""}`, color: "#F59E0B" },
-              { val: speedTier ? (avgMins !== null ? formatResponseTime(avgMins) : speedTier.short) : "—", sub: "Avg response", color: speedTier?.color || "#64748B" },
-              { val: provider.yearsInBusiness ? `${provider.yearsInBusiness}yr${provider.yearsInBusiness > 1 ? "s" : ""}` : "—", sub: "Experience", color: "#10B981" },
+              { val: speedTier ? (avgMins !== null ? formatResponseTime(avgMins) : speedTier.short) : "--", sub: "Avg response", color: speedTier?.color || "#64748B" },
+              { val: provider.yearsInBusiness ? `${provider.yearsInBusiness}yr${provider.yearsInBusiness > 1 ? "s" : ""}` : "--", sub: "Experience", color: "#10B981" },
             ].map(({ val, sub, color }) => (
               <div key={sub} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 11, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color }}>{val}</div>
@@ -3028,7 +3028,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
   );
 }
 
-// ─── HOME HEALTH SCORE COMPONENT ────────────────────────────────────────────
+// --- HOME HEALTH SCORE COMPONENT --------------------------------------------
 function HomeHealthScore({ customerId, onBookService }) {
   const [log, setLog]   = useState([]);
   const [open, setOpen] = useState(false);
@@ -3107,7 +3107,7 @@ function HomeHealthScore({ customerId, onBookService }) {
   );
 }
 
-// ─── SERVICE RECORD DOWNLOAD ─────────────────────────────────────────────────
+// --- SERVICE RECORD DOWNLOAD -------------------------------------------------
 function ServiceRecordExport({ customerId, userName }) {
   const [exporting, setExporting] = useState(false);
 
@@ -3124,14 +3124,14 @@ function ServiceRecordExport({ customerId, userName }) {
         `Property Owner: ${userName}`,
         `Generated: ${new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })}`,
         `Platform: FixIt Now (fixit-now-five.vercel.app)`,
-        `${"─".repeat(50)}`,
+        `${"-".repeat(50)}`,
         ``,
         `COMPLETED JOBS (${myJobs.length} total)`,
-        `${"─".repeat(50)}`,
+        `${"-".repeat(50)}`,
         ...myJobs.map(j =>
           `${j.dateLabel}  |  ${j.serviceName}  |  ${j.providerName}\n  Job: ${j.description}\n  Address: ${j.address}\n`
         ),
-        `${"─".repeat(50)}`,
+        `${"-".repeat(50)}`,
         `This record was generated from jobs completed through FixIt Now.`,
         `FixIt Now connects KZN homeowners with verified service professionals.`,
       ];
@@ -3150,12 +3150,12 @@ function ServiceRecordExport({ customerId, userName }) {
     <button onClick={exportRecord} disabled={exporting}
       style={{ width: "100%", background: "rgba(99,102,241,0.1)", border: "1.5px solid rgba(99,102,241,0.25)", borderRadius: 11, padding: "11px 14px", fontSize: 12, fontWeight: 600, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
       <Icon name="jobs" size={14} color="#A5B4FC" strokeWidth={1.8} />
-      {exporting ? "Generating…" : "Download home service record"}
+      {exporting ? "Generating..." : "Download home service record"}
     </button>
   );
 }
 
-// ─── TRUSTED PROVIDERS (MY TEAM) ────────────────────────────────────────────
+// --- TRUSTED PROVIDERS (MY TEAM) --------------------------------------------
 function MyTeam({ customerId, onBookProvider }) {
   const [team, setTeam]   = useState([]);
   const [open, setOpen]   = useState(false);
@@ -3199,7 +3199,7 @@ function MyTeam({ customerId, onBookProvider }) {
   );
 }
 
-// ─── COMMUNITY REVIEW FORM ───────────────────────────────────────────────────
+// --- COMMUNITY REVIEW FORM ---------------------------------------------------
 function CommunityReviewForm({ provider, onClose, onSubmitted }) {
   const [form, setForm] = useState({ reviewerName: "", reviewerEmail: "", relationship: "customer", comment: "" });
   const [saving, setSaving]   = useState(false);
@@ -3228,7 +3228,7 @@ function CommunityReviewForm({ provider, onClose, onSubmitted }) {
           <>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 4 }}>Recommend {provider.name}</div>
             <div style={{ fontSize: 12, color: "#475569", marginBottom: 16, lineHeight: 1.6 }}>
-              Know this provider personally? Leave a community recommendation — it helps new customers trust them.
+              Know this provider personally? Leave a community recommendation -- it helps new customers trust them.
             </div>
             <Input label="Your name" value={form.reviewerName} onChange={v => set("reviewerName", v)} placeholder="Your full name" />
             <Input label="Your email" value={form.reviewerEmail} onChange={v => set("reviewerEmail", v)} placeholder="for verification" type="email" />
@@ -3245,11 +3245,11 @@ function CommunityReviewForm({ provider, onClose, onSubmitted }) {
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Your recommendation</label>
               <textarea value={form.comment} onChange={e => set("comment", e.target.value)}
-                placeholder="Tell others why you trust this provider and what they're best at…" rows={3}
+                placeholder="Tell others why you trust this provider and what they're best at..." rows={3}
                 style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
             </div>
             <Btn full onClick={submit} disabled={saving || !form.reviewerName.trim() || !form.comment.trim()}>
-              {saving ? "Submitting…" : "Submit recommendation"}
+              {saving ? "Submitting..." : "Submit recommendation"}
             </Btn>
           </>
         )}
@@ -3258,7 +3258,7 @@ function CommunityReviewForm({ provider, onClose, onSubmitted }) {
   );
 }
 
-// ─── GET IT DONE BOARD ────────────────────────────────────────────────────────
+// --- GET IT DONE BOARD --------------------------------------------------------
 function JobBoardPost({ user, onClose, onPosted }) {
   const [serviceId, setServiceId] = useState(null);
   const [description, setDescription] = useState("");
@@ -3301,7 +3301,7 @@ function JobBoardPost({ user, onClose, onPosted }) {
         <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Post to the Job Board</div>
         <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#34D399", lineHeight: 1.6 }}>
-          💡 Providers compete to offer you their best price — you typically save 10–25% compared to booking directly.
+          💡 Providers compete to offer you their best price -- you typically save 10-25% compared to booking directly.
         </div>
 
         <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>What do you need?</div>
@@ -3318,7 +3318,7 @@ function JobBoardPost({ user, onClose, onPosted }) {
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Describe the job</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="e.g. Need a plumber to fix a leaking pipe under the kitchen sink…" rows={3}
+            placeholder="e.g. Need a plumber to fix a leaking pipe under the kitchen sink..." rows={3}
             style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
         </div>
 
@@ -3335,14 +3335,14 @@ function JobBoardPost({ user, onClose, onPosted }) {
         </div>
 
         <Btn full onClick={post} disabled={posting || !serviceId || !description.trim()}>
-          {posting ? "Posting…" : "Post to Job Board →"}
+          {posting ? "Posting..." : "Post to Job Board ->"}
         </Btn>
       </div>
     </div>
   );
 }
 
-// ─── JOB BOARD BROWSE (Provider) ────────────────────────────────────────────
+// --- JOB BOARD BROWSE (Provider) --------------------------------------------
 function JobBoardBrowse({ provider, onClose }) {
   const [jobs, setJobs]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3366,7 +3366,7 @@ function JobBoardBrowse({ provider, onClose }) {
     await submitJobBoardQuote(quoteJob.id, provider.id, provider.bizName, parseFloat(quoteAmount), quoteNote);
     await pushNotif(quoteJob.customerId, {
       title: `Quote received from ${provider.bizName}`,
-      body:  `R${quoteAmount}${quoteNote ? ` — "${quoteNote}"` : ""} for your ${quoteJob.serviceName} job.`,
+      body:  `R${quoteAmount}${quoteNote ? ` -- "${quoteNote}"` : ""} for your ${quoteJob.serviceName} job.`,
       type:  "accepted",
     });
     setSending(false);
@@ -3381,12 +3381,12 @@ function JobBoardBrowse({ provider, onClose }) {
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Job Board</div>
         <div style={{ fontSize: 12, color: "#475569", marginBottom: 16, lineHeight: 1.6 }}>Customers looking for your services. Submit a competitive quote to win the job.</div>
 
-        {loading ? <div style={{ textAlign: "center", padding: "32px 0", color: "#475569" }}>Loading…</div> :
+        {loading ? <div style={{ textAlign: "center", padding: "32px 0", color: "#475569" }}>Loading...</div> :
          jobs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "32px 0" }}>
             <div style={{ marginBottom: 8 }}><Icon name="jobs" size={32} color="#334155" strokeWidth={1.4} /></div>
             <div style={{ fontSize: 13, color: "#475569" }}>No open jobs right now</div>
-            <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Check back later — new jobs are posted daily.</div>
+            <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Check back later -- new jobs are posted daily.</div>
           </div>
          ) : jobs.map(job => (
           <div key={job.id} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 13, padding: 14, marginBottom: 10 }}>
@@ -3416,12 +3416,12 @@ function JobBoardBrowse({ provider, onClose }) {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="ghost" onClick={() => setQuoteJob(null)} style={{ flex: 1 }}>Cancel</Btn>
-                  <Btn small variant="green" onClick={submitQuote} disabled={!quoteAmount || sending} style={{ flex: 2 }}>{sending ? "Sending…" : "Submit quote"}</Btn>
+                  <Btn small variant="green" onClick={submitQuote} disabled={!quoteAmount || sending} style={{ flex: 2 }}>{sending ? "Sending..." : "Submit quote"}</Btn>
                 </div>
               </div>
             ) : (
               <Btn small full onClick={() => { setQuoteJob(job); setQuoteAmount(""); setQuoteNote(""); }}>
-                Submit quote →
+                Submit quote ->
               </Btn>
             )}
           </div>
@@ -3431,7 +3431,7 @@ function JobBoardBrowse({ provider, onClose }) {
   );
 }
 
-// ─── MILESTONE TRACKER (Provider) ────────────────────────────────────────────
+// --- MILESTONE TRACKER (Provider) --------------------------------------------
 function MilestoneTracker({ completedCount }) {
   const { achieved, next } = getProviderMilestone(completedCount);
   if (!next && achieved.length === 0) return null;
@@ -3470,7 +3470,7 @@ function MilestoneTracker({ completedCount }) {
   );
 }
 
-// ─── PROVIDER TRAINING CONTENT ───────────────────────────────────────────────
+// --- PROVIDER TRAINING CONTENT -----------------------------------------------
 const TRAINING_MODULES = [
   {
     id: "profile",
@@ -3479,10 +3479,10 @@ const TRAINING_MODULES = [
     color: "#0EA5E9",
     readTime: "3 min",
     content: [
-      { heading: "Your tagline is your pitch", body: "You have one sentence to tell a customer why you're the right choice. Don't say what you do — say how long you've been doing it, what you specialise in, or what sets you apart. Bad: 'Plumber in Durban.' Good: 'Fixing KZN leaks for 14 years — same-day response, guaranteed work.'" },
+      { heading: "Your tagline is your pitch", body: "You have one sentence to tell a customer why you're the right choice. Don't say what you do -- say how long you've been doing it, what you specialise in, or what sets you apart. Bad: 'Plumber in Durban.' Good: 'Fixing KZN leaks for 14 years -- same-day response, guaranteed work.'" },
       { heading: "Your about section should answer one question", body: "Customers are thinking: can I trust this person in my home? Answer that directly. Mention your years of experience, your most common job types, the areas you know best, and whether you're licensed or insured. The more specific you are, the more trustworthy you seem." },
-      { heading: "A logo makes you look like a business", body: "Upload your logo to imgur.com (free, takes 30 seconds) and paste the link in your profile. Providers with logos get significantly more profile views. If you don't have a logo, use a clear professional photo of you on a job site — anything that shows you're real." },
-      { heading: "Your certifications are your proof", body: "List every qualification, licence, and registration you hold. ECSA, COC certified, licensed electrician, CIPC registered — don't assume customers know what these mean. Write them out in full. They're the difference between 'seems legit' and 'clearly professional.'" },
+      { heading: "A logo makes you look like a business", body: "Upload your logo to imgur.com (free, takes 30 seconds) and paste the link in your profile. Providers with logos get significantly more profile views. If you don't have a logo, use a clear professional photo of you on a job site -- anything that shows you're real." },
+      { heading: "Your certifications are your proof", body: "List every qualification, licence, and registration you hold. ECSA, COC certified, licensed electrician, CIPC registered -- don't assume customers know what these mean. Write them out in full. They're the difference between 'seems legit' and 'clearly professional.'" },
     ],
   },
   {
@@ -3492,8 +3492,8 @@ const TRAINING_MODULES = [
     color: "#F59E0B",
     readTime: "2 min",
     content: [
-      { heading: "Speed is your biggest ranking factor", body: "25% of your search ranking comes from response speed. A provider who accepts within 30 minutes ranks significantly higher than one who takes 6 hours. Even sending a message before accepting — 'I've received your request, will confirm shortly' — dramatically improves customer confidence." },
-      { heading: "Turn on notifications", body: "Enable notifications for FixIt Now on your phone. When a job request arrives, you want to know immediately — not an hour later when the customer has already booked someone else. The providers who respond fastest consistently get the most work." },
+      { heading: "Speed is your biggest ranking factor", body: "25% of your search ranking comes from response speed. A provider who accepts within 30 minutes ranks significantly higher than one who takes 6 hours. Even sending a message before accepting -- 'I've received your request, will confirm shortly' -- dramatically improves customer confidence." },
+      { heading: "Turn on notifications", body: "Enable notifications for FixIt Now on your phone. When a job request arrives, you want to know immediately -- not an hour later when the customer has already booked someone else. The providers who respond fastest consistently get the most work." },
       { heading: "What to say when accepting", body: "Don't just tap 'Accept' and go silent. Send a quick message: 'Hi [name], confirmed for [date] at [time]. I'll be there promptly. Please have [anything you need] ready.' This one message sets expectations, builds trust, and dramatically reduces no-show anxiety." },
       { heading: "When you can't take a job, decline quickly", body: "A quick decline is better than silence. If you're unavailable, decline immediately and the customer can book someone else. Providers who leave requests pending for hours damage their ranking and frustrate customers who are waiting." },
     ],
@@ -3506,7 +3506,7 @@ const TRAINING_MODULES = [
     readTime: "3 min",
     content: [
       { heading: "The review is won before the job starts", body: "Show up on time. Text 20 minutes before you arrive. Call if you're running late. These three things alone put you ahead of most tradespeople in South Africa. Customers review how they felt, not just the quality of work." },
-      { heading: "Ask for the review at the right moment", body: "The best time to ask is right after the customer has seen the finished work and is clearly happy. Don't wait until you've left — say it in person: 'If you're happy with the work, a review on FixIt Now would mean a lot to me.' Most satisfied customers will do it immediately." },
+      { heading: "Ask for the review at the right moment", body: "The best time to ask is right after the customer has seen the finished work and is clearly happy. Don't wait until you've left -- say it in person: 'If you're happy with the work, a review on FixIt Now would mean a lot to me.' Most satisfied customers will do it immediately." },
       { heading: "What to do if something goes wrong", body: "Don't get defensive. Acknowledge the problem, fix it, and follow up. A customer who had a problem resolved professionally often leaves a better review than one whose job went perfectly. How you handle complaints defines your reputation." },
       { heading: "The loyalty discount creates repeat business", body: "When you mark a job complete, offer a loyalty discount for the customer's next booking. Even 10% gives them a reason to come back to you specifically. Repeat customers leave more reviews, refer more friends, and are easier to work with because they already know and trust you." },
     ],
@@ -3518,9 +3518,9 @@ const TRAINING_MODULES = [
     color: "#8B5CF6",
     readTime: "2 min",
     content: [
-      { heading: "Show a call-out fee, not a full price", body: "Set your 'From R...' price at your call-out fee, not your total job cost. This gets you clicks. Customers understand that complex jobs cost more — they just want to know you're not going to charge R3,000 to show up. A visible call-out fee removes the biggest anxiety." },
-      { heading: "Charge for emergency work appropriately", body: "If you offer 24-hour emergency service, you should charge more for it. Don't be embarrassed about this — customers calling at 11pm with a burst pipe are expecting to pay a premium. Set your emergency rate clearly in your description." },
-      { heading: "The weekly deal is a slow-week tool", body: "When you have a quiet week and open slots, post a deal: '20% off gate motor repairs this week, 2 slots available.' This isn't desperation — it's smart business. Airlines and hotels do this constantly. You're filling capacity that would otherwise sit empty." },
+      { heading: "Show a call-out fee, not a full price", body: "Set your 'From R...' price at your call-out fee, not your total job cost. This gets you clicks. Customers understand that complex jobs cost more -- they just want to know you're not going to charge R3,000 to show up. A visible call-out fee removes the biggest anxiety." },
+      { heading: "Charge for emergency work appropriately", body: "If you offer 24-hour emergency service, you should charge more for it. Don't be embarrassed about this -- customers calling at 11pm with a burst pipe are expecting to pay a premium. Set your emergency rate clearly in your description." },
+      { heading: "The weekly deal is a slow-week tool", body: "When you have a quiet week and open slots, post a deal: '20% off gate motor repairs this week, 2 slots available.' This isn't desperation -- it's smart business. Airlines and hotels do this constantly. You're filling capacity that would otherwise sit empty." },
       { heading: "Your plan tier is a marketing investment", body: "Featured and Premium providers appear higher in search results. If you're getting consistent 5-star reviews and fast response times, upgrading your plan multiplies the returns on work you're already doing well. Think of it as advertising to the right audience at exactly the right moment." },
     ],
   },
@@ -3531,10 +3531,10 @@ const TRAINING_MODULES = [
     color: "#EF4444",
     readTime: "2 min",
     content: [
-      { heading: "Always communicate through FixIt Now first", body: "Before swapping personal numbers, use in-app chat for all job details. This creates a paper trail that protects you if there's a dispute about what was agreed. Once trust is established, WhatsApp is fine — but keep the initial agreement in writing on the platform." },
+      { heading: "Always communicate through FixIt Now first", body: "Before swapping personal numbers, use in-app chat for all job details. This creates a paper trail that protects you if there's a dispute about what was agreed. Once trust is established, WhatsApp is fine -- but keep the initial agreement in writing on the platform." },
       { heading: "Take before-and-after photos on every job", body: "Before you start work, photograph the problem. After you finish, photograph the solution. This protects you from false claims and doubles as portfolio content. Providers with job photos on their profiles get significantly more trust from new customers." },
-      { heading: "Get the job description confirmed before starting", body: "If a customer's description in the app says 'fix the gate motor' but when you arrive they want you to rewire the whole property — stop. Message through the app: 'The scope has changed significantly. I can do this for R[X]. Do you confirm?' This prevents payment disputes." },
-      { heading: "Your public liability insurance matters", body: "If you accidentally damage property while working — a flooded bathroom, a cracked tile, a burnt appliance — you're liable. Public liability insurance typically costs R1,500–R3,000/year and covers you for R1–2 million in claims. It also shows on your FixIt Now profile as a trust signal. Get it if you don't have it." },
+      { heading: "Get the job description confirmed before starting", body: "If a customer's description in the app says 'fix the gate motor' but when you arrive they want you to rewire the whole property -- stop. Message through the app: 'The scope has changed significantly. I can do this for R[X]. Do you confirm?' This prevents payment disputes." },
+      { heading: "Your public liability insurance matters", body: "If you accidentally damage property while working -- a flooded bathroom, a cracked tile, a burnt appliance -- you're liable. Public liability insurance typically costs R1,500-R3,000/year and covers you for R1-2 million in claims. It also shows on your FixIt Now profile as a trust signal. Get it if you don't have it." },
     ],
   },
 ];
@@ -3571,7 +3571,7 @@ function TrainingContent({ onClose }) {
         ) : (
           <>
             <button onClick={() => setSelected(null)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9, color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", marginBottom: 16, padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-              ← All guides
+              <- All guides
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
               <div style={{ width: 40, height: 40, borderRadius: 11, background: `${module.color}18`, border: `1.5px solid ${module.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -3595,7 +3595,7 @@ function TrainingContent({ onClose }) {
   );
 }
 
-// ─── BOOKING MODAL ───────────────────────────────────────────────────────────────
+// --- BOOKING MODAL ---------------------------------------------------------------
 function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
   const svc = SERVICES.find(s => s.id === serviceType) || SERVICES[0];
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -3690,7 +3690,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
     await trackEvent({ providerId: provider.providerId || null, providerName: provider.name, type: "booking", serviceType, searchArea: form.address, searchQuery: form.description, plan: provider.plan });
 
     if (provider.providerId) {
-      const discountNote = activeDiscount ? ` ⚡ ${activeDiscount.discountPct}% loyalty discount applied — customer is a returning client.` : "";
+      const discountNote = activeDiscount ? ` ⚡ ${activeDiscount.discountPct}% loyalty discount applied -- customer is a returning client.` : "";
       await pushNotif(provider.providerId, {
         title: "New job request!",
         body:  `${user.name} needs a ${svc.label}: "${form.description.slice(0,50)}"${discountNote}`,
@@ -3747,7 +3747,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
                 {quickDesc.length > 0 ? "Add more detail (optional)" : "Describe the problem"}
               </label>
               <textarea value={form.description} onChange={e => set("description", e.target.value)}
-                placeholder={`e.g. My geyser burst overnight, water is leaking from the ceiling…`} rows={3}
+                placeholder={`e.g. My geyser burst overnight, water is leaking from the ceiling...`} rows={3}
                 style={{ ...inputStyle, resize: "none" }} />
             </div>
 
@@ -3814,7 +3814,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               </div>
               {baseValue > 0 && activeDiscount && (
                 <div style={{ marginTop: 6, background: "rgba(16,185,129,0.08)", borderRadius: 8, padding: "6px 10px" }}>
-                  <div style={{ fontSize: 10, color: "#34D399" }}>Original: R{baseValue.toLocaleString()} → After {activeDiscount.discountPct}% discount: <strong>R{discounted.toLocaleString("en-ZA", {maximumFractionDigits:0})}</strong></div>
+                  <div style={{ fontSize: 10, color: "#34D399" }}>Original: R{baseValue.toLocaleString()} -> After {activeDiscount.discountPct}% discount: <strong>R{discounted.toLocaleString("en-ZA", {maximumFractionDigits:0})}</strong></div>
                   <div style={{ fontSize: 10, color: "#065F46", marginTop: 2 }}>You save R{saving.toLocaleString("en-ZA", {maximumFractionDigits:0})} · Platform fee: R{fee}</div>
                 </div>
               )}
@@ -3834,7 +3834,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               </div>
             )}
 
-            <Btn full onClick={() => setStep(2)} disabled={!canSubmit}>Review & Send Request →</Btn>
+            <Btn full onClick={() => setStep(2)} disabled={!canSubmit}>Review & Send Request -></Btn>
 
             {showAddrBook && (
               <AddressBookModal
@@ -3895,8 +3895,8 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn variant="ghost" onClick={() => setStep(1)}>← Edit</Btn>
-              <Btn full variant="green" onClick={submit} disabled={submitting}>{submitting ? "Sending…" : "Send Job Request ✓"}</Btn>
+              <Btn variant="ghost" onClick={() => setStep(1)}><- Edit</Btn>
+              <Btn full variant="green" onClick={submit} disabled={submitting}>{submitting ? "Sending..." : "Send Job Request ✓"}</Btn>
             </div>
           </>
         )}
@@ -3916,7 +3916,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
   );
 }
 
-// ─── PROVIDER CARD ───────────────────────────────────────────────────────────────
+// --- PROVIDER CARD ---------------------------------------------------------------
 function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
   const [open, setOpen]               = useState(false);
   const [tracked, setTracked]         = useState(false);
@@ -3957,7 +3957,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
   };
   const maps = () => window.open(`https://www.google.com/maps/search/${encodeURIComponent(provider.name + " " + provider.vicinity)}`);
 
-  // Derived trust signals — only show what's meaningful
+  // Derived trust signals -- only show what's meaningful
   const rating       = provider.liveRating || provider.rating || 0;
   const reviewCount  = provider.liveReviewCount || provider.reviewCount || 0;
   const avgMins      = provider.avgResponseMins ?? null;
@@ -3981,7 +3981,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
   return (
     <div style={{ background: open ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)", border: `1px solid ${open ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.07)"}`, borderRadius: 16, marginBottom: 10, overflow: "hidden", transition: "all 0.2s" }}>
 
-      {/* ── COLLAPSED CARD — the hook ── */}
+      {/* -- COLLAPSED CARD -- the hook -- */}
       <div onClick={handleExpand} style={{ padding: "16px 16px 14px", cursor: "pointer" }}>
 
         {/* Top row: logo + name + CTA */}
@@ -4010,7 +4010,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
               )}
             </div>
 
-            {/* Tagline if set — replaces generic location */}
+            {/* Tagline if set -- replaces generic location */}
             {provider.tagline ? (
               <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 5, fontStyle: "italic" }}>"{provider.tagline}"</div>
             ) : provider.description ? (
@@ -4037,7 +4037,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
           <div style={{ color: "#334155", fontSize: 14, paddingTop: 2, flexShrink: 0 }}>{open ? "▲" : "▼"}</div>
         </div>
 
-        {/* ── TRUST SIGNALS ROW — the confidence builders ── */}
+        {/* -- TRUST SIGNALS ROW -- the confidence builders -- */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
 
           {/* Years in business */}
@@ -4063,7 +4063,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
             </div>
           )}
 
-          {/* Response speed — human phrase */}
+          {/* Response speed -- human phrase */}
           {avgMins !== null && speedTier && (
             <div style={{ display: "flex", alignItems: "center", gap: 5, background: `${speedTier.color}12`, border: `1px solid ${speedTier.color}28`, borderRadius: 20, padding: "4px 10px" }}>
               <Icon name="lightning" size={10} color={speedTier.color} strokeWidth={2} />
@@ -4084,20 +4084,20 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
           )}
         </div>
 
-        {/* Certification line — one clean line, no clutter */}
+        {/* Certification line -- one clean line, no clutter */}
         {certLine && (
           <div style={{ marginTop: 8, fontSize: 11, color: "#475569", display: "flex", alignItems: "center", gap: 5 }}>
             <Icon name="check" size={10} color="#475569" strokeWidth={2} />
-            {certLine.length > 60 ? certLine.slice(0, 60) + "…" : certLine}
+            {certLine.length > 60 ? certLine.slice(0, 60) + "..." : certLine}
           </div>
         )}
       </div>
 
-      {/* ── EXPANDED SECTION ── */}
+      {/* -- EXPANDED SECTION -- */}
       {open && (
         <div onClick={e => e.stopPropagation()} style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: "14px 16px 16px" }}>
 
-          {/* Most recent review — the social proof anchor */}
+          {/* Most recent review -- the social proof anchor */}
           {cardReviews.length > 0 && (
             <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 11, padding: "10px 14px", marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -4110,15 +4110,15 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
                 <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6, fontStyle: "italic" }}>"{cardReviews[0].comment}"</div>
               )}
               {cardReviews.length > 1 && cardReviews[1].comment && (
-                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.6, fontStyle: "italic", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>"{cardReviews[1].comment}" — {cardReviews[1].customerName}</div>
+                <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.6, fontStyle: "italic", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>"{cardReviews[1].comment}" -- {cardReviews[1].customerName}</div>
               )}
             </div>
           )}
           {reviewsLoaded && cardReviews.length === 0 && provider.providerId && (
-            <div style={{ fontSize: 11, color: "#334155", textAlign: "center", padding: "8px 0 12px", fontStyle: "italic" }}>No reviews yet — be the first</div>
+            <div style={{ fontSize: 11, color: "#334155", textAlign: "center", padding: "8px 0 12px", fontStyle: "italic" }}>No reviews yet -- be the first</div>
           )}
 
-          {/* About — only if not already shown as tagline above */}
+          {/* About -- only if not already shown as tagline above */}
           {provider.description && !provider.tagline && (
             <p style={{ color: "#64748B", fontSize: 12, marginBottom: 12, lineHeight: 1.6 }}>{provider.description}</p>
           )}
@@ -4156,7 +4156,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           <button onClick={() => setShowProfile(true)}
             style={{ width: "100%", background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "9px 12px", fontSize: 11, fontWeight: 600, color: "#475569", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-            View full profile & all {reviewCount > 0 ? `${reviewCount} ` : ""}reviews →
+            View full profile & all {reviewCount > 0 ? `${reviewCount} ` : ""}reviews ->
           </button>
 
           {/* Save to My Team + Community Recommend */}
@@ -4202,7 +4202,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
   );
 }
 
-// ─── CUSTOMER HOME ───────────────────────────────────────────────────────────────
+// --- CUSTOMER HOME ---------------------------------------------------------------
 function CustomerHome({ user, onLogout }) {
   const [tab, setTab]                   = useState("find");
   const [selectedService, setSelectedService] = useState(null);
@@ -4352,7 +4352,7 @@ function CustomerHome({ user, onLogout }) {
     setShowEditProfile(false);
   };
 
-  // ── BOTTOM NAV ──────────────────────────────────────────────────────────
+  // -- BOTTOM NAV ----------------------------------------------------------
   const BottomNav = () => (
     <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
       {[["find","search","Find Pros"],["jobs","jobs","My Jobs"],["profile","profile","Profile"]].map(([id, iconName, label]) => (
@@ -4370,12 +4370,12 @@ function CustomerHome({ user, onLogout }) {
     </div>
   );
 
-  // ── SHARED HEADER ────────────────────────────────────────────────────────
+  // -- SHARED HEADER --------------------------------------------------------
   const Header = ({ title, showBack }) => (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {showBack
-          ? <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}>← Back</button>
+          ? <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}><- Back</button>
           : <><Logo size={28} /><Wordmark size={15} /></>}
         {title && <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>{title}</div>}
       </div>
@@ -4404,7 +4404,7 @@ function CustomerHome({ user, onLogout }) {
         button{WebkitTapHighlightColor:transparent}
       `}</style>
 
-      {/* ── FIND TAB ── */}
+      {/* -- FIND TAB -- */}
       {tab === "find" && (
         <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
           <Header />
@@ -4449,7 +4449,7 @@ function CustomerHome({ user, onLogout }) {
               ⚡ Emergency only
             </button>
             <Btn full onClick={handleSearch} disabled={!selectedService || !location.trim() || loading} style={{ flex: 1 }}>
-              {loading ? "Searching…" : "Find Pros →"}
+              {loading ? "Searching..." : "Find Pros ->"}
             </Btn>
           </div>
 
@@ -4482,7 +4482,7 @@ function CustomerHome({ user, onLogout }) {
             </div>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC" }}>Request quotes from multiple pros</div>
-              <div style={{ fontSize: 11, color: "#312E81", marginTop: 2 }}>Describe your job — we'll find the right people</div>
+              <div style={{ fontSize: 11, color: "#312E81", marginTop: 2 }}>Describe your job -- we'll find the right people</div>
             </div>
           </button>
 
@@ -4494,7 +4494,7 @@ function CustomerHome({ user, onLogout }) {
             </div>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>Get It Done Board</div>
-              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post your job · providers compete · save 10–25%</div>
+              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post your job · providers compete · save 10-25%</div>
             </div>
           </button>
 
@@ -4503,7 +4503,7 @@ function CustomerHome({ user, onLogout }) {
             <div ref={resultsRef}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>
-                  {loading ? "Finding pros…" : `${filtered.length} provider${filtered.length !== 1 ? "s" : ""} found`}
+                  {loading ? "Finding pros..." : `${filtered.length} provider${filtered.length !== 1 ? "s" : ""} found`}
                 </div>
                 {searchDone && <button onClick={() => { setSearchDone(false); setProviders([]); }} style={{ background: "none", border: "none", color: "#475569", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Clear</button>}
               </div>
@@ -4558,7 +4558,7 @@ function CustomerHome({ user, onLogout }) {
                         <div style={{ flex: 1, height: 1, background: "rgba(16,185,129,0.2)" }} />
                       </div>
                       <div style={{ background: "rgba(16,185,129,0.04)", border: "1px solid rgba(16,185,129,0.12)", borderRadius: 14, padding: "10px 12px", marginBottom: 8 }}>
-                        <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, marginBottom: 8 }}>New on the platform — your review could be their first.</div>
+                        <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6, marginBottom: 8 }}>New on the platform -- your review could be their first.</div>
                         {freshPicks.slice(0, 3).map((p, i) => (
                           <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
                             <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label||""} near ${location}`} user={user} onBooked={() => { loadMyJobs(); setJobsBadge(b => b+1); }} />
@@ -4576,7 +4576,7 @@ function CustomerHome({ user, onLogout }) {
                         <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: "12px 12px 0 0", padding: "5px 14px", marginBottom: -1, display: "flex", alignItems: "center", gap: 6 }}>
                           <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#EF4444" }} />
                           <span style={{ fontSize: 10, fontWeight: 700, color: "#FCA5A5" }}>
-                            {p.avail?.slotsLeft === 0 ? "Fully booked this week — enquire anyway" : "Limited availability this week"}
+                            {p.avail?.slotsLeft === 0 ? "Fully booked this week -- enquire anyway" : "Limited availability this week"}
                           </span>
                         </div>
                       )}
@@ -4591,7 +4591,7 @@ function CustomerHome({ user, onLogout }) {
                       <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7, color: "#334155", maxWidth: 260, margin: "8px auto 0" }}>
                         No {SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase()||"service"} providers in {location} yet. Try a quote request to reach providers directly.
                       </div>
-                      <Btn onClick={() => setShowQuoteModal(true)} style={{ marginTop: 16 }}>Request Quotes →</Btn>
+                      <Btn onClick={() => setShowQuoteModal(true)} style={{ marginTop: 16 }}>Request Quotes -></Btn>
                     </div>
                   )}
                 </>
@@ -4601,17 +4601,17 @@ function CustomerHome({ user, onLogout }) {
         </div>
       )}
 
-      {/* ── MY JOBS TAB ── */}
+      {/* -- MY JOBS TAB -- */}
       {tab === "jobs" && (
         <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
           <Header title="My Jobs" />
 
-          {/* Spending summary — only show if they have completed jobs */}
+          {/* Spending summary -- only show if they have completed jobs */}
           {completedCount > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
               {[
                 { label: "Jobs done",    val: completedCount,                                               color: "#10B981" },
-                { label: "Total spent",  val: totalSpend > 0 ? `R${Math.round(totalSpend).toLocaleString()}` : "—", color: "#0EA5E9" },
+                { label: "Total spent",  val: totalSpend > 0 ? `R${Math.round(totalSpend).toLocaleString()}` : "--", color: "#0EA5E9" },
                 { label: "Active now",   val: myJobs.filter(j => activeStatuses.includes(j.status)).length, color: "#F59E0B" },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
@@ -4625,7 +4625,7 @@ function CustomerHome({ user, onLogout }) {
           {/* Loyalty discount wallet */}
           <DiscountWallet customerId={user.email} />
 
-          {/* Credit wallet — if they have credit */}
+          {/* Credit wallet -- if they have credit */}
           <CreditWallet user={user} />
 
           {/* Filter chips */}
@@ -4651,7 +4651,7 @@ function CustomerHome({ user, onLogout }) {
               <div style={{ fontSize: 12, color: "#334155", maxWidth: 240, margin: "0 auto", lineHeight: 1.7 }}>
                 {jobFilter === "active" ? "All your jobs are completed. Find your next pro below." : "Browse providers and request your first job."}
               </div>
-              <Btn onClick={() => setTab("find")} style={{ marginTop: 20 }}>Find Providers →</Btn>
+              <Btn onClick={() => setTab("find")} style={{ marginTop: 20 }}>Find Providers -></Btn>
             </div>
           ) : filteredJobs.map((job, i) => {
             const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
@@ -4677,7 +4677,7 @@ function CustomerHome({ user, onLogout }) {
                   </div>
                 </div>
 
-                {/* Progress bar — only for active jobs */}
+                {/* Progress bar -- only for active jobs */}
                 {isActive && (
                   <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
                     {JOB_PROGRESS_STEPS.map((s, idx) => {
@@ -4688,7 +4688,7 @@ function CustomerHome({ user, onLogout }) {
                   </div>
                 )}
 
-                <div style={{ fontSize: 11, color: st.color, marginBottom: 10, fontWeight: 600 }}>{st.desc}{job.statusNote ? ` — "${job.statusNote}"` : ""}</div>
+                <div style={{ fontSize: 11, color: st.color, marginBottom: 10, fontWeight: 600 }}>{st.desc}{job.statusNote ? ` -- "${job.statusNote}"` : ""}</div>
 
                 {/* Job details */}
                 <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 12 }}>
@@ -4706,9 +4706,9 @@ function CustomerHome({ user, onLogout }) {
                   ) : null}
                 </div>
 
-                {/* Actions — context-aware */}
+                {/* Actions -- context-aware */}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {/* Chat — always available for non-declined jobs */}
+                  {/* Chat -- always available for non-declined jobs */}
                   {job.providerId && job.status !== "declined" && (
                     <button onClick={() => setChatJob(job)}
                       style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
@@ -4716,7 +4716,7 @@ function CustomerHome({ user, onLogout }) {
                     </button>
                   )}
 
-                  {/* Track — on route or in progress */}
+                  {/* Track -- on route or in progress */}
                   {(job.status === "onroute" || job.status === "inprogress") && job.providerId && (
                     <button onClick={() => setGpsJob(job)}
                       style={{ flex: 1, minWidth: 70, background: job.status === "onroute" ? "rgba(139,92,246,0.15)" : "rgba(16,185,129,0.15)", color: job.status === "onroute" ? "#C4B5FD" : "#34D399", border: `1px solid ${job.status === "onroute" ? "rgba(139,92,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
@@ -4724,7 +4724,7 @@ function CustomerHome({ user, onLogout }) {
                     </button>
                   )}
 
-                  {/* Cancel — only pending */}
+                  {/* Cancel -- only pending */}
                   {job.status === "pending" && (
                     <button onClick={async () => {
                       await updateJobStatus(job.id, "declined", "Cancelled by customer");
@@ -4735,7 +4735,7 @@ function CustomerHome({ user, onLogout }) {
                     </button>
                   )}
 
-                  {/* Rebook — completed */}
+                  {/* Rebook -- completed */}
                   {job.status === "completed" && job.providerId && (
                     <button onClick={() => { setSelectedService(job.serviceType); setTab("find"); }}
                       style={{ flex: 1, minWidth: 80, background: "rgba(14,165,233,0.1)", color: "#38BDF8", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
@@ -4743,7 +4743,7 @@ function CustomerHome({ user, onLogout }) {
                     </button>
                   )}
 
-                  {/* Rate — completed, not yet reviewed */}
+                  {/* Rate -- completed, not yet reviewed */}
                   {job.status === "completed" && !job.reviewed && (
                     <button onClick={() => setReviewJob(job)}
                       style={{ flex: 1, minWidth: 60, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
@@ -4763,7 +4763,7 @@ function CustomerHome({ user, onLogout }) {
         </div>
       )}
 
-      {/* ── PROFILE TAB ── */}
+      {/* -- PROFILE TAB -- */}
       {tab === "profile" && (
         <div style={{ padding: "44px 20px 100px" }} className="fadeUp">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
@@ -4808,7 +4808,7 @@ function CustomerHome({ user, onLogout }) {
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <Btn variant="ghost" onClick={() => setShowEditProfile(false)} style={{ flex: 1 }}>Cancel</Btn>
-                <Btn variant="green" onClick={saveProfile} disabled={savingProfile} style={{ flex: 1 }}>{savingProfile ? "Saving…" : "Save changes"}</Btn>
+                <Btn variant="green" onClick={saveProfile} disabled={savingProfile} style={{ flex: 1 }}>{savingProfile ? "Saving..." : "Save changes"}</Btn>
               </div>
             </div>
           ) : (
@@ -4817,10 +4817,10 @@ function CustomerHome({ user, onLogout }) {
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#94A3B8" }}>Account details</div>
                 <Btn small variant="ghost" onClick={() => setShowEditProfile(true)}>Edit</Btn>
               </div>
-              {[["Phone", user.phone||editForm.phone],["Address", user.suburb ? `${user.suburb}, ${user.city}` : "—"],["Notifications", (user.notifPref||editForm.notifPref||"SMS").toUpperCase()]].map(([k,v]) => (
+              {[["Phone", user.phone||editForm.phone],["Address", user.suburb ? `${user.suburb}, ${user.city}` : "--"],["Notifications", (user.notifPref||editForm.notifPref||"SMS").toUpperCase()]].map(([k,v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 13 }}>
                   <span style={{ color: "#475569" }}>{k}</span>
-                  <span style={{ color: "#94A3B8", textAlign: "right" }}>{v||"—"}</span>
+                  <span style={{ color: "#94A3B8", textAlign: "right" }}>{v||"--"}</span>
                 </div>
               ))}
             </div>
@@ -4834,7 +4834,7 @@ function CustomerHome({ user, onLogout }) {
             <div style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#A5B4FC", marginBottom: 6 }}>Refer a friend · earn R{REFERRAL_CREDIT_AMOUNT}</div>
               <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, marginBottom: 12 }}>
-                Share your link. When they complete their first job, you both earn R{REFERRAL_CREDIT_AMOUNT} platform credit — used as a fee reduction on your next booking.
+                Share your link. When they complete their first job, you both earn R{REFERRAL_CREDIT_AMOUNT} platform credit -- used as a fee reduction on your next booking.
               </div>
               <button onClick={() => {
                 const url = `${window.location.origin}?ref=${user.refCode}`;
@@ -4842,7 +4842,7 @@ function CustomerHome({ user, onLogout }) {
                 else { navigator.clipboard?.writeText(url); }
               }}
                 style={{ width: "100%", background: "rgba(99,102,241,0.15)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700, color: "#818CF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
-                Share your link →
+                Share your link ->
               </button>
             </div>
           )}
@@ -4860,10 +4860,10 @@ function CustomerHome({ user, onLogout }) {
         </div>
       )}
 
-      {/* ── BOTTOM NAV ── */}
+      {/* -- BOTTOM NAV -- */}
       <BottomNav />
 
-      {/* ── MODALS ── */}
+      {/* -- MODALS -- */}
       {showNotifs   && <NotificationsPanel userId={user.email} onClose={() => setShowNotifs(false)} />}
       {chatJob      && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
       {gpsJob       && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
@@ -4876,8 +4876,8 @@ function CustomerHome({ user, onLogout }) {
 }
 
 
-// ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────────
-// ─── ADMIN HELPERS ───────────────────────────────────────────────────────────
+// --- ADMIN DASHBOARD -------------------------------------------------------------
+// --- ADMIN HELPERS -----------------------------------------------------------
 const addAdminLog = async (action, detail, targetId = null) => {
   try {
     const raw = await store.get("admin_log");
@@ -4958,7 +4958,7 @@ const getCustomers = async () => {
   } catch { return []; }
 };
 
-// ─── ADMIN DASHBOARD ─────────────────────────────────────────────────────────
+// --- ADMIN DASHBOARD ---------------------------------------------------------
 function AdminDashboard({ onLogout }) {
   const [tab, setTab]           = useState("inbox");
   const [providers, setProviders] = useState([]);
@@ -5010,7 +5010,7 @@ function AdminDashboard({ onLogout }) {
 
   useEffect(() => { loadAll(); }, []);
 
-  // ── Computed platform stats ──────────────────────────────────────────────
+  // -- Computed platform stats ----------------------------------------------
   const now        = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const prevMonth  = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
@@ -5026,7 +5026,7 @@ function AdminDashboard({ onLogout }) {
   const monthCommission = completedJobs
     .filter(j => j.updatedAt >= monthStart && j.estimatedValue)
     .reduce((s, j) => s + parseFloat(j.estimatedValue) * PLATFORM_FEE_PCT, 0);
-  const avgRating = allReviews.length ? (allReviews.reduce((s,r) => s+r.rating,0)/allReviews.length).toFixed(1) : "—";
+  const avgRating = allReviews.length ? (allReviews.reduce((s,r) => s+r.rating,0)/allReviews.length).toFixed(1) : "--";
   const lowReviews = allReviews.filter(r => r.rating <= 2);
   const flaggedReviews = allReviews.filter(r => r.flagged);
   const autoSuspended = providers.filter(p => p.status === "suspended" && p.autoSuspendedAt);
@@ -5035,12 +5035,12 @@ function AdminDashboard({ onLogout }) {
   const inboxItems = [
     ...pending.map(p => ({ type: "pending_provider", id: p.id, label: `New application: ${p.bizName}`, sub: p.city, urgency: "normal", data: p })),
     ...autoSuspended.map(p => ({ type: "auto_suspended", id: p.id, label: `Auto-suspended: ${p.bizName}`, sub: `${(p.strikeLog||[]).filter(s=>!s.cleared).length} strikes`, urgency: "high", data: p })),
-    ...stuckJobs.map(j => ({ type: "stuck_job", id: j.id, label: `Stuck job: ${j.serviceName}`, sub: `${j.customerName} → ${j.providerName} · 48hr+ no response`, urgency: "high", data: j })),
+    ...stuckJobs.map(j => ({ type: "stuck_job", id: j.id, label: `Stuck job: ${j.serviceName}`, sub: `${j.customerName} -> ${j.providerName} · 48hr+ no response`, urgency: "high", data: j })),
     ...communityPending.map(r => ({ type: "community_review", id: r.id, label: `Community review for ${r.providerName}`, sub: `From ${r.reviewerName}`, urgency: "normal", data: r })),
-    ...lowReviews.filter(r => !r.adminSeen).slice(0, 5).map(r => ({ type: "low_review", id: r.id, label: `1–2★ review: ${r.providerName}`, sub: `${r.customerName}: "${(r.comment||"").slice(0,40)}"`, urgency: "low", data: r })),
+    ...lowReviews.filter(r => !r.adminSeen).slice(0, 5).map(r => ({ type: "low_review", id: r.id, label: `1-2★ review: ${r.providerName}`, sub: `${r.customerName}: "${(r.comment||"").slice(0,40)}"`, urgency: "low", data: r })),
   ];
 
-  // ── Actions ──────────────────────────────────────────────────────────────
+  // -- Actions --------------------------------------------------------------
   const updateProviderStatus = async (id, status, note = "") => {
     const bizName = providers.find(p => p.id === id)?.bizName || id;
     const updated = providers.map(p => p.id === id ? {
@@ -5049,7 +5049,7 @@ function AdminDashboard({ onLogout }) {
       autoSuspendedAt: status !== "suspended" ? null : p.autoSuspendedAt,
     } : p);
     await store.set("providers", updated);
-    await addAdminLog(`Status → ${status}`, `${bizName}${note ? ` — "${note}"` : ""}`, id);
+    await addAdminLog(`Status -> ${status}`, `${bizName}${note ? ` -- "${note}"` : ""}`, id);
     setProviders(updated);
   };
 
@@ -5057,7 +5057,7 @@ function AdminDashboard({ onLogout }) {
     const bizName = providers.find(p => p.id === id)?.bizName || id;
     const updated = providers.map(p => p.id === id ? { ...p, plan } : p);
     await store.set("providers", updated);
-    await addAdminLog("Plan changed", `${bizName} → ${plan}`, id);
+    await addAdminLog("Plan changed", `${bizName} -> ${plan}`, id);
     setProviders(updated);
     setPlanTarget(null);
   };
@@ -5097,22 +5097,22 @@ function AdminDashboard({ onLogout }) {
 
   const handleApproveCommunity = async (r) => {
     await approveCommunityReview(providers.find(p=>p.bizName===r.providerName)?.id, r.id);
-    await addAdminLog("Community review approved", `${r.reviewerName} → ${r.providerName}`);
+    await addAdminLog("Community review approved", `${r.reviewerName} -> ${r.providerName}`);
     setCommunityPending(prev => prev.filter(x => x.id !== r.id));
   };
 
   const handleRejectCommunity = async (r) => {
     await rejectCommunityReview(providers.find(p=>p.bizName===r.providerName)?.id, r.id);
-    await addAdminLog("Community review rejected", `${r.reviewerName} → ${r.providerName}`);
+    await addAdminLog("Community review rejected", `${r.reviewerName} -> ${r.providerName}`);
     setCommunityPending(prev => prev.filter(x => x.id !== r.id));
   };
 
-  // ── Filtered providers list ──────────────────────────────────────────────
+  // -- Filtered providers list ----------------------------------------------
   const filteredProviders = providers
     .filter(p => provFilter === "all" ? true : p.status === provFilter)
     .filter(p => !search || p.bizName?.toLowerCase().includes(search.toLowerCase()) || p.email?.toLowerCase().includes(search.toLowerCase()) || p.city?.toLowerCase().includes(search.toLowerCase()));
 
-  // ── Sub-components ───────────────────────────────────────────────────────
+  // -- Sub-components -------------------------------------------------------
   const SectionTitle = ({ children }) => (
     <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{children}</div>
   );
@@ -5129,7 +5129,7 @@ function AdminDashboard({ onLogout }) {
   const urgencyBg    = { high: "rgba(239,68,68,0.08)", normal: "rgba(245,158,11,0.06)", low: "rgba(255,255,255,0.03)" };
   const urgencyBorder= { high: "rgba(239,68,68,0.25)", normal: "rgba(245,158,11,0.2)", low: "rgba(255,255,255,0.07)" };
 
-  // ── Provider card for admin ──────────────────────────────────────────────
+  // -- Provider card for admin ----------------------------------------------
   const AdminProviderCard = ({ p }) => {
     const [expanded, setExpanded] = useState(false);
     const activeStrikes = (p.strikeLog || []).filter(s => !s.cleared).length;
@@ -5155,7 +5155,7 @@ function AdminDashboard({ onLogout }) {
               <span style={{ fontSize: 9, fontWeight: 700, color: planObj.color, background: `${planObj.color}18`, borderRadius: 20, padding: "2px 8px" }}>{planObj.label?.toUpperCase()}</span>
             </div>
             <div style={{ fontSize: 11, color: "#64748B" }}>{p.contactName} · {p.email}</div>
-            <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{p.suburb}, {p.city} · {completedCt} jobs · ★{p.liveRating || "—"} ({pReviews.length} reviews)</div>
+            <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{p.suburb}, {p.city} · {completedCt} jobs · ★{p.liveRating || "--"} ({pReviews.length} reviews)</div>
             {p.adminNote && <div style={{ marginTop: 6, fontSize: 11, color: "#F59E0B", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "4px 8px" }}>📝 {p.adminNote}</div>}
           </div>
           <span style={{ color: "#334155", fontSize: 13, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
@@ -5168,7 +5168,7 @@ function AdminDashboard({ onLogout }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
               {[
                 { label: "Jobs done", val: completedCt, color: "#10B981" },
-                { label: "Revenue", val: totalValue > 0 ? `R${Math.round(totalValue).toLocaleString()}` : "—", color: "#0EA5E9" },
+                { label: "Revenue", val: totalValue > 0 ? `R${Math.round(totalValue).toLocaleString()}` : "--", color: "#0EA5E9" },
                 { label: "Leads", val: (p.leads||[]).filter(l=>["call","whatsapp"].includes(l.type)).length, color: "#F59E0B" },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 6px" }}>
@@ -5228,7 +5228,7 @@ function AdminDashboard({ onLogout }) {
                 {(p.statusHistory||[]).slice(0, 4).map((h, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, padding: "4px 0", fontSize: 11, color: "#475569", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                     <span style={{ color: statusColors[h.status] || "#64748B", minWidth: 64 }}>{h.status}</span>
-                    <span style={{ flex: 1, color: "#334155" }}>{h.note || "—"}</span>
+                    <span style={{ flex: 1, color: "#334155" }}>{h.note || "--"}</span>
                     <span style={{ flexShrink: 0 }}>{h.dateLabel}</span>
                   </div>
                 ))}
@@ -5245,7 +5245,7 @@ function AdminDashboard({ onLogout }) {
             {/* Admin note */}
             {noteTarget === p.id ? (
               <div style={{ marginBottom: 12 }}>
-                <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add an admin note (visible only to you)…" rows={2}
+                <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add an admin note (visible only to you)..." rows={2}
                   style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none", marginBottom: 8 }} />
                 <div style={{ display: "flex", gap: 8 }}>
                   <Btn small variant="ghost" onClick={() => { setNoteTarget(null); setNoteText(""); }} style={{ flex: 1 }}>Cancel</Btn>
@@ -5298,7 +5298,7 @@ function AdminDashboard({ onLogout }) {
     );
   };
 
-  // ── Confirm action modal ─────────────────────────────────────────────────
+  // -- Confirm action modal -------------------------------------------------
   const ConfirmModal = () => {
     const [note, setNote] = useState("");
     if (!confirmAction) return null;
@@ -5306,7 +5306,7 @@ function AdminDashboard({ onLogout }) {
       <div onClick={() => setConfirmAction(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: 16, padding: 24, width: "100%", maxWidth: 380 }}>
           <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 8 }}>{confirmAction.label}</div>
-          <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Add a reason (optional — saved in status history)…" rows={2}
+          <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Add a reason (optional -- saved in status history)..." rows={2}
             style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none", marginBottom: 14 }} />
           <div style={{ display: "flex", gap: 10 }}>
             <Btn variant="ghost" onClick={() => setConfirmAction(null)} style={{ flex: 1 }}>Cancel</Btn>
@@ -5317,7 +5317,7 @@ function AdminDashboard({ onLogout }) {
     );
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // -- Render ---------------------------------------------------------------
   return (
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 620, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
       <style>{`.fadeUp{animation:fadeUp 0.3s ease forwards}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
@@ -5339,7 +5339,7 @@ function AdminDashboard({ onLogout }) {
         </div>
       </div>
 
-      {/* Tab nav — horizontal scroll on small screens */}
+      {/* Tab nav -- horizontal scroll on small screens */}
       <div style={{ padding: "0 18px", marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none", background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 4 }}>
           {[
@@ -5361,9 +5361,9 @@ function AdminDashboard({ onLogout }) {
 
       <div style={{ padding: "0 18px 100px" }}>
 
-        {loading && <div style={{ textAlign: "center", padding: "40px 0", color: "#475569" }}>Loading platform data…</div>}
+        {loading && <div style={{ textAlign: "center", padding: "40px 0", color: "#475569" }}>Loading platform data...</div>}
 
-        {/* ── INBOX ── */}
+        {/* -- INBOX -- */}
         {!loading && tab === "inbox" && (
           <div className="fadeUp">
             <SectionTitle>Needs your attention</SectionTitle>
@@ -5418,11 +5418,11 @@ function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* ── PROVIDERS ── */}
+        {/* -- PROVIDERS -- */}
         {!loading && tab === "providers" && (
           <div className="fadeUp">
             {/* Search */}
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, city…"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, city..."
               style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "11px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", marginBottom: 12 }} />
 
             {/* Status filter chips */}
@@ -5448,7 +5448,7 @@ function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* ── CUSTOMERS ── */}
+        {/* -- CUSTOMERS -- */}
         {!loading && tab === "customers" && (
           <div className="fadeUp">
             <SectionTitle>All customers ({customers.length})</SectionTitle>
@@ -5490,7 +5490,7 @@ function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* ── CONTENT MODERATION ── */}
+        {/* -- CONTENT MODERATION -- */}
         {!loading && tab === "content" && (
           <div className="fadeUp">
 
@@ -5516,9 +5516,9 @@ function AdminDashboard({ onLogout }) {
               </div>
             )}
 
-            {/* All platform reviews — can flag or remove */}
+            {/* All platform reviews -- can flag or remove */}
             <div style={{ marginBottom: 24 }}>
-              <SectionTitle>Platform reviews ({allReviews.length}) — avg {avgRating}★</SectionTitle>
+              <SectionTitle>Platform reviews ({allReviews.length}) -- avg {avgRating}★</SectionTitle>
               {allReviews.length === 0
                 ? <div style={{ color: "#475569", fontSize: 12, textAlign: "center", padding: "20px 0" }}>No reviews yet.</div>
                 : allReviews.slice(0, 30).map(r => (
@@ -5596,7 +5596,7 @@ function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* ── JOBS ── */}
+        {/* -- JOBS -- */}
         {!loading && tab === "jobs" && (
           <div className="fadeUp">
             {/* Summary */}
@@ -5616,11 +5616,11 @@ function AdminDashboard({ onLogout }) {
             {/* Stuck jobs first */}
             {stuckJobs.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <SectionTitle>⚠ Stuck jobs — no response in 48+ hours</SectionTitle>
+                <SectionTitle>⚠ Stuck jobs -- no response in 48+ hours</SectionTitle>
                 {stuckJobs.map(j => (
                   <div key={j.id} style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 12, padding: 14, marginBottom: 8 }}>
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#FCA5A5", marginBottom: 4 }}>{j.serviceName}</div>
-                    <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>{j.customerName} → {j.providerName}</div>
+                    <div style={{ fontSize: 11, color: "#64748B", marginBottom: 4 }}>{j.customerName} -> {j.providerName}</div>
                     <div style={{ fontSize: 11, color: "#475569" }}>Posted: {j.dateLabel || "Unknown"} · {j.address}</div>
                   </div>
                 ))}
@@ -5636,7 +5636,7 @@ function AdminDashboard({ onLogout }) {
                   <div key={j.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${st.color}22`, borderRadius: 12, padding: "12px 14px", marginBottom: 7 }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName || j.serviceType} · {j.customerName} → {j.providerName}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName || j.serviceType} · {j.customerName} -> {j.providerName}</div>
                         <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{j.description?.slice(0, 60)}</div>
                         <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{j.dateLabel} · {j.address?.slice(0,40)}</div>
                       </div>
@@ -5657,7 +5657,7 @@ function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* ── FINANCIALS ── */}
+        {/* -- FINANCIALS -- */}
         {!loading && tab === "financials" && (
           <div className="fadeUp">
             <SectionTitle>Revenue snapshot</SectionTitle>
@@ -5689,7 +5689,7 @@ function AdminDashboard({ onLogout }) {
 
             {/* Platform events breakdown */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 16 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Platform activity — all time</div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Platform activity -- all time</div>
               {[
                 { label: "Profile views",  val: events.filter(e=>e.type==="view").length,      color: "#6366F1" },
                 { label: "WhatsApp taps",  val: events.filter(e=>e.type==="whatsapp").length,  color: "#25D366" },
@@ -5705,7 +5705,7 @@ function AdminDashboard({ onLogout }) {
           </div>
         )}
 
-        {/* ── AUDIT LOG ── */}
+        {/* -- AUDIT LOG -- */}
         {!loading && tab === "log" && (
           <div className="fadeUp">
             <SectionTitle>Admin action log ({auditLog.length} entries)</SectionTitle>
@@ -5732,7 +5732,7 @@ function AdminDashboard({ onLogout }) {
 }
 
 
-// ─── PROVIDER STATUS SCREEN ──────────────────────────────────────────────────────
+// --- PROVIDER STATUS SCREEN ------------------------------------------------------
 function ProviderStatusScreen({ provider, onLogout }) {
   const isPending  = provider.status === "pending";
   const isRejected = provider.status === "rejected";
@@ -5761,7 +5761,7 @@ function ProviderStatusScreen({ provider, onLogout }) {
   );
 }
 
-// ─── PROVIDER VERIFICATION SECTION ──────────────────────────────────────────────
+// --- PROVIDER VERIFICATION SECTION ----------------------------------------------
 function ProviderVerificationSection({ provider, onUpdated }) {
   const [docType, setDocType]     = useState("id");
   const [docNumber, setDocNumber] = useState("");
@@ -5803,7 +5803,7 @@ function ProviderVerificationSection({ provider, onUpdated }) {
             placeholder={docType === "id" ? "SA ID number" : docType === "passport" ? "Passport number" : "CIPC registration number"}
             style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", marginBottom: 10 }} />
           <Btn small full onClick={submit} disabled={!docNumber.trim() || saving}>
-            {saved ? "Submitted ✓" : saving ? "Submitting…" : "Submit for verification"}
+            {saved ? "Submitted ✓" : saving ? "Submitting..." : "Submit for verification"}
           </Btn>
         </>
       )}
@@ -5811,7 +5811,7 @@ function ProviderVerificationSection({ provider, onUpdated }) {
   );
 }
 
-// ─── GPS SHARE TOGGLE (Provider) ─────────────────────────────────────────────────
+// --- GPS SHARE TOGGLE (Provider) -------------------------------------------------
 function GPSShareToggle({ providerId }) {
   const [sharing, setSharing] = useState(false);
   const [watchId, setWatchId] = useState(null);
@@ -5846,7 +5846,7 @@ function GPSShareToggle({ providerId }) {
   );
 }
 
-// ─── NOTIF TOGGLES ───────────────────────────────────────────────────────────────
+// --- NOTIF TOGGLES ---------------------------------------------------------------
 // Extracted into its own component so useState hooks are called at the top level
 function NotifToggles() {
   const [newLead,    setNewLead]    = useState(true);
@@ -5875,7 +5875,7 @@ function NotifToggles() {
   );
 }
 
-// ─── PROVIDER REVIEWS WIDGET ─────────────────────────────────────────────────────
+// --- PROVIDER REVIEWS WIDGET -----------------------------------------------------
 function ProviderReviews({ providerId }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5913,7 +5913,7 @@ function ProviderReviews({ providerId }) {
         )}
       </div>
       {reviews.length === 0 ? (
-        <div style={{ fontSize: 12, color: "#334155", textAlign: "center", padding: "16px 0" }}>No reviews yet — complete your first job to earn one.</div>
+        <div style={{ fontSize: 12, color: "#334155", textAlign: "center", padding: "16px 0" }}>No reviews yet -- complete your first job to earn one.</div>
       ) : reviews.slice(0, 5).map(r => (
         <div key={r.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -5930,7 +5930,7 @@ function ProviderReviews({ providerId }) {
   );
 }
 
-// ─── PROFILE COMPLETION SCORE ────────────────────────────────────────────────
+// --- PROFILE COMPLETION SCORE ------------------------------------------------
 const getProfileScore = (provider) => {
   const checks = [
     { label: "Business name",       done: !!provider.bizName,              tip: "Add in Account tab" },
@@ -5948,7 +5948,7 @@ const getProfileScore = (provider) => {
   return { score: Math.round((done / checks.length) * 100), checks, done, total: checks.length };
 };
 
-// ─── CUSTOMER DATA HELPERS ───────────────────────────────────────────────────
+// --- CUSTOMER DATA HELPERS ---------------------------------------------------
 const updateCustomerData = async (email, updates) => {
   try {
     const raw = await store.get("customers");
@@ -5959,7 +5959,7 @@ const updateCustomerData = async (email, updates) => {
   } catch { return null; }
 };
 
-// ─── PROVIDER UPDATE HELPER ──────────────────────────────────────────────────
+// --- PROVIDER UPDATE HELPER --------------------------------------------------
 const updateProviderData = async (providerId, updates) => {
   try {
     const raw = await store.get("providers");
@@ -5970,7 +5970,6 @@ const updateProviderData = async (providerId, updates) => {
   } catch { return null; }
 };
 
-────
 function AvailabilityManager({ providerId }) {
   const [avail, setAvail]       = useState(null);
   const [saving, setSaving]     = useState(false);
@@ -6039,13 +6038,13 @@ function AvailabilityManager({ providerId }) {
       </div>
 
       <Btn small full onClick={save} disabled={saving}>
-        {saved ? "✓ Saved!" : saving ? "Saving…" : "Save availability"}
+        {saved ? "✓ Saved!" : saving ? "Saving..." : "Save availability"}
       </Btn>
     </div>
   );
 }
 
-// ─── DEALS MANAGER ───────────────────────────────────────────────────────────────
+// --- DEALS MANAGER ---------------------------------------------------------------
 function DealsManager({ provider }) {
   const [currentDeal, setCurrentDeal] = useState(null);
   const [form, setForm]     = useState({ headline: "", description: "", serviceId: provider.services?.[0] || "", slotsLeft: 3 });
@@ -6125,7 +6124,7 @@ function DealsManager({ provider }) {
           <div style={{ display: "flex", gap: 8 }}>
             <Btn small variant="ghost" onClick={() => setAdding(false)} style={{ flex: 1 }}>Cancel</Btn>
             <Btn small onClick={save} disabled={saving || !form.headline.trim()} style={{ flex: 1, background: "linear-gradient(135deg,#F59E0B,#D97706)", border: "none" }}>
-              {saving ? "Posting…" : "Post deal"}
+              {saving ? "Posting..." : "Post deal"}
             </Btn>
           </div>
         </div>
@@ -6139,7 +6138,7 @@ function DealsManager({ provider }) {
   );
 }
 
-// ─── PROVIDER DASHBOARD ───────────────────────────────────────────────────────────
+// --- PROVIDER DASHBOARD -----------------------------------------------------------
 function ProviderDashboard({ provider: initialProvider, onLogout }) {
   const [tab, setTab]           = useState("jobs");
   const [provider, setProvider] = useState(initialProvider);
@@ -6283,7 +6282,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
     await updateProviderData(provider.id, { available: next });
   };
 
-  // ── Derived stats ──────────────────────────────────────────────────────
+  // -- Derived stats ------------------------------------------------------
   const now        = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const thisMonth  = leads.filter(l => l.ts >= monthStart);
@@ -6303,7 +6302,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
   const barData = days.map((d, i) => leads.filter(l => { const ld = new Date(l.ts); return ld.getDay() === (i + 1) % 7; }).length);
   const barMax  = Math.max(...barData, 1);
 
-  // ── Job lists ──────────────────────────────────────────────────────────
+  // -- Job lists ----------------------------------------------------------
   const activeStatuses   = ["pending","accepted","onroute","inprogress"];
   const filteredProvJobs = jobFilter === "active"    ? providerJobs.filter(j => activeStatuses.includes(j.status))
                          : jobFilter === "completed" ? providerJobs.filter(j => j.status === "completed")
@@ -6331,7 +6330,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         button{WebkitTapHighlightColor:transparent}
       `}</style>
 
-      {/* ── HEADER ── */}
+      {/* -- HEADER -- */}
       <div style={{ padding: "44px 18px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -6375,7 +6374,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         </div>
       </div>
 
-      {/* ── BOTTOM NAV ── */}
+      {/* -- BOTTOM NAV -- */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {[["jobs","jobs","Jobs"],["dashboard","overview","Dashboard"],["profile","profile","My Profile"],["account","settings","Account"]].map(([id,iconName,label]) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
@@ -6390,10 +6389,10 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         ))}
       </div>
 
-      {/* ── TAB CONTENT ── */}
+      {/* -- TAB CONTENT -- */}
       <div style={{ padding: "0 18px 100px" }}>
 
-        {/* ── JOBS TAB ── */}
+        {/* -- JOBS TAB -- */}
         {tab === "jobs" && (
           <div className="fadeUp">
             <div style={{ marginBottom: 16 }}>
@@ -6444,7 +6443,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   {jobFilter === "active" ? "No active jobs" : "No jobs yet"}
                 </div>
                 <div style={{ fontSize: 12, marginTop: 6, color: "#334155", lineHeight: 1.6 }}>
-                  {jobFilter === "active" ? "All caught up — new requests appear here." : "Job requests from customers appear here."}
+                  {jobFilter === "active" ? "All caught up -- new requests appear here." : "Job requests from customers appear here."}
                 </div>
               </div>
             ) : filteredProvJobs.map((job, i) => {
@@ -6518,7 +6517,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                       </>
                     )}
                     {job.status === "accepted" && (
-                      <Btn small variant="primary" onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", border: "none" }}>On My Way →</Btn>
+                      <Btn small variant="primary" onClick={() => handleJobAction(job.id, "onroute")} style={{ flex: 1, background: "linear-gradient(135deg,#8B5CF6,#6366F1)", border: "none" }}>On My Way -></Btn>
                     )}
                     {job.status === "onroute" && (
                       <Btn small variant="primary" onClick={() => handleJobAction(job.id, "inprogress")} style={{ flex: 1, background: "linear-gradient(135deg,#06B6D4,#0EA5E9)", border: "none" }}>Start Work</Btn>
@@ -6533,7 +6532,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           </div>
         )}
 
-        {/* ── DASHBOARD TAB ── */}
+        {/* -- DASHBOARD TAB -- */}
         {tab === "dashboard" && (
           <div className="fadeUp">
 
@@ -6561,14 +6560,14 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               );
             })()}
 
-            {/* Availability toggle — top priority */}
+            {/* Availability toggle -- top priority */}
             <div onClick={toggleAvailability} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: available ? "rgba(16,185,129,0.09)" : "rgba(239,68,68,0.07)", border: `1.5px solid ${available ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 16, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
               <div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: available ? "#34D399" : "#FCA5A5" }}>
                   {available ? "🟢 Open for business" : "🔴 Not available"}
                 </div>
                 <div style={{ fontSize: 11, color: available ? "#065F46" : "#7F1D1D", marginTop: 3 }}>
-                  {available ? "You appear in search results — tap to go offline" : "Hidden from search — tap to go online"}
+                  {available ? "You appear in search results -- tap to go offline" : "Hidden from search -- tap to go online"}
                 </div>
               </div>
               <div style={{ width: 46, height: 25, borderRadius: 13, background: available ? "#10B981" : "#EF4444", position: "relative", flexShrink: 0 }}>
@@ -6605,7 +6604,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 return [
                   { val: completed,                                                          label: "Jobs done",   color: "#10B981" },
                   { val: pending,                                                            label: "Awaiting",    color: "#F59E0B" },
-                  { val: avgMins !== null ? formatResponseTime(avgMins) : "—",               label: "Avg response", color: tier?.color || "#64748B" },
+                  { val: avgMins !== null ? formatResponseTime(avgMins) : "--",               label: "Avg response", color: tier?.color || "#64748B" },
                 ].map(({ val, label, color }) => (
                   <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "11px 10px", textAlign: "center" }}>
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color }}>{val}</div>
@@ -6623,7 +6622,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               if (!completedWithValue.length) return null;
               return (
                 <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 13, padding: 14, marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#10B981", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Earnings — declared jobs</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#10B981", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Earnings -- declared jobs</div>
                   <div style={{ display: "flex", gap: 16 }}>
                     <div>
                       <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#34D399" }}>R{totalEarned.toLocaleString("en-ZA",{maximumFractionDigits:0})}</div>
@@ -6699,7 +6698,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   Lead credits this month: <strong>R{referralCredits.toLocaleString()}</strong>
                 </div>
               )}
-              <Btn small variant="ghost" onClick={() => setTab("account")} style={{ fontSize: 11 }}>Manage plan →</Btn>
+              <Btn small variant="ghost" onClick={() => setTab("account")} style={{ fontSize: 11 }}>Manage plan -></Btn>
             </div>
 
             {/* Milestones */}
@@ -6769,7 +6768,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           </div>
         )}
 
-        {/* ── MY PROFILE TAB ── */}
+        {/* -- MY PROFILE TAB -- */}
         {tab === "profile" && (
           <div className="fadeUp">
             {/* Profile completion score */}
@@ -6785,7 +6784,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {profileScore.checks.filter(c => !c.done).slice(0, 3).map(c => (
                     <div key={c.label} style={{ fontSize: 11, color: "#F59E0B", display: "flex", gap: 6 }}>
-                      <span>→</span><span>{c.label} — {c.tip}</span>
+                      <span>-></span><span>{c.label} -- {c.tip}</span>
                     </div>
                   ))}
                 </div>
@@ -6808,7 +6807,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               </button>
             </div>
 
-            {/* Availability Manager — moved to top, most important */}
+            {/* Availability Manager -- moved to top, most important */}
             <AvailabilityManager providerId={provider.id} />
 
             {/* Deals Manager */}
@@ -6821,7 +6820,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 ? <Btn small variant="ghost" onClick={() => setEditMode(true)}>Edit</Btn>
                 : <div style={{ display: "flex", gap: 8 }}>
                     <Btn small variant="ghost" onClick={() => setEditMode(false)}>Cancel</Btn>
-                    <Btn small variant="green" onClick={saveProfile} disabled={saving}>{saving ? "Saving…" : "Save ✓"}</Btn>
+                    <Btn small variant="green" onClick={saveProfile} disabled={saving}>{saving ? "Saving..." : "Save ✓"}</Btn>
                   </div>}
             </div>
 
@@ -6832,7 +6831,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Tagline</div>
               {editMode
                 ? <input value={editForm.tagline} onChange={e => setEditForm(f=>({...f,tagline:e.target.value}))} placeholder="e.g. KZN's most trusted plumber since 2008" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                : <div style={{ fontSize: 13, color: provider.tagline ? "#E2E8F0" : "#334155", fontStyle: provider.tagline ? "italic" : "normal" }}>{provider.tagline || "No tagline set — add one to stand out"}</div>
+                : <div style={{ fontSize: 13, color: provider.tagline ? "#E2E8F0" : "#334155", fontStyle: provider.tagline ? "italic" : "normal" }}>{provider.tagline || "No tagline set -- add one to stand out"}</div>
               }
             </div>
 
@@ -6840,7 +6839,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>About</div>
               {editMode
-                ? <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} placeholder="Describe your experience, specialties, and what makes you stand out…" rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                ? <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} placeholder="Describe your experience, specialties, and what makes you stand out..." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
                 : <div style={{ fontSize: 13, color: provider.description ? "#94A3B8" : "#334155", lineHeight: 1.6 }}>{provider.description || "No description set"}</div>
               }
             </div>
@@ -6868,7 +6867,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Certifications &amp; licences</div>
               {editMode
                 ? <input value={editForm.certifications} onChange={e => setEditForm(f=>({...f,certifications:e.target.value}))} placeholder="e.g. Licensed Electrician · COC Certified · ECSA Registered" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                : <div style={{ fontSize: 13, color: provider.certifications ? "#E2E8F0" : "#334155" }}>{provider.certifications || "None listed — add your qualifications"}</div>
+                : <div style={{ fontSize: 13, color: provider.certifications ? "#E2E8F0" : "#334155" }}>{provider.certifications || "None listed -- add your qualifications"}</div>
               }
             </div>
 
@@ -6877,7 +6876,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Logo URL</div>
               {editMode
                 ? <input value={editForm.logoUrl} onChange={e => setEditForm(f=>({...f,logoUrl:e.target.value}))} placeholder="https://imgur.com/your-logo.png" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-                : <div style={{ fontSize: 13, color: provider.logoUrl ? "#0EA5E9" : "#334155" }}>{provider.logoUrl ? "✓ Logo set" : "No logo — upload to imgur.com and paste the link"}</div>
+                : <div style={{ fontSize: 13, color: provider.logoUrl ? "#0EA5E9" : "#334155" }}>{provider.logoUrl ? "✓ Logo set" : "No logo -- upload to imgur.com and paste the link"}</div>
               }
             </div>
 
@@ -6988,12 +6987,12 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           </div>
         )}
 
-        {/* ── ACCOUNT TAB ── */}
+        {/* -- ACCOUNT TAB -- */}
         {tab === "account" && (
           <div className="fadeUp">
             <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Account</div>
 
-            {/* Contact info — editable */}
+            {/* Contact info -- editable */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>Contact info</div>
@@ -7001,7 +7000,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   ? <Btn small variant="ghost" onClick={() => setEditContactMode(true)}>Edit</Btn>
                   : <div style={{ display: "flex", gap: 8 }}>
                       <Btn small variant="ghost" onClick={() => setEditContactMode(false)}>Cancel</Btn>
-                      <Btn small variant="green" onClick={saveContactInfo} disabled={savingContact}>{savingContact ? "Saving…" : "Save"}</Btn>
+                      <Btn small variant="green" onClick={saveContactInfo} disabled={savingContact}>{savingContact ? "Saving..." : "Save"}</Btn>
                     </div>
                 }
               </div>
@@ -7060,7 +7059,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         )}
       </div>
 
-      {/* ── MODALS ── */}
+      {/* -- MODALS -- */}
       {showNotifs       && <NotificationsPanel userId={provider.id} onClose={() => setShowNotifs(false)} />}
       {providerChatJob  && <ChatModal job={providerChatJob} user={{ email: provider.id, name: provider.bizName, ...provider }} userRole="provider" onClose={() => setProviderChatJob(null)} />}
       {showTraining     && <TrainingContent onClose={() => setShowTraining(false)} />}
@@ -7071,8 +7070,8 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
 }
 
 
-// ─── ROOT ────────────────────────────────────────────────────────────────────────
-// Register service worker — only in real deployments, not inside Claude or localhost
+// --- ROOT ------------------------------------------------------------------------
+// Register service worker -- only in real deployments, not inside Claude or localhost
 if (typeof window !== "undefined" &&
     "serviceWorker" in navigator &&
     !window.location.hostname.includes("claudeusercontent.com") &&

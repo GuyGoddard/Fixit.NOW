@@ -1026,7 +1026,7 @@ function Wordmark({ size = 20, showTagline = false }) {
         <span style={{ color: "#F59E0B" }}>now</span>
       </span>
       {showTagline && (
-        <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 9, color: "#334155", letterSpacing: "0.16em" }}>
+        <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "#334155", letterSpacing: "0.16em" }}>
           TRUSTED HOME SERVICES
         </span>
       )}
@@ -1374,12 +1374,12 @@ function AuthScreen({ onLogin }) {
           <span style={{ color: "#F59E0B" }}>now</span>
         </div>
         <p style={{ color: "#64748B", fontSize: 14, lineHeight: "1.6", marginBottom: 8 }}>Trusted pros. Fixed fast.</p>
-        <p style={{ color: "#334155", fontSize: 12, lineHeight: "1.6", marginBottom: 36 }}>Plumbers · Electricians · Security · Handymen · 24/7</p>
+        <p style={{ color: "#64748B", fontSize: 13, lineHeight: "1.7", marginBottom: 36 }}>Plumbers · Electricians · Security · Handymen · 24/7</p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Customer lane */}
           <div style={{ background: "rgba(14,165,233,0.06)", border: "1px solid rgba(14,165,233,0.15)", borderRadius: 16, padding: "16px 16px 12px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#0EA5E9", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>I need a service</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#0EA5E9", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>I need a service</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <Btn full onClick={() => setMode("signup")}>Sign up -- find pros near me</Btn>
               <Btn full variant="ghost" onClick={() => setMode("login")}>Sign in to my account</Btn>
@@ -1394,7 +1394,7 @@ function AuthScreen({ onLogin }) {
 
           {/* Provider lane */}
           <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)", borderRadius: 16, padding: "16px 16px 12px" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>I'm a service provider</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#F59E0B", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>I'm a service provider</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <Btn full onClick={() => setMode("provider")} style={{ background: "linear-gradient(135deg,#F59E0B,#D97706)" }}>Register my business</Btn>
               <Btn full variant="ghost" onClick={() => setMode("providerLogin")}>Business dashboard</Btn>
@@ -1414,7 +1414,7 @@ function AuthScreen({ onLogin }) {
         <Logo size={36} />
         <Wordmark size={20} showTagline />
       </div>
-      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 24, color: "#F1F5F9", marginBottom: 6 }}>Admin Portal</h2>
+      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, color: "#F1F5F9", marginBottom: 8 }}>Admin Portal</h2>
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Enter your access code to continue.</p>
 
       <div style={{ marginBottom: 14 }}>
@@ -1441,7 +1441,7 @@ function AuthScreen({ onLogin }) {
         <Logo size={36} />
         <Wordmark size={20} showTagline />
       </div>
-      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 24, color: "#F1F5F9", marginBottom: 6 }}>Welcome back</h2>
+      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, color: "#F1F5F9", marginBottom: 8 }}>Welcome back</h2>
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Sign in to find home service pros near you.</p>
       <Input label="Email" value={form.email} onChange={v => set("email", v)} placeholder="you@email.com" type="email" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
@@ -1503,10 +1503,10 @@ function AuthScreen({ onLogin }) {
         <Logo size={36} />
         <div>
           <Wordmark size={20} />
-          <div style={{ fontSize: 9, color: "#334155", letterSpacing: "0.14em", marginTop: 2 }}>PROVIDER PORTAL</div>
+          <div style={{ fontSize: 11, color: "#334155", letterSpacing: "0.14em", marginTop: 4 }}>PROVIDER PORTAL</div>
         </div>
       </div>
-      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 24, color: "#F1F5F9", marginBottom: 6 }}>Provider sign in</h2>
+      <h2 style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 26, color: "#F1F5F9", marginBottom: 8 }}>Provider sign in</h2>
       <p style={{ color: "#64748B", fontSize: 13, marginBottom: 28 }}>Sign in with the email you used to register your business.</p>
       <Input label="Business Email" value={form.email} onChange={v => set("email", v)} placeholder="you@business.co.za" type="email" />
       <Input label="Password" value={form.password} onChange={v => set("password", v)} placeholder="••••••••" type="password" />
@@ -1643,7 +1643,7 @@ function ProviderRegistration({ onBack, onDone }) {
             <textarea value={form.description} onChange={e => set("description", e.target.value)}
               placeholder="Tell customers what makes you different. What do you specialise in? Why should they choose you over anyone else?"
               rows={4}
-              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
           </div>
 
           {/* Trust & credentials */}
@@ -1652,30 +1652,30 @@ function ProviderRegistration({ onBack, onDone }) {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Years in business</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 4, fontFamily: "'DM Sans',sans-serif" }}>Years in business</label>
                 <input type="number" value={form.yearsInBusiness} onChange={e => set("yearsInBusiness", e.target.value)} placeholder="e.g. 12"
                   style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Call-out fee from (R)</label>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 4, fontFamily: "'DM Sans',sans-serif" }}>Call-out fee from (R)</label>
                 <input type="number" value={form.priceRangeMin} onChange={e => set("priceRangeMin", e.target.value)} placeholder="e.g. 350"
                   style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
               </div>
             </div>
 
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Certifications & licences</label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 4, fontFamily: "'DM Sans',sans-serif" }}>Certifications & licences</label>
               <input value={form.certifications} onChange={e => set("certifications", e.target.value)}
                 placeholder="e.g. Licensed electrician, ECSA registered, COC certified"
                 style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
             </div>
 
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 5, fontFamily: "'DM Sans',sans-serif" }}>Logo URL <span style={{ color: "#334155", fontWeight: 400, textTransform: "none" }}>(paste a link to your logo image)</span></label>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.07em", textTransform: "uppercase", display: "block", marginBottom: 4, fontFamily: "'DM Sans',sans-serif" }}>Logo URL <span style={{ color: "#334155", fontWeight: 400, textTransform: "none" }}>(paste a link to your logo image)</span></label>
               <input value={form.logoUrl} onChange={e => set("logoUrl", e.target.value)}
                 placeholder="https://imgur.com/your-logo.png"
                 style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1.5px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
-              <div style={{ fontSize: 10, color: "#334155", marginTop: 3 }}>Free upload: imgur.com · Free image host for business logos</div>
+              <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>Free upload: imgur.com · Free image host for business logos</div>
             </div>
 
             {/* Trust checkboxes */}
@@ -1753,7 +1753,7 @@ function ProviderRegistration({ onBack, onDone }) {
                         )}
                       </div>
                     ) : selected ? (
-                      <div style={{ fontSize: 11, color: "#F59E0B", marginTop: 2 }}>⚠ Select areas below</div>
+                      <div style={{ fontSize: 11, color: "#F59E0B", marginTop: 4 }}>⚠ Select areas below</div>
                     ) : (
                       <div style={{ fontSize: 11, color: "#334155" }}>{s.desc}</div>
                     )}
@@ -1827,7 +1827,7 @@ function ProviderRegistration({ onBack, onDone }) {
           <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: 12, padding: 14, marginBottom: 20, marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "#FCA5A5" }}>Available 24/7 for emergencies?</div>
-              <div style={{ fontSize: 11, color: "#7F1D1D", marginTop: 2 }}>Increases your ranking significantly</div>
+              <div style={{ fontSize: 11, color: "#7F1D1D", marginTop: 4 }}>Increases your ranking significantly</div>
             </div>
             <div onClick={() => set("emergency", !form.emergency)} style={{ width: 44, height: 24, borderRadius: 12, background: form.emergency ? "#EF4444" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
               <div style={{ position: "absolute", top: 3, left: form.emergency ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
@@ -1854,7 +1854,7 @@ function ProviderRegistration({ onBack, onDone }) {
           {PLANS.map(p => (
             <div key={p.id} onClick={() => set("plan", p.id)}
               style={{ background: form.plan === p.id ? `${p.color}12` : "rgba(255,255,255,0.03)", border: `1.5px solid ${form.plan === p.id ? p.color+"55" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 10, cursor: "pointer", transition: "all 0.2s", position: "relative" }}>
-              {p.id === "featured" && <span style={{ position: "absolute", top: -1, right: 14, background: p.color, color: "white", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: "0 0 6px 6px", letterSpacing: "0.08em" }}>POPULAR</span>}
+              {p.id === "featured" && <span style={{ position: "absolute", top: -1, right: 14, background: p.color, color: "white", fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: "0 0 6px 6px", letterSpacing: "0.08em" }}>POPULAR</span>}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: form.plan === p.id ? "#F1F5F9" : "#94A3B8" }}>{p.label}</div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: p.color }}>{p.priceLabel}</div>
@@ -1915,7 +1915,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
 
         {done ? (
           <div style={{ textAlign: "center", padding: "16px 0 8px" }}>
@@ -1934,7 +1934,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
               </div>
               <div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Rate your experience</div>
-                <div style={{ fontSize: 12, color: "#475569" }}>{providerName} · {serviceName}</div>
+                <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>{providerName} · {serviceName}</div>
               </div>
             </div>
 
@@ -1957,7 +1957,7 @@ function ReviewModal({ job, provider: providerProp, serviceType: serviceTypeProp
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Comments (optional)</label>
               <textarea value={comment} onChange={e => setComment(e.target.value)}
                 placeholder="Quality of work, punctuality, professionalism..." rows={3}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
@@ -1989,7 +1989,7 @@ function NotificationBell({ userId, onOpen }) {
     <div onClick={onOpen} style={{ position: "relative", width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
       <Icon name="bell" size={16} color="currentColor" strokeWidth={1.8} />
       {unread > 0 && (
-        <div style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: "50%", background: "#EF4444", fontSize: 9, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #060A14" }}>{unread > 9 ? "9+" : unread}</div>
+        <div style={{ position: "absolute", top: -2, right: -2, width: 16, height: 16, borderRadius: "50%", background: "#EF4444", fontSize: 11, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #060A14" }}>{unread > 9 ? "9+" : unread}</div>
       )}
     </div>
   );
@@ -2005,30 +2005,46 @@ function NotificationsPanel({ userId, onClose }) {
   }, [userId]);
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingTop: 56 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, width: "calc(100% - 32px)", maxWidth: 340, margin: "0 16px", maxHeight: "70vh", overflowY: "auto", padding: "16px 0" }}>
-        <div style={{ padding: "0 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>Notifications</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#475569", fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", width: "100%", maxWidth: 500, maxHeight: "80vh", overflowY: "auto", borderRadius: "20px 20px 0 0", border: "1px solid rgba(255,255,255,0.1)" }}>
+        {/* Handle */}
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "16px auto 0" }} />
+        {/* Header */}
+        <div style={{ padding: "14px 18px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#0D1526", zIndex: 1 }}>
+          <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>Notifications</div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "none", color: "#94A3B8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>×</button>
         </div>
+        {/* Items */}
         {notifs.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "32px 16px", color: "#334155", fontSize: 13 }}>No notifications yet</div>
+          <div style={{ textAlign: "center", padding: "44px 16px" }}>
+            <div style={{ marginBottom: 12 }}><Icon name="bell" size={36} color="#334155" strokeWidth={1.4} /></div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#475569", marginBottom: 6 }}>All caught up</div>
+            <div style={{ fontSize: 13, color: "#334155", lineHeight: 1.6 }}>Notifications about your jobs and account will appear here.</div>
+          </div>
         ) : notifs.map(n => (
-          <div key={n.id} style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: n.read ? "transparent" : "rgba(14,165,233,0.05)" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <div key={n.id} onClick={onClose}
+            style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: n.read ? "transparent" : "rgba(14,165,233,0.04)", cursor: "pointer", transition: "background 0.15s", WebkitTapHighlightColor: "transparent" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+            onMouseLeave={e => e.currentTarget.style.background = n.read ? "transparent" : "rgba(14,165,233,0.04)"}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
               <NotifIcon type={n.type} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", lineHeight: 1.3 }}>{n.title}</div>
-                <div style={{ fontSize: 11, color: "#64748B", marginTop: 3, lineHeight: 1.5 }}>{n.body}</div>
-                <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{new Date(n.ts).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })} · {new Date(n.ts).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: n.read ? 500 : 700, color: "#F1F5F9", lineHeight: 1.4 }}>{n.title}</div>
+                  {!n.read && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#0EA5E9", flexShrink: 0, marginTop: 5 }} />}
+                </div>
+                <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.5, marginBottom: 4 }}>{n.body}</div>
+                <div style={{ fontSize: 11, color: "#334155" }}>{new Date(n.ts).toLocaleDateString("en-ZA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
               </div>
             </div>
           </div>
         ))}
+        <div style={{ height: 24 }} />
       </div>
     </div>
   );
 }
+
 
 // --- SALES MOMENT MODAL ----------------------------------------------------------
 // Provider sees this when tapping "Mark Complete" -- they can set a discount offer
@@ -2046,7 +2062,10 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
   return (
     <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "90vh", overflowY: "auto" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto" }} />
+          <button onClick={onCancel} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "none", color: "#94A3B8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>×</button>
+        </div>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -2055,7 +2074,7 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
           </div>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Complete job & make a sale</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>{job.customerName} · {svc?.label}</div>
+            <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>{job.customerName} · {svc?.label}</div>
           </div>
         </div>
 
@@ -2070,7 +2089,7 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
           <textarea value={customNote} onChange={e => setCustomNote(e.target.value)}
             placeholder={`Hi ${job.customerName}, thanks for choosing ${provider.bizName}! It was a pleasure working on your home.`}
             rows={3}
-            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
         </div>
 
         {/* Discount offer toggle */}
@@ -2078,7 +2097,7 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: offerDiscount ? 14 : 0 }}>
             <div>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#FCD34D" }}>Offer a loyalty discount</div>
-              <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>Customer gets % off their next booking with you</div>
+              <div style={{ fontSize: 11, color: "#78350F", marginTop: 4 }}>Customer gets % off their next booking with you</div>
             </div>
             <div onClick={() => setOfferDiscount(v => !v)} style={{ width: 42, height: 23, borderRadius: 12, background: offerDiscount ? "#F59E0B" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
               <div style={{ position: "absolute", top: 3, left: offerDiscount ? 22 : 3, width: 17, height: 17, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
@@ -2106,7 +2125,7 @@ function SalesMomentModal({ job, provider, onCancel, onConfirm }) {
               <div style={{ marginTop: 14, background: "rgba(0,0,0,0.2)", borderRadius: 9, padding: "10px 12px" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Customer will see</div>
                 <div style={{ fontSize: 12, color: "#FCD34D", fontWeight: 600 }}>{discountPct}% off your next {svc?.label?.toLowerCase()} booking with {provider.bizName}</div>
-                <div style={{ fontSize: 11, color: "#78350F", marginTop: 3 }}>Valid for 90 days · Share with a friend for the same deal</div>
+                <div style={{ fontSize: 11, color: "#78350F", marginTop: 4 }}>Valid for 90 days · Share with a friend for the same deal</div>
               </div>
             </>
           )}
@@ -2172,13 +2191,13 @@ function CompletionPopup({ notification, user, onClose }) {
     setStep("done");
   };
 
-  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" };
+  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" };
   const labelMap   = { 1: "Poor", 2: "Below average", 3: "Average", 4: "Good", 5: "Excellent!" };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 48px", maxHeight: "92vh", overflowY: "auto" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
 
         {step === "offer" && (
           <>
@@ -2240,7 +2259,7 @@ function CompletionPopup({ notification, user, onClose }) {
               </div>
               <div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Rate {notification.providerName}</div>
-                <div style={{ fontSize: 12, color: "#475569" }}>{notification.serviceName} · Your review helps others</div>
+                <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>{notification.serviceName} · Your review helps others</div>
               </div>
             </div>
 
@@ -2307,7 +2326,7 @@ function CreditWallet({ user }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 13, color: "#A5B4FC" }}>Referral Credits</div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: "#F1F5F9", marginTop: 2 }}>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 28, color: "#F1F5F9", marginTop: 4 }}>
               R{total}<span style={{ fontSize: 13, color: "#64748B", fontWeight: 600 }}> available</span>
             </div>
           </div>
@@ -2327,7 +2346,7 @@ function CreditWallet({ user }) {
               <div style={{ width: 28, height: 28, borderRadius: 8, background: `${color}18`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Icon name={icon} size={13} color={color} strokeWidth={2} />
               </div>
-              <span style={{ fontSize: 12, color: "#94A3B8" }}>{text}</span>
+              <span style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>{text}</span>
             </div>
           ))}
         </div>
@@ -2335,7 +2354,7 @@ function CreditWallet({ user }) {
         {/* Your ref code */}
         <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 10, padding: "10px 12px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 10, color: "#475569", marginBottom: 2 }}>Your referral code</div>
+            <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>Your referral code</div>
             <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 20, color: "#A5B4FC", letterSpacing: "0.15em" }}>{refCode}</div>
           </div>
           <button onClick={() => { navigator.clipboard?.writeText(refLink); }}
@@ -2363,7 +2382,7 @@ function CreditWallet({ user }) {
             <div key={c.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "10px 14px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 12, color: "#E2E8F0", fontWeight: 600 }}>{c.fromName} joined via your link</div>
-                <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{c.dateLabel}</div>
+                <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{c.dateLabel}</div>
               </div>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 16, color: c.redeemed ? "#475569" : "#34D399" }}>
                 {c.redeemed ? "Used" : `+R${c.amount}`}
@@ -2401,7 +2420,7 @@ function DiscountWallet({ customerId }) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F1F5F9" }}>{d.discountPct}% off with {d.bizName}</div>
-              <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>Earned {d.dateLabel} · {daysLeft > 0 ? `${daysLeft} days left` : "Expires today"}</div>
+              <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Earned {d.dateLabel} · {daysLeft > 0 ? `${daysLeft} days left` : "Expires today"}</div>
             </div>
             <div style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "3px 9px", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", color: "#34D399", flexShrink: 0 }}>Active</div>
           </div>
@@ -2470,7 +2489,7 @@ function ChatModal({ job, user, userRole, onClose }) {
                 <div style={{ maxWidth: "78%", background: isMe ? "linear-gradient(135deg,#0EA5E9,#6366F1)" : "rgba(255,255,255,0.07)", borderRadius: isMe ? "14px 14px 4px 14px" : "14px 14px 14px 4px", padding: "9px 13px" }}>
                   <div style={{ fontSize: 13, color: "#F1F5F9", lineHeight: 1.5 }}>{m.message}</div>
                 </div>
-                <div style={{ fontSize: 9, color: "#334155", marginTop: 3 }}>{m.timeLabel}</div>
+                <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>{m.timeLabel}</div>
               </div>
             );
           })}
@@ -2560,7 +2579,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Get quotes from pros</div>
         <div style={{ fontSize: 12, color: "#475569", marginBottom: 20 }}>We'll match you with the top 3 providers and they'll send you their best price.</div>
 
@@ -2582,7 +2601,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
               <textarea value={description} onChange={e => setDescription(e.target.value)}
                 placeholder="e.g. My geyser burst, water leaking in kitchen ceiling..."
                 rows={3}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
             </div>
 
             <Input label="Your location" value={location} onChange={setLocation} placeholder="Suburb, Durban" />
@@ -2594,7 +2613,7 @@ function QuoteRequestModal({ user, onClose, onDone }) {
                   <div key={id} onClick={() => setUrgency(id)}
                     style={{ flex: 1, background: urgency === id ? "rgba(14,165,233,0.15)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${urgency === id ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, padding: "10px 8px", cursor: "pointer", textAlign: "center" }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: urgency === id ? "#38BDF8" : "#64748B" }}>{label}</div>
-                    <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{sub}</div>
+                    <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{sub}</div>
                   </div>
                 ))}
               </div>
@@ -2633,7 +2652,7 @@ function AddressBookModal({ user, onSelect, onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 110, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "80vh", overflowY: "auto" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 16 }}>Saved addresses</div>
 
         {/* Home address always first */}
@@ -2705,14 +2724,14 @@ function GPSTrackerModal({ job, onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(16,185,129,0.15)", border: "1.5px solid rgba(16,185,129,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon name="location" size={20} color="#10B981" strokeWidth={1.8} />
           </div>
           <div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Track {job.providerName}</div>
-            <div style={{ fontSize: 12, color: "#475569" }}>{job.status === "inprogress" ? "On the way to you" : "Provider location"}</div>
+            <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>{job.status === "inprogress" ? "On the way to you" : "Provider location"}</div>
           </div>
         </div>
 
@@ -2741,7 +2760,7 @@ function VerificationBadge({ verification, compact = false }) {
   const color = status === "verified" ? "#10B981" : status === "pending" ? "#F59E0B" : "#64748B";
   const label = status === "verified" ? "Verified" : status === "pending" ? "Pending" : "Unverified";
   if (compact) return (
-    <span style={{ fontSize: 9, fontWeight: 700, borderRadius: 20, padding: "2px 7px", background: `${color}20`, border: `1px solid ${color}44`, color, display: "inline-flex", alignItems: "center", gap: 3 }}>
+    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 20, padding: "2px 7px", background: `${color}20`, border: `1px solid ${color}44`, color, display: "inline-flex", alignItems: "center", gap: 4 }}>
       <Icon name="check" size={8} color={color} strokeWidth={2.5} />{label}
     </span>
   );
@@ -2760,7 +2779,7 @@ function CommunitySection({ providerId }) {
   if (!reviews.length) return null;
   return (
     <div style={{ margin: "16px 20px 0" }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
         Community recommendations ({reviews.length})
       </div>
       <div style={{ fontSize: 11, color: "#334155", marginBottom: 10, fontStyle: "italic" }}>
@@ -2857,7 +2876,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
               {provider.tagline && (
                 <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.5, marginBottom: 6, fontStyle: "italic", letterSpacing: "0.01em" }}>"{provider.tagline}"</div>
               )}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 <Badge color={svc.color}>{svc.label}</Badge>
                 {provider.emergency && <Badge color="#EF4444">24hr</Badge>}
                 {provider.plan === "premium" && <Badge color="#F59E0B">Premium</Badge>}
@@ -2876,7 +2895,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
             ].map(({ val, sub, color }) => (
               <div key={sub} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 11, padding: "10px 8px", textAlign: "center" }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color }}>{val}</div>
-                <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{sub}</div>
+                <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>{sub}</div>
               </div>
             ))}
           </div>
@@ -2898,7 +2917,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
         {/* About */}
         {provider.description && (
           <div style={{ margin: "16px 20px 0" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>About</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>About</div>
             <div style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.8, background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: "14px 16px" }}>
               {provider.description}
             </div>
@@ -2908,7 +2927,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
         {/* Trust signals */}
         {trustSignals.length > 0 && (
           <div style={{ margin: "16px 20px 0" }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Why trust us</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Why trust us</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {trustSignals.map((signal, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: `${signal.color}08`, border: `1px solid ${signal.color}20`, borderRadius: 10, padding: "10px 14px" }}>
@@ -2924,7 +2943,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
 
         {/* Location & contact */}
         <div style={{ margin: "16px 20px 0" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Contact & location</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Contact & location</div>
           <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, overflow: "hidden" }}>
             {[
               provider.vicinity  && { icon: "pin",      label: "Based in",  val: provider.vicinity },
@@ -2933,7 +2952,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                 <Icon name={row.icon} size={14} color="#475569" strokeWidth={1.8} />
                 <span style={{ fontSize: 11, color: "#475569", minWidth: 60 }}>{row.label}</span>
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>{row.val}</span>
+                <span style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>{row.val}</span>
               </div>
             ))}
           </div>
@@ -2942,7 +2961,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
         {/* Reviews */}
         <div style={{ margin: "16px 20px 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               Reviews {reviewCount > 0 && `(${reviewCount})`}
             </div>
             {rating > 0 && (
@@ -2956,7 +2975,7 @@ function ProviderProfilePage({ provider, user, onClose, onBook, onRate }) {
           {reviews.length === 0 ? (
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "24px 16px", textAlign: "center" }}>
               <div style={{ marginBottom: 8 }}><Icon name="star" size={28} color="#334155" strokeWidth={1.4} /></div>
-              <div style={{ fontSize: 13, color: "#475569" }}>No reviews yet</div>
+              <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.5 }}>No reviews yet</div>
               {user && <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Be the first to leave a review after your job</div>}
             </div>
           ) : (
@@ -3050,8 +3069,8 @@ function HomeHealthScore({ customerId, onBookService }) {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>Home Health Score</div>
-          <div style={{ fontSize: 12, color, marginTop: 2, fontWeight: 600 }}>{label}</div>
-          {due.length > 0 && <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{due.length} service{due.length !== 1 ? "s" : ""} overdue</div>}
+          <div style={{ fontSize: 12, color, marginTop: 4, fontWeight: 600 }}>{label}</div>
+          {due.length > 0 && <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>{due.length} service{due.length !== 1 ? "s" : ""} overdue</div>}
         </div>
         <span style={{ color: "#334155", fontSize: 14 }}>{open ? "▲" : "▼"}</span>
       </div>
@@ -3070,7 +3089,7 @@ function HomeHealthScore({ customerId, onBookService }) {
                 <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <ServiceIcon serviceId={entry.serviceType} size={13} color="#475569" />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, color: "#E2E8F0" }}>{entry.serviceName} by {entry.providerName}</div>
+                    <div style={{ fontSize: 12, color: "#E2E8F0", lineHeight: 1.5 }}>{entry.serviceName} by {entry.providerName}</div>
                     <div style={{ fontSize: 10, color: "#334155", marginTop: 1 }}>{entry.dateLabel}</div>
                   </div>
                   <div style={{ fontSize: 10, color: "#10B981", fontWeight: 600 }}>✓ Done</div>
@@ -3217,7 +3236,7 @@ function CommunityReviewForm({ provider, onClose, onSubmitted }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 150, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
         {done ? (
           <div style={{ textAlign: "center", padding: "12px 0" }}>
             <div style={{ fontSize: 36, marginBottom: 8 }}>🙏</div>
@@ -3235,7 +3254,7 @@ function CommunityReviewForm({ provider, onClose, onSubmitted }) {
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Your relationship</label>
               <select value={form.relationship} onChange={e => set("relationship", e.target.value)}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", cursor: "pointer" }}>
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", cursor: "pointer" }}>
                 <option value="customer">Long-time customer</option>
                 <option value="neighbour">Neighbour who's seen their work</option>
                 <option value="colleague">Industry colleague</option>
@@ -3246,7 +3265,7 @@ function CommunityReviewForm({ provider, onClose, onSubmitted }) {
               <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Your recommendation</label>
               <textarea value={form.comment} onChange={e => set("comment", e.target.value)}
                 placeholder="Tell others why you trust this provider and what they're best at..." rows={3}
-                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
             </div>
             <Btn full onClick={submit} disabled={saving || !form.reviewerName.trim() || !form.comment.trim()}>
               {saving ? "Submitting..." : "Submit recommendation"}
@@ -3298,7 +3317,7 @@ function JobBoardPost({ user, onClose, onPosted }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, padding: "24px 20px 44px", maxHeight: "85vh", overflowY: "auto" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Post to the Job Board</div>
         <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#34D399", lineHeight: 1.6 }}>
           💡 Providers compete to offer you their best price -- you typically save 10-25% compared to booking directly.
@@ -3310,7 +3329,7 @@ function JobBoardPost({ user, onClose, onPosted }) {
             <div key={s.id} onClick={() => setServiceId(s.id)}
               style={{ background: serviceId === s.id ? `${s.color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${serviceId === s.id ? s.color+"55" : "rgba(255,255,255,0.08)"}`, borderRadius: 11, padding: "10px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}>
               <ServiceIcon serviceId={s.id} size={18} color={serviceId === s.id ? s.color : "#475569"} />
-              <div style={{ fontSize: 10, fontWeight: 600, color: serviceId === s.id ? "#F1F5F9" : "#64748B", marginTop: 5 }}>{s.label}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: serviceId === s.id ? "#F1F5F9" : "#64748B", marginTop: 4 }}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -3319,7 +3338,7 @@ function JobBoardPost({ user, onClose, onPosted }) {
           <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Describe the job</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             placeholder="e.g. Need a plumber to fix a leaking pipe under the kitchen sink..." rows={3}
-            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+            style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
@@ -3377,7 +3396,7 @@ function JobBoardBrowse({ provider, onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "85vh", overflowY: "auto", padding: "24px 20px 44px" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
         <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 17, color: "#F1F5F9", marginBottom: 4 }}>Job Board</div>
         <div style={{ fontSize: 12, color: "#475569", marginBottom: 16, lineHeight: 1.6 }}>Customers looking for your services. Submit a competitive quote to win the job.</div>
 
@@ -3385,7 +3404,7 @@ function JobBoardBrowse({ provider, onClose }) {
          jobs.length === 0 ? (
           <div style={{ textAlign: "center", padding: "32px 0" }}>
             <div style={{ marginBottom: 8 }}><Icon name="jobs" size={32} color="#334155" strokeWidth={1.4} /></div>
-            <div style={{ fontSize: 13, color: "#475569" }}>No open jobs right now</div>
+            <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.5 }}>No open jobs right now</div>
             <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Check back later -- new jobs are posted daily.</div>
           </div>
          ) : jobs.map(job => (
@@ -3393,7 +3412,7 @@ function JobBoardBrowse({ provider, onClose }) {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#F1F5F9" }}>{job.serviceName}</div>
-                <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 3, lineHeight: 1.5 }}>{job.description}</div>
+                <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4, lineHeight: 1.5 }}>{job.description}</div>
                 <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>
                   <Icon name="pin" size={10} color="#475569" strokeWidth={1.8} /> {job.location}
                   {job.budget && <span style={{ color: "#F59E0B", marginLeft: 8, fontWeight: 600 }}>Budget: R{job.budget.toLocaleString()}</span>}
@@ -3445,13 +3464,13 @@ function MilestoneTracker({ completedCount }) {
       {next && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>Next: <span style={{ color: "#F1F5F9", fontWeight: 600 }}>{next.label}</span></div>
+            <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>Next: <span style={{ color: "#F1F5F9", fontWeight: 600 }}>{next.label}</span></div>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#6366F1" }}>{completedCount}/{next.jobs}</div>
           </div>
           <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg,#6366F1,#8B5CF6)", borderRadius: 3, transition: "width 0.4s ease" }} />
           </div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 5 }}>🎁 Unlock: {next.reward}</div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>🎁 Unlock: {next.reward}</div>
         </div>
       )}
 
@@ -3459,7 +3478,7 @@ function MilestoneTracker({ completedCount }) {
         {MILESTONES.map(m => {
           const done = completedCount >= m.jobs;
           return (
-            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 5, background: done ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${done ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 20, padding: "4px 10px" }}>
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 6, background: done ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.03)", border: `1px solid ${done ? "rgba(16,185,129,0.3)" : "rgba(255,255,255,0.07)"}`, borderRadius: 20, padding: "4px 10px" }}>
               <Icon name={m.icon} size={10} color={done ? "#10B981" : "#334155"} strokeWidth={2} />
               <span style={{ fontSize: 10, fontWeight: 600, color: done ? "#34D399" : "#334155" }}>{m.jobs} jobs</span>
             </div>
@@ -3546,7 +3565,7 @@ function TrainingContent({ onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 150, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "90vh", overflowY: "auto", padding: "24px 20px 48px" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
 
         {!module ? (
           <>
@@ -3562,7 +3581,7 @@ function TrainingContent({ onClose }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#F1F5F9" }}>{m.title}</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{m.readTime} read · {m.content.length} tips</div>
+                  <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>{m.readTime} read · {m.content.length} tips</div>
                 </div>
                 <Icon name="send" size={14} color="#334155" strokeWidth={1.8} />
               </div>
@@ -3707,12 +3726,12 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
     if (onBooked) onBooked(job);
   };
 
-  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" };
+  const inputStyle = { width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" };
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#0D1526", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 500, maxHeight: "92vh", overflowY: "auto", padding: "24px 20px 40px" }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto 20px" }} />
 
         {step === 1 && (
           <>
@@ -3722,7 +3741,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               </div>
               <div>
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>Request a job</div>
-                <div style={{ fontSize: 12, color: "#475569" }}>{provider.name} · {svc.label}</div>
+                <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.5 }}>{provider.name} · {svc.label}</div>
               </div>
             </div>
 
@@ -3800,7 +3819,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
                 </div>
                 <div>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 14, color: "#34D399" }}>{activeDiscount.discountPct}% loyalty discount applied!</div>
-                  <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Earned from your previous booking with {provider.name}. Applied automatically.</div>
+                  <div style={{ fontSize: 11, color: "#065F46", marginTop: 4 }}>Earned from your previous booking with {provider.name}. Applied automatically.</div>
                 </div>
               </div>
             )}
@@ -3815,7 +3834,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               {baseValue > 0 && activeDiscount && (
                 <div style={{ marginTop: 6, background: "rgba(16,185,129,0.08)", borderRadius: 8, padding: "6px 10px" }}>
                   <div style={{ fontSize: 10, color: "#34D399" }}>Original: R{baseValue.toLocaleString()} → After {activeDiscount.discountPct}% discount: <strong>R{discounted.toLocaleString("en-ZA", {maximumFractionDigits:0})}</strong></div>
-                  <div style={{ fontSize: 10, color: "#065F46", marginTop: 2 }}>You save R{saving.toLocaleString("en-ZA", {maximumFractionDigits:0})} · Platform fee: R{fee}</div>
+                  <div style={{ fontSize: 10, color: "#065F46", marginTop: 4 }}>You save R{saving.toLocaleString("en-ZA", {maximumFractionDigits:0})} · Platform fee: R{fee}</div>
                 </div>
               )}
               {baseValue > 0 && !activeDiscount && <div style={{ fontSize: 10, color: "#0EA5E9", marginTop: 4 }}>Platform fee: R{fee} (8%)</div>}
@@ -3826,7 +3845,7 @@ function BookingModal({ provider, user, serviceType, onClose, onBooked }) {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 11, padding: "11px 14px", marginBottom: 16 }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#FCA5A5" }}>Emergency priority</div>
-                  <div style={{ fontSize: 10, color: "#7F1D1D", marginTop: 2 }}>Provider will prioritise your job</div>
+                  <div style={{ fontSize: 10, color: "#7F1D1D", marginTop: 4 }}>Provider will prioritise your job</div>
                 </div>
                 <div onClick={() => set("isEmergency", !form.isEmergency)} style={{ width: 40, height: 22, borderRadius: 11, background: form.isEmergency ? "#EF4444" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
                   <div style={{ position: "absolute", top: 3, left: form.isEmergency ? 21 : 3, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
@@ -3997,24 +4016,24 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Name + verified */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
               <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{provider.name}</span>
               {isVerified && (
-                <div style={{ display: "flex", alignItems: "center", gap: 3, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 20, padding: "1px 7px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 20, padding: "1px 7px" }}>
                   <Icon name="check" size={9} color="#10B981" strokeWidth={2.5} />
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981" }}>VERIFIED</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "#10B981" }}>VERIFIED</span>
                 </div>
               )}
               {provider.emergency && (
-                <div style={{ fontSize: 9, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 20, padding: "1px 7px" }}>24HR</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 20, padding: "1px 7px" }}>24HR</div>
               )}
             </div>
 
             {/* Tagline if set -- replaces generic location */}
             {provider.tagline ? (
-              <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 5, fontStyle: "italic" }}>"{provider.tagline}"</div>
+              <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 4, fontStyle: "italic" }}>"{provider.tagline}"</div>
             ) : provider.description ? (
-              <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{provider.description}</div>
+              <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.4, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{provider.description}</div>
             ) : null}
 
             {/* Rating row */}
@@ -4042,7 +4061,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           {/* Years in business */}
           {yearsExp && yearsExp > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: 20, padding: "4px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: 20, padding: "4px 10px" }}>
               <Icon name="check" size={10} color="#818CF8" strokeWidth={2.2} />
               <span style={{ fontSize: 11, fontWeight: 600, color: "#818CF8" }}>{yearsExp}yr{yearsExp !== 1 ? "s" : ""} experience</span>
             </div>
@@ -4050,14 +4069,14 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           {/* Price signal */}
           {fromPrice && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 20, padding: "4px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.22)", borderRadius: 20, padding: "4px 10px" }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: "#34D399" }}>From R{fromPrice}</span>
             </div>
           )}
 
           {/* Insurance */}
           {isInsured && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: 20, padding: "4px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: 20, padding: "4px 10px" }}>
               <Icon name="check" size={10} color="#10B981" strokeWidth={2.2} />
               <span style={{ fontSize: 11, fontWeight: 600, color: "#10B981" }}>Insured</span>
             </div>
@@ -4065,7 +4084,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           {/* Response speed -- human phrase */}
           {avgMins !== null && speedTier && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: `${speedTier.color}12`, border: `1px solid ${speedTier.color}28`, borderRadius: 20, padding: "4px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: `${speedTier.color}12`, border: `1px solid ${speedTier.color}28`, borderRadius: 20, padding: "4px 10px" }}>
               <Icon name="lightning" size={10} color={speedTier.color} strokeWidth={2} />
               <span style={{ fontSize: 11, fontWeight: 600, color: speedTier.color }}>
                 {avgMins < 60 ? `Responds in ~${Math.round(avgMins)}min` : `Responds in ~${(avgMins/60).toFixed(1)}hr`}
@@ -4075,7 +4094,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
           {/* Availability */}
           {provider.avail && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: isAvail ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${isAvail ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.22)"}`, borderRadius: 20, padding: "4px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: isAvail ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${isAvail ? "rgba(16,185,129,0.22)" : "rgba(239,68,68,0.22)"}`, borderRadius: 20, padding: "4px 10px" }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: isAvail ? "#10B981" : "#EF4444", flexShrink: 0 }} />
               <span style={{ fontSize: 11, fontWeight: 600, color: isAvail ? "#34D399" : "#FCA5A5" }}>
                 {!isAvail ? "Fully booked" : slotsLeft !== undefined ? `${slotsLeft} slot${slotsLeft !== 1 ? "s" : ""} this week` : "Available"}
@@ -4086,7 +4105,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
         {/* Certification line -- one clean line, no clutter */}
         {certLine && (
-          <div style={{ marginTop: 8, fontSize: 11, color: "#475569", display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
             <Icon name="check" size={10} color="#475569" strokeWidth={2} />
             {certLine.length > 60 ? certLine.slice(0, 60) + "..." : certLine}
           </div>
@@ -4148,7 +4167,7 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
                 <Icon name="booking" size={13} color="white" strokeWidth={1.8} />Request a Job
               </button>
               <button onClick={() => setShowReview(true)}
-                style={{ flex: 1, background: "rgba(245,158,11,0.1)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                style={{ flex: 1, background: "rgba(245,158,11,0.1)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.25)", borderRadius: 10, padding: "12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Syne',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="star" size={13} color="#F59E0B" strokeWidth={1.8} />Rate
               </button>
             </div>
@@ -4163,11 +4182,11 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
           {user && provider.providerId && (
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button onClick={() => { saveTrustedProvider(user.email, provider); }}
-                style={{ flex: 1, background: "rgba(14,165,233,0.08)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                style={{ flex: 1, background: "rgba(14,165,233,0.08)", border: "1px solid rgba(14,165,233,0.2)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="home" size={11} color="#64748B" strokeWidth={2} />Save to My Team
               </button>
               <button onClick={() => setShowCommunityReview(true)}
-                style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Icon name="check" size={11} color="#64748B" strokeWidth={2} />Recommend
               </button>
             </div>
@@ -4431,7 +4450,7 @@ function CustomerHome({ user, onLogout }) {
     <div style={{ textAlign: "center", padding: "40px 0" }}>
       <div style={{ marginBottom: 12 }}><Icon name={icon} size={38} color="#334155" strokeWidth={1.4} /></div>
       <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#64748B", marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.7, maxWidth: 220, margin: "0 auto" }}>{sub}</div>
+      <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.7, maxWidth: 240, margin: "0 auto" }}>{sub}</div>
       {cta && <Btn onClick={onCta} style={{ marginTop: 16 }}>{cta}</Btn>}
     </div>
   );
@@ -4456,8 +4475,8 @@ function CustomerHome({ user, onLogout }) {
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+              <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{st.label}</span>
             </div>
             {job.estimatedValue && (
               <span style={{ fontSize: 11, fontWeight: 600, color: "#34D399" }}>R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}</span>
@@ -4467,7 +4486,7 @@ function CustomerHome({ user, onLogout }) {
 
         {/* Progress bar for active jobs */}
         {isActive && (
-          <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
             {JOB_PROGRESS_STEPS.map((s, idx) => {
               const curIdx = JOB_PROGRESS_STEPS.indexOf(job.status);
               return <div key={s} style={{ flex: 1, height: 3, borderRadius: 3, background: idx <= curIdx ? JOB_STATUS[s]?.color : "rgba(255,255,255,0.08)" }} />;
@@ -4480,12 +4499,12 @@ function CustomerHome({ user, onLogout }) {
         {showActions && (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {job.providerId && job.status !== "declined" && (
-              <button onClick={() => setChatJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+              <button onClick={() => setChatJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
                 <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
               </button>
             )}
             {(job.status === "onroute" || job.status === "inprogress") && job.providerId && (
-              <button onClick={() => setGpsJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(139,92,246,0.15)", color: "#C4B5FD", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+              <button onClick={() => setGpsJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(139,92,246,0.15)", color: "#C4B5FD", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
                 <Icon name="location" size={12} color="#C4B5FD" strokeWidth={2} />Track
               </button>
             )}
@@ -4495,7 +4514,7 @@ function CustomerHome({ user, onLogout }) {
               </button>
             )}
             {job.status === "completed" && !job.reviewed && (
-              <button onClick={() => setReviewJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+              <button onClick={() => setReviewJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
                 <Icon name="star" size={12} color="#F59E0B" strokeWidth={2} />Rate
               </button>
             )}
@@ -4515,15 +4534,20 @@ function CustomerHome({ user, onLogout }) {
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}body{background:#060A14}
-        input,textarea,select{outline:none}input::placeholder,textarea::placeholder{color:#475569}
-        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:#060A14;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+        input,textarea,select{outline:none;-webkit-appearance:none}
+        input::placeholder,textarea::placeholder{color:#475569}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
         ::-webkit-scrollbar-track{background:transparent}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
         @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-        .fadeUp{animation:fadeUp 0.3s ease forwards}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+        .fadeUp{animation:fadeUp 0.25s ease forwards}
         .shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.03) 25%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0.03) 75%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:14px;height:84px;margin-bottom:10px}
-        button{-webkit-tap-highlight-color:transparent}
+        button{-webkit-tap-highlight-color:transparent;font-family:inherit}
+        a{-webkit-tap-highlight-color:transparent}
+        * { -webkit-overflow-scrolling: touch; }
       `}</style>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
@@ -4535,7 +4559,7 @@ function CustomerHome({ user, onLogout }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#F1F5F9" }}>Hi {user.name?.split(" ")[0]} 👋</div>
-              <div style={{ fontSize: 12, color: "#475569", marginTop: 3 }}>
+              <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
                 {activeJobs.length > 0 ? `${activeJobs.length} active job${activeJobs.length !== 1 ? "s" : ""}` : "Your home, managed."}
               </div>
             </div>
@@ -4583,7 +4607,7 @@ function CustomerHome({ user, onLogout }) {
               ].map(({ label, val, color }) => (
                 <div key={label} onClick={() => setTab("history")} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 10px", textAlign: "center", cursor: "pointer" }}>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color }}>{val}</div>
-                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 4 }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -4607,7 +4631,7 @@ function CustomerHome({ user, onLogout }) {
             </div>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>Get It Done Board</div>
-              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post your job -- providers compete -- save 10-25%</div>
+              <div style={{ fontSize: 11, color: "#065F46", marginTop: 4 }}>Post your job -- providers compete -- save 10-25%</div>
             </div>
           </button>
         </div>
@@ -4680,7 +4704,7 @@ function CustomerHome({ user, onLogout }) {
             </div>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC" }}>Request quotes from multiple pros</div>
-              <div style={{ fontSize: 11, color: "#312E81", marginTop: 2 }}>Describe your job -- we'll find the right people</div>
+              <div style={{ fontSize: 11, color: "#312E81", marginTop: 4 }}>Describe your job -- we'll find the right people</div>
             </div>
           </button>
 
@@ -4778,7 +4802,7 @@ function CustomerHome({ user, onLogout }) {
           </div>
 
           {/* Sub-nav tabs */}
-          <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 4, gap: 3, marginBottom: 20 }}>
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 4, gap: 4, marginBottom: 20 }}>
             {[
               ["jobs",      `Jobs (${myJobs.length})`],
               ["providers", `Providers (${providersUsed.length})`],
@@ -4833,7 +4857,7 @@ function CustomerHome({ user, onLogout }) {
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{p.name}</div>
-                              <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{p.serviceName}</div>
+                              <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>{p.serviceName}</div>
                               <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                                 <div style={{ fontSize: 10, color: "#475569" }}>
                                   {p.jobCount} job{p.jobCount !== 1 ? "s" : ""} completed
@@ -4856,7 +4880,7 @@ function CustomerHome({ user, onLogout }) {
                               Book again
                             </button>
                             <button onClick={() => { const j = myJobs.find(x => x.providerId === p.providerId); if (j) setChatJob(j); }}
-                              style={{ flex: 1, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 700, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                              style={{ flex: 1, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 700, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
                               <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
                             </button>
                           </div>
@@ -4896,15 +4920,15 @@ function CustomerHome({ user, onLogout }) {
                               </div>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
-                              <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+                              <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
+                              <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{st.label}</span>
                             </div>
                           </div>
 
                           {/* Price breakdown */}
                           <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: job.discountApplied > 0 ? 6 : 0 }}>
-                              <span style={{ fontSize: 12, color: "#64748B" }}>Estimate</span>
+                              <span style={{ fontSize: 12, color: "#64748B", lineHeight: 1.5 }}>Estimate</span>
                               <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#34D399" }}>R{parseFloat(job.estimatedValue).toLocaleString("en-ZA")}</span>
                             </div>
                             {job.discountApplied > 0 && (
@@ -4978,7 +5002,7 @@ function CustomerHome({ user, onLogout }) {
                                 <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{svc.label}</span>
                                 <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>R{Math.round(svc.total).toLocaleString("en-ZA")}</span>
                               </div>
-                              <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{svc.count} job{svc.count !== 1 ? "s" : ""} · {pct}% of total</div>
+                              <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>{svc.count} job{svc.count !== 1 ? "s" : ""} · {pct}% of total</div>
                             </div>
                           </div>
                           <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
@@ -5005,7 +5029,7 @@ function CustomerHome({ user, onLogout }) {
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#34D399" }}>R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}</div>
-                              {job.discountApplied > 0 && <div style={{ fontSize: 9, color: "#10B981" }}>-{job.discountApplied}% discount</div>}
+                              {job.discountApplied > 0 && <div style={{ fontSize: 11, color: "#10B981" }}>-{job.discountApplied}% discount</div>}
                             </div>
                           </div>
                         );
@@ -5030,7 +5054,7 @@ function CustomerHome({ user, onLogout }) {
               {user.name?.charAt(0).toUpperCase()}
             </div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#F1F5F9" }}>{user.name}</div>
-            <div style={{ color: "#475569", fontSize: 12, marginTop: 2 }}>{user.email}</div>
+            <div style={{ color: "#475569", fontSize: 12, marginTop: 4 }}>{user.email}</div>
             {user.refCode && <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Ref: <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "#A5B4FC", letterSpacing: "0.1em" }}>{user.refCode}</span></div>}
           </div>
 
@@ -5100,14 +5124,14 @@ function CustomerHome({ user, onLogout }) {
       {/* ── BOTTOM NAV ── */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {NAV.map(([id, iconName, label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, WebkitTapHighlightColor: "transparent" }}>
             <div style={{ position: "relative" }}>
               <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />
               {id === "home" && jobsBadge > 0 && (
                 <div style={{ position: "absolute", top: -4, right: -6, width: 14, height: 14, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
               )}
             </div>
-            <span style={{ fontSize: 10, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
           </button>
         ))}
       </div>
@@ -5364,14 +5388,14 @@ function AdminDashboard({ onLogout }) {
 
   // -- Sub-components -------------------------------------------------------
   const SectionTitle = ({ children }) => (
-    <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{children}</div>
+    <div style={{ fontSize: 11, fontWeight: 700, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>{children}</div>
   );
 
   const AStatCard = ({ label, value, sub, color = "#0EA5E9", iconName }) => (
     <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 13, padding: "14px 16px", flex: 1, minWidth: 120 }}>
       <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color }}>{value}</div>
-      <div style={{ fontSize: 11, fontWeight: 600, color, marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: 10, color: "#334155", marginTop: 3 }}>{sub}</div>}
+      <div style={{ fontSize: 11, fontWeight: 600, color, marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 
@@ -5397,15 +5421,15 @@ function AdminDashboard({ onLogout }) {
         {/* Header row */}
         <div onClick={() => setExpanded(v => !v)} style={{ padding: "14px 16px", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 3 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
               <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{p.bizName}</span>
-              <span style={{ fontSize: 9, fontWeight: 700, color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}33`, borderRadius: 20, padding: "2px 8px" }}>{p.status?.toUpperCase()}</span>
-              {isAutoSusp && <span style={{ fontSize: 9, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", borderRadius: 20, padding: "2px 8px" }}>AUTO</span>}
-              {activeStrikes > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#F59E0B", background: "rgba(245,158,11,0.12)", borderRadius: 20, padding: "2px 8px" }}>⚠ {activeStrikes} STRIKE{activeStrikes>1?"S":""}</span>}
-              <span style={{ fontSize: 9, fontWeight: 700, color: planObj.color, background: `${planObj.color}18`, borderRadius: 20, padding: "2px 8px" }}>{planObj.label?.toUpperCase()}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}33`, borderRadius: 20, padding: "2px 8px" }}>{p.status?.toUpperCase()}</span>
+              {isAutoSusp && <span style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", background: "rgba(239,68,68,0.12)", borderRadius: 20, padding: "2px 8px" }}>AUTO</span>}
+              {activeStrikes > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", background: "rgba(245,158,11,0.12)", borderRadius: 20, padding: "2px 8px" }}>⚠ {activeStrikes} STRIKE{activeStrikes>1?"S":""}</span>}
+              <span style={{ fontSize: 10, fontWeight: 700, color: planObj.color, background: `${planObj.color}18`, borderRadius: 20, padding: "2px 8px" }}>{planObj.label?.toUpperCase()}</span>
             </div>
             <div style={{ fontSize: 11, color: "#64748B" }}>{p.contactName} · {p.email}</div>
-            <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>{p.suburb}, {p.city} · {completedCt} jobs · ★{p.liveRating || "--"} ({pReviews.length} reviews)</div>
+            <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>{p.suburb}, {p.city} · {completedCt} jobs · ★{p.liveRating || "--"} ({pReviews.length} reviews)</div>
             {p.adminNote && <div style={{ marginTop: 6, fontSize: 11, color: "#F59E0B", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 8, padding: "4px 8px" }}>📝 {p.adminNote}</div>}
           </div>
           <span style={{ color: "#334155", fontSize: 13, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
@@ -5423,7 +5447,7 @@ function AdminDashboard({ onLogout }) {
               ].map(({ label, val, color }) => (
                 <div key={label} style={{ textAlign: "center", background: "rgba(255,255,255,0.03)", borderRadius: 10, padding: "10px 6px" }}>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color }}>{val}</div>
-                  <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 10, color: "#475569", marginTop: 4 }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -5431,18 +5455,18 @@ function AdminDashboard({ onLogout }) {
             {/* Contact links */}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               {p.phone && (
-                <a href={`tel:${p.phone}`} style={{ flex: 1, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#34D399", cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <a href={`tel:${p.phone}`} style={{ flex: 1, background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#34D399", cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Icon name="phone" size={11} color="#34D399" strokeWidth={2} /> Call
                 </a>
               )}
               {p.phone && (
                 <a href={`https://wa.me/${p.phone.replace(/[\s-()+]/g,"")}?text=Hi ${p.contactName}, this is FixIt Now admin regarding your provider account.`} target="_blank" rel="noreferrer"
-                  style={{ flex: 1, background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                  style={{ flex: 1, background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#25D366", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Icon name="whatsapp" size={11} color="#25D366" strokeWidth={2} /> WhatsApp
                 </a>
               )}
               {p.email && (
-                <a href={`mailto:${p.email}`} style={{ flex: 1, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#818CF8", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <a href={`mailto:${p.email}`} style={{ flex: 1, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 9, padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#818CF8", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Icon name="message" size={11} color="#818CF8" strokeWidth={2} /> Email
                 </a>
               )}
@@ -5458,7 +5482,7 @@ function AdminDashboard({ onLogout }) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, color: s.cleared ? "#475569" : "#94A3B8" }}>{"★".repeat(s.rating)}{"☆".repeat(5-s.rating)} · {s.customerName} · {s.dateLabel}</div>
                       {s.comment && <div style={{ fontSize: 10, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>"{s.comment}"</div>}
-                      {s.cleared && <div style={{ fontSize: 9, color: "#10B981", marginTop: 1 }}>Cleared by admin</div>}
+                      {s.cleared && <div style={{ fontSize: 11, color: "#10B981", marginTop: 1 }}>Cleared by admin</div>}
                     </div>
                     {!s.cleared && (
                       <button onClick={() => handleClearStrike(p.id, idx)}
@@ -5486,7 +5510,7 @@ function AdminDashboard({ onLogout }) {
             )}
 
             {/* Services offered */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 14 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
               {p.services?.map(s => { const svc = SERVICES.find(sv=>sv.id===s); return svc ? <Badge key={s} color={svc.color}>{svc.label}</Badge> : null; })}
               {p.insuranceConfirmed && <Badge color="#10B981">Insured</Badge>}
               {p.emergency && <Badge color="#EF4444">24hr</Badge>}
@@ -5570,7 +5594,7 @@ function AdminDashboard({ onLogout }) {
   // -- Render ---------------------------------------------------------------
   return (
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 620, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
-      <style>{`.fadeUp{animation:fadeUp 0.3s ease forwards}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`.fadeUp{animation:fadeUp 0.25s ease forwards}@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}button{font-family:inherit;-webkit-tap-highlight-color:transparent}`}</style>
 
       {/* Header */}
       <div style={{ padding: "44px 18px 0", marginBottom: 20 }}>
@@ -5579,7 +5603,7 @@ function AdminDashboard({ onLogout }) {
             <Logo size={34} />
             <div>
               <Wordmark size={17} />
-              <div style={{ fontSize: 9, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.1em", marginTop: 1 }}>ADMIN PORTAL</div>
+              <div style={{ fontSize: 11, color: "#F59E0B", fontWeight: 700, letterSpacing: "0.1em", marginTop: 1 }}>ADMIN PORTAL</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -5626,9 +5650,9 @@ function AdminDashboard({ onLogout }) {
             ) : inboxItems.map((item, i) => (
               <div key={`${item.type}-${item.id}`} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: urgencyBg[item.urgency], border: `1px solid ${urgencyBorder[item.urgency]}`, borderRadius: 13, padding: "14px 16px", marginBottom: 10 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: urgencyColor[item.urgency], flexShrink: 0, marginTop: 5 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: urgencyColor[item.urgency], flexShrink: 0, marginTop: 4 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", marginBottom: 2 }}>{item.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0", marginBottom: 4 }}>{item.label}</div>
                     <div style={{ fontSize: 11, color: "#475569" }}>{item.sub}</div>
 
                     {/* Inline actions per type */}
@@ -5712,7 +5736,7 @@ function AdminDashboard({ onLogout }) {
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
                     <div>
                       <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{c.email} · {c.phone}</div>
+                      <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>{c.email} · {c.phone}</div>
                       <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{c.suburb}, {c.city}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
@@ -5858,7 +5882,7 @@ function AdminDashboard({ onLogout }) {
               ].map(({ label, val, color }) => (
                 <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 14px", textAlign: "center" }}>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color }}>{val}</div>
-                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 4 }}>{label}</div>
                 </div>
               ))}
             </div>
@@ -5883,14 +5907,14 @@ function AdminDashboard({ onLogout }) {
               : [...allJobs].sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0)).slice(0, 50).map(j => {
                 const st = JOB_STATUS[j.status] || JOB_STATUS.pending;
                 return (
-                  <div key={j.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${st.color}22`, borderRadius: 12, padding: "12px 14px", marginBottom: 7 }}>
+                  <div key={j.id} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${st.color}22`, borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{j.serviceName || j.serviceType} · {j.customerName} → {j.providerName}</div>
-                        <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{j.description?.slice(0, 60)}</div>
-                        <div style={{ fontSize: 10, color: "#334155", marginTop: 2 }}>{j.dateLabel} · {j.address?.slice(0,40)}</div>
+                        <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>{j.description?.slice(0, 60)}</div>
+                        <div style={{ fontSize: 10, color: "#334155", marginTop: 4 }}>{j.dateLabel} · {j.address?.slice(0,40)}</div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0, marginLeft: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 8 }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: st.color }} />
                         <span style={{ fontSize: 10, fontWeight: 600, color: st.color }}>{st.label}</span>
                       </div>
@@ -5947,7 +5971,7 @@ function AdminDashboard({ onLogout }) {
                 { label: "Job requests",   val: events.filter(e=>e.type==="booking").length,    color: "#F59E0B" },
               ].map(({ label, val, color }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
+                  <span style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>{label}</span>
                   <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color }}>{val}</span>
                 </div>
               ))}
@@ -5963,7 +5987,7 @@ function AdminDashboard({ onLogout }) {
               ? <div style={{ textAlign: "center", color: "#475569", padding: "40px 0" }}>No admin actions recorded yet. Actions you take appear here.</div>
               : auditLog.map((entry, i) => (
                 <div key={entry.id || i} style={{ display: "flex", gap: 12, padding: "11px 14px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 11, marginBottom: 6 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6366F1", flexShrink: 0, marginTop: 5 }} />
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#6366F1", flexShrink: 0, marginTop: 4 }} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0" }}>{entry.action}</div>
                     <div style={{ fontSize: 11, color: "#64748B", marginTop: 1 }}>{entry.detail}</div>
@@ -6086,7 +6110,7 @@ function GPSShareToggle({ providerId }) {
   return (
     <div style={{ background: sharing ? "rgba(16,185,129,0.07)" : "rgba(255,255,255,0.03)", border: `1px solid ${sharing ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
       <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: sharing ? "#6EE7B7" : "#64748B", marginBottom: 3 }}>Share live location</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: sharing ? "#6EE7B7" : "#64748B", marginBottom: 4 }}>Share live location</div>
         <div style={{ fontSize: 11, color: "#334155", lineHeight: 1.5 }}>Customers can track you when you're on the way. Only active when toggled on.</div>
       </div>
       <div onClick={toggleShare} style={{ width: 42, height: 23, borderRadius: 12, background: sharing ? "#10B981" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0, marginLeft: 12 }}>
@@ -6115,7 +6139,7 @@ function NotifToggles() {
     <>
       {rows.map(([label, on, setOn]) => (
         <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-          <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
+          <span style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>{label}</span>
           <div onClick={() => setOn(v => !v)} style={{ width: 36, height: 20, borderRadius: 10, background: on ? "#0EA5E9" : "rgba(255,255,255,0.1)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
             <div style={{ position: "absolute", top: 2, left: on ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
           </div>
@@ -6153,7 +6177,7 @@ function ProviderReviews({ providerId }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", letterSpacing: "0.08em", textTransform: "uppercase" }}>Customer reviews</div>
         {avg && (
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#F59E0B" }}>{avg}</span>
             <div style={{ display: "flex", gap: 1 }}>
               {[1,2,3,4,5].map(i => <span key={i} style={{ color: i <= Math.round(avg) ? "#F59E0B" : "#1E293B", fontSize: 12 }}>★</span>)}
@@ -6249,7 +6273,7 @@ function AvailabilityManager({ providerId }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>Weekly availability</div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Customers see when you're free. Full weeks sort you higher.</div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Customers see when you're free. Full weeks sort you higher.</div>
         </div>
         {avail && isAvailableToday(avail)
           ? <div style={{ fontSize: 10, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: 20, padding: "3px 10px" }}>Open today</div>
@@ -6282,7 +6306,7 @@ function AvailabilityManager({ providerId }) {
         </div>
         <input type="range" min={0} max={10} value={slotsLeft} onChange={e => setSlotsLeft(Number(e.target.value))}
           style={{ width: "100%", accentColor: slotsLeft === 0 ? "#EF4444" : "#0EA5E9" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#334155", marginTop: 2 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#334155", marginTop: 4 }}>
           <span>Fully booked</span><span>10 slots open</span>
         </div>
       </div>
@@ -6334,7 +6358,7 @@ function DealsManager({ provider }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#F1F5F9" }}>Weekly deal</div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 2 }}>Offer a discount or special to appear in the Deals section of search.</div>
+          <div style={{ fontSize: 11, color: "#475569", marginTop: 4 }}>Offer a discount or special to appear in the Deals section of search.</div>
         </div>
         <Icon name="star" size={18} color="#F59E0B" strokeWidth={1.8} />
       </div>
@@ -6354,17 +6378,17 @@ function DealsManager({ provider }) {
       ) : adding ? (
         <div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Headline</label>
+            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Headline</label>
             <input value={form.headline} onChange={e => set("headline", e.target.value)} placeholder="e.g. 20% off gate repairs this week" maxLength={50}
-              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" }} />
           </div>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>Details</label>
+            <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Details</label>
             <textarea value={form.description} onChange={e => set("description", e.target.value)} placeholder="e.g. Free callout fee + 20% off parts for any gate motor repair booked this week." rows={2}
               style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
           </div>
           <div style={{ marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <label style={{ fontSize: 10, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase" }}>Available slots</label>
               <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F59E0B" }}>{form.slotsLeft}</span>
             </div>
@@ -6565,19 +6589,23 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
   };
 
   const SBadge = ({ color, children }) => (
-    <span style={{ fontSize: 9, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 8px", letterSpacing: "0.05em" }}>{children}</span>
+    <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 20, padding: "2px 8px", letterSpacing: "0.05em" }}>{children}</span>
   );
 
   return (
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}body{background:#060A14}
-        input,textarea{outline:none}input::placeholder,textarea::placeholder{color:#475569}
-        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{background:#060A14;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+        input,textarea{outline:none;-webkit-appearance:none}input::placeholder,textarea::placeholder{color:#475569}
+        ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
+        ::-webkit-scrollbar-track{background:transparent}
         @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .fadeUp{animation:fadeUp 0.3s ease forwards}
-        button{WebkitTapHighlightColor:transparent}
+        .fadeUp{animation:fadeUp 0.25s ease forwards}
+        button{-webkit-tap-highlight-color:transparent;font-family:inherit}
+        a{-webkit-tap-highlight-color:transparent}
+        *{-webkit-overflow-scrolling:touch}
       `}</style>
 
       {/* -- HEADER -- */}
@@ -6585,7 +6613,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Logo size={32} /><Wordmark size={16} />
-            <div style={{ fontSize: 9, color: "#334155", letterSpacing: "0.14em", marginTop: 1 }}>PROVIDER</div>
+            <div style={{ fontSize: 11, color: "#334155", letterSpacing: "0.14em", marginTop: 1 }}>PROVIDER</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: available ? "#10B981" : "#EF4444" }} />
@@ -6604,8 +6632,8 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{provider.bizName}</div>
-            <div style={{ fontSize: 11, color: "#475569", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{provider.email}</div>
-            <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 11, color: "#475569", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{provider.email}</div>
+            <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
               <SBadge color={planColor}>{plan.label}</SBadge>
               {provider.emergency && <SBadge color="#EF4444">24hr</SBadge>}
               {provider.verification?.status === "verified" && <SBadge color="#10B981">Verified</SBadge>}
@@ -6619,7 +6647,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 10, color: profileScore.score >= 80 ? "#10B981" : "#F59E0B" }}>{profileScore.score}%</span>
               </div>
             </div>
-            <div style={{ fontSize: 9, color: "#334155", marginTop: 3 }}>Profile</div>
+            <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Profile</div>
           </div>
         </div>
       </div>
@@ -6627,14 +6655,14 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
       {/* -- BOTTOM NAV -- */}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
         {[["jobs","jobs","Jobs"],["dashboard","overview","Dashboard"],["profile","profile","My Profile"],["account","settings","Account"]].map(([id,iconName,label]) => (
-          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, WebkitTapHighlightColor: "transparent" }}>
             <div style={{ position: "relative" }}>
               <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />
               {id === "jobs" && jobsBadge > 0 && (
                 <div style={{ position: "absolute", top: -4, right: -6, width: 14, height: 14, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
               )}
             </div>
-            <span style={{ fontSize: 10, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
           </button>
         ))}
       </div>
@@ -6663,7 +6691,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   const count = providerJobs.filter(j => j.status === status).length;
                   if (!count) return null;
                   return (
-                    <div key={status} style={{ display: "flex", alignItems: "center", gap: 5, background: `${color}15`, border: `1px solid ${color}35`, borderRadius: 20, padding: "4px 10px" }}>
+                    <div key={status} style={{ display: "flex", alignItems: "center", gap: 6, background: `${color}15`, border: `1px solid ${color}35`, borderRadius: 20, padding: "4px 10px" }}>
                       <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
                       <span style={{ fontSize: 11, fontWeight: 600, color }}>{count} {label}</span>
                     </div>
@@ -6713,9 +6741,9 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                         <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{job.customerName} · {job.dateLabel} {job.timeLabel}</div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{st.label}</span>
                     </div>
                   </div>
 
@@ -6745,7 +6773,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                     {/* Chat */}
                     {job.status !== "declined" && job.status !== "pending" && (
                       <button onClick={() => setProviderChatJob(job)}
-                        style={{ flex: 1, minWidth: 60, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                        style={{ flex: 1, minWidth: 60, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
                         <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
                       </button>
                     )}
@@ -6754,7 +6782,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                     {job.customerPhone && job.status !== "declined" && (
                       <a href={`https://wa.me/${(job.customerPhone||"").replace(/[\s-()+]/g,"")}?text=Hi ${job.customerName}, this is ${provider.bizName} regarding your job request on FixIt Now.`}
                         onClick={() => trackEvent({ providerId: provider.id, providerName: provider.bizName, type: "whatsapp", serviceType: job.serviceType })}
-                        style={{ flex: 1, minWidth: 60, background: "rgba(37,211,102,0.12)", color: "#25D366", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, textDecoration: "none", WebkitTapHighlightColor: "transparent" }}>
+                        style={{ flex: 1, minWidth: 60, background: "rgba(37,211,102,0.12)", color: "#25D366", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", WebkitTapHighlightColor: "transparent" }}>
                         <Icon name="whatsapp" size={12} color="#25D366" strokeWidth={2} />WA
                       </a>
                     )}
@@ -6799,7 +6827,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: isSuspended ? "#FCA5A5" : "#FCD34D" }}>
                       {isSuspended ? "Account suspended" : `${activeStrikes} of ${MAX_STRIKES} quality strikes`}
                     </div>
-                    <div style={{ display: "flex", gap: 5, marginLeft: "auto" }}>
+                    <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
                       {[1,2,3].map(i => <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: i <= activeStrikes ? color : "rgba(255,255,255,0.12)" }} />)}
                     </div>
                   </div>
@@ -6816,7 +6844,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: available ? "#34D399" : "#FCA5A5" }}>
                   {available ? "🟢 Open for business" : "🔴 Not available"}
                 </div>
-                <div style={{ fontSize: 11, color: available ? "#065F46" : "#7F1D1D", marginTop: 3 }}>
+                <div style={{ fontSize: 11, color: available ? "#065F46" : "#7F1D1D", marginTop: 4 }}>
                   {available ? "You appear in search results -- tap to go offline" : "Hidden from search -- tap to go online"}
                 </div>
               </div>
@@ -6858,7 +6886,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 ].map(({ val, label, color }) => (
                   <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "11px 10px", textAlign: "center" }}>
                     <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color }}>{val}</div>
-                    <div style={{ fontSize: 9, fontWeight: 600, color, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 3 }}>{label}</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color, letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 4 }}>{label}</div>
                   </div>
                 ));
               })()}
@@ -6903,11 +6931,11 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                   const h = barMax > 0 ? Math.round((barData[i] / barMax) * 100) : 0;
                   const isToday = i === (new Date().getDay() + 6) % 7;
                   return (
-                    <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, height: "100%" }}>
+                    <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%" }}>
                       <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
                         <div style={{ width: "100%", background: isToday ? "#0EA5E9" : "rgba(255,255,255,0.1)", borderRadius: "3px 3px 0 0", height: `${Math.max(h, 4)}%` }} />
                       </div>
-                      <div style={{ fontSize: 9, color: isToday ? "#0EA5E9" : "#334155", fontWeight: isToday ? 700 : 400 }}>{d}</div>
+                      <div style={{ fontSize: 11, color: isToday ? "#0EA5E9" : "#334155", fontWeight: isToday ? 700 : 400 }}>{d}</div>
                     </div>
                   );
                 })}
@@ -6940,7 +6968,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <div>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{plan.label} Plan</div>
-                  <div style={{ fontSize: 11, color: planColor, marginTop: 2 }}>{plan.priceLabel}/mo</div>
+                  <div style={{ fontSize: 11, color: planColor, marginTop: 4 }}>{plan.priceLabel}/mo</div>
                 </div>
               </div>
               {referralCredits > 0 && (
@@ -6960,7 +6988,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div style={{ fontSize: 28 }}>🔥</div>
                 <div>
                   <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 15, color: "#F59E0B" }}>{streak}-star streak</div>
-                  <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>{streak} consecutive 5-star reviews</div>
+                  <div style={{ fontSize: 11, color: "#78350F", marginTop: 4 }}>{streak} consecutive 5-star reviews</div>
                 </div>
               </div>
             )}
@@ -7006,12 +7034,12 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <button onClick={() => setShowJobBoardBrowse(true)}
                 style={{ background: "rgba(16,185,129,0.08)", border: "1.5px solid rgba(16,185,129,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left", WebkitTapHighlightColor: "transparent" }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399", marginBottom: 3 }}>Job Board</div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399", marginBottom: 4 }}>Job Board</div>
                 <div style={{ fontSize: 11, color: "#065F46", lineHeight: 1.4 }}>Browse &amp; quote customer posts</div>
               </button>
               <button onClick={() => setShowTraining(true)}
                 style={{ background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.2)", borderRadius: 12, padding: "13px 12px", cursor: "pointer", textAlign: "left", WebkitTapHighlightColor: "transparent" }}>
-                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 3 }}>Provider Academy</div>
+                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#A5B4FC", marginBottom: 4 }}>Provider Academy</div>
                 <div style={{ fontSize: 11, color: "#312E81", lineHeight: 1.4 }}>5 guides to grow your business</div>
               </button>
             </div>
@@ -7080,7 +7108,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Tagline</div>
               {editMode
-                ? <input value={editForm.tagline} onChange={e => setEditForm(f=>({...f,tagline:e.target.value}))} placeholder="e.g. KZN's most trusted plumber since 2008" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                ? <input value={editForm.tagline} onChange={e => setEditForm(f=>({...f,tagline:e.target.value}))} placeholder="e.g. KZN's most trusted plumber since 2008" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" }} />
                 : <div style={{ fontSize: 13, color: provider.tagline ? "#E2E8F0" : "#334155", fontStyle: provider.tagline ? "italic" : "normal" }}>{provider.tagline || "No tagline set -- add one to stand out"}</div>
               }
             </div>
@@ -7089,7 +7117,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>About</div>
               {editMode
-                ? <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} placeholder="Describe your experience, specialties, and what makes you stand out..." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "none" }} />
+                ? <textarea value={editForm.description} onChange={e => setEditForm(f=>({...f,description:e.target.value}))} placeholder="Describe your experience, specialties, and what makes you stand out..." rows={3} style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s", resize: "none" }} />
                 : <div style={{ fontSize: 13, color: provider.description ? "#94A3B8" : "#334155", lineHeight: 1.6 }}>{provider.description || "No description set"}</div>
               }
             </div>
@@ -7099,14 +7127,14 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Years experience</div>
                 {editMode
-                  ? <input type="number" value={editForm.yearsInBusiness} onChange={e => setEditForm(f=>({...f,yearsInBusiness:e.target.value}))} placeholder="e.g. 8" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  ? <input type="number" value={editForm.yearsInBusiness} onChange={e => setEditForm(f=>({...f,yearsInBusiness:e.target.value}))} placeholder="e.g. 8" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" }} />
                   : <div style={{ fontSize: 13, color: provider.yearsInBusiness ? "#E2E8F0" : "#334155" }}>{provider.yearsInBusiness ? `${provider.yearsInBusiness} years` : "Not set"}</div>
                 }
               </div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Call-out from (R)</div>
                 {editMode
-                  ? <input type="number" value={editForm.priceRangeMin} onChange={e => setEditForm(f=>({...f,priceRangeMin:e.target.value}))} placeholder="e.g. 350" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                  ? <input type="number" value={editForm.priceRangeMin} onChange={e => setEditForm(f=>({...f,priceRangeMin:e.target.value}))} placeholder="e.g. 350" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" }} />
                   : <div style={{ fontSize: 13, color: provider.priceRangeMin ? "#34D399" : "#334155" }}>{provider.priceRangeMin ? `R${provider.priceRangeMin}` : "Not set"}</div>
                 }
               </div>
@@ -7116,7 +7144,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Certifications &amp; licences</div>
               {editMode
-                ? <input value={editForm.certifications} onChange={e => setEditForm(f=>({...f,certifications:e.target.value}))} placeholder="e.g. Licensed Electrician · COC Certified · ECSA Registered" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                ? <input value={editForm.certifications} onChange={e => setEditForm(f=>({...f,certifications:e.target.value}))} placeholder="e.g. Licensed Electrician · COC Certified · ECSA Registered" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" }} />
                 : <div style={{ fontSize: 13, color: provider.certifications ? "#E2E8F0" : "#334155" }}>{provider.certifications || "None listed -- add your qualifications"}</div>
               }
             </div>
@@ -7125,7 +7153,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Logo URL</div>
               {editMode
-                ? <input value={editForm.logoUrl} onChange={e => setEditForm(f=>({...f,logoUrl:e.target.value}))} placeholder="https://imgur.com/your-logo.png" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none" }} />
+                ? <input value={editForm.logoUrl} onChange={e => setEditForm(f=>({...f,logoUrl:e.target.value}))} placeholder="https://imgur.com/your-logo.png" style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif", outline: "none", transition: "border-color 0.15s" }} />
                 : <div style={{ fontSize: 13, color: provider.logoUrl ? "#0EA5E9" : "#334155" }}>{provider.logoUrl ? "✓ Logo set" : "No logo -- upload to imgur.com and paste the link"}</div>
               }
             </div>
@@ -7143,7 +7171,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                     <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${editForm[key] ? "#10B981" : "rgba(255,255,255,0.2)"}`, background: editForm[key] ? "#10B981" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {editForm[key] && <Icon name="check" size={10} color="white" strokeWidth={2.5} />}
                     </div>
-                    <span style={{ fontSize: 12, color: "#94A3B8" }}>{label}</span>
+                    <span style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.5 }}>{label}</span>
                   </div>
                 ))}
               </div>
@@ -7279,7 +7307,7 @@ function ProviderDashboard({ provider: initialProvider, onLogout }) {
                 <div key={p.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: provider.plan === p.id ? "#F1F5F9" : "#64748B" }}>{p.label}</div>
-                    <div style={{ fontSize: 11, color: p.color, marginTop: 2 }}>{p.priceLabel}/month · {p.description}</div>
+                    <div style={{ fontSize: 11, color: p.color, marginTop: 4 }}>{p.priceLabel}/month · {p.description}</div>
                   </div>
                   {provider.plan === p.id
                     ? <span style={{ fontSize: 10, fontWeight: 700, color: p.color, background: `${p.color}18`, borderRadius: 20, padding: "3px 10px" }}>Current</span>

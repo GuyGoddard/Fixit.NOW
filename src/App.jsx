@@ -4204,40 +4204,41 @@ function ProviderCard({ provider, searchArea, searchQuery, user, onBooked }) {
 
 // --- CUSTOMER HOME ---------------------------------------------------------------
 function CustomerHome({ user, onLogout }) {
-  const [tab, setTab]                   = useState("find");
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [tab, setTab]                       = useState("home");
   const [selectedService, setSelectedService] = useState(null);
-  const [location, setLocation]         = useState(user.suburb ? `${user.suburb}, ${user.city}` : "");
-  const [providers, setProviders]       = useState([]);
-  const [loading, setLoading]           = useState(false);
-  const [emergencyOnly, setEmergencyOnly] = useState(false);
-  const [sortBy, setSortBy]             = useState("best");
-  const [deals, setDeals]               = useState([]);
-  const [searchDone, setSearchDone]     = useState(false);
-  const [error, setError]               = useState("");
-  const [myJobs, setMyJobs]             = useState([]);
-  const [jobsBadge, setJobsBadge]       = useState(0);
-  const [jobFilter, setJobFilter]       = useState("active"); // active | completed | all
-  const [searchHistory, setSearchHistory] = useState([]);
-  const [showNotifs, setShowNotifs]     = useState(false);
-  const [reviewJob, setReviewJob]       = useState(null);
-  const [chatJob, setChatJob]           = useState(null);
-  const [gpsJob, setGpsJob]             = useState(null);
+  const [location, setLocation]             = useState(user.suburb ? `${user.suburb}, ${user.city}` : "");
+  const [providers, setProviders]           = useState([]);
+  const [loading, setLoading]               = useState(false);
+  const [emergencyOnly, setEmergencyOnly]   = useState(false);
+  const [sortBy, setSortBy]                 = useState("best");
+  const [deals, setDeals]                   = useState([]);
+  const [searchDone, setSearchDone]         = useState(false);
+  const [myJobs, setMyJobs]                 = useState([]);
+  const [jobsBadge, setJobsBadge]           = useState(0);
+  const [historyFilter, setHistoryFilter]   = useState("jobs"); // jobs | providers | quotes | spending
+  const [jobSearch, setJobSearch]           = useState("");
+  const [searchHistory, setSearchHistory]   = useState([]);
+  const [showNotifs, setShowNotifs]         = useState(false);
+  const [reviewJob, setReviewJob]           = useState(null);
+  const [chatJob, setChatJob]               = useState(null);
+  const [gpsJob, setGpsJob]                 = useState(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [showJobBoard, setShowJobBoard] = useState(false);
+  const [showJobBoard, setShowJobBoard]     = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [completionNotif, setCompletionNotif] = useState(null);
-  const [editForm, setEditForm]         = useState({ name: user.name||"", phone: user.phone||"", address: user.address||"", suburb: user.suburb||"", city: user.city||"", notifPref: user.notifPref||"sms" });
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [editForm, setEditForm]             = useState({ name: user.name||"", phone: user.phone||"", address: user.address||"", suburb: user.suburb||"", city: user.city||"", notifPref: user.notifPref||"sms" });
+  const [savingProfile, setSavingProfile]   = useState(false);
   const resultsRef = useRef(null);
 
+  // ── Data loading ───────────────────────────────────────────────────────────
   const loadMyJobs = async () => {
     const raw = await store.get("jobs");
     const jobs = raw ? JSON.parse(raw.value) : [];
     const mine = jobs.filter(j => j.customerId === user.email || j.customerName === user.name);
     setMyJobs(mine.reverse());
-    const newPending = mine.filter(j => j.status === "accepted" && !j.seenByCustomer).length;
-    setJobsBadge(newPending);
-    // Check for completion notification
+    const newActive = mine.filter(j => ["accepted","onroute","inprogress"].includes(j.status) && !j.seenByCustomer).length;
+    setJobsBadge(newActive);
     const notifRaw = await store.get(`notifs:${user.email}`);
     if (notifRaw) {
       const notifs = JSON.parse(notifRaw.value);
@@ -4247,11 +4248,12 @@ function CustomerHome({ user, onLogout }) {
   };
 
   useEffect(() => { loadMyJobs(); getSearchHistory(user.email).then(setSearchHistory); }, []);
-  useEffect(() => { if (tab === "jobs") { loadMyJobs(); setJobsBadge(0); } }, [tab]);
+  useEffect(() => { if (tab === "home") loadMyJobs(); }, [tab]);
 
+  // ── Search handler ─────────────────────────────────────────────────────────
   const handleSearch = async () => {
     if (!selectedService || !location.trim()) return;
-    setLoading(true); setError(""); setSearchDone(false); setProviders([]);
+    setLoading(true); setSearchDone(false); setProviders([]);
     const svc = SERVICES.find(s => s.id === selectedService);
     await saveSearch(user.email, { serviceId: selectedService, location });
     getSearchHistory(user.email).then(setSearchHistory);
@@ -4267,9 +4269,7 @@ function CustomerHome({ user, onLogout }) {
       const sa = p.serviceAreas?.[selectedService];
       if (!sa) return true;
       if (sa.allKZN) return true;
-      return (sa.areas || []).some(area =>
-        searchLower.includes(area.toLowerCase()) || area.toLowerCase().includes(searchSuburb)
-      );
+      return (sa.areas || []).some(a => searchLower.includes(a.toLowerCase()) || a.toLowerCase().includes(searchSuburb));
     });
 
     const registeredProviders = await Promise.all(eligible.map(async p => {
@@ -4293,8 +4293,8 @@ function CustomerHome({ user, onLogout }) {
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     }
 
-    const prompt = `Generate 4 realistic mock ${svc.label} service providers near "${location}" in KwaZulu-Natal, South Africa. Return ONLY a JSON array, no markdown. Each object: {"name":"string","rating":number 3.8-4.9,"reviewCount":integer 12-180,"vicinity":"suburb near ${location}","phone":"SA mobile starting with 0","emergency":boolean,"openNow":boolean,"serviceType":"${selectedService}","plan":"basic","description":"one sentence about their specialty"}`;
     try {
+      const prompt = `Generate 4 realistic mock ${svc.label} service providers near "${location}" in KwaZulu-Natal, South Africa. Return ONLY a JSON array, no markdown. Each object: {"name":"string","rating":number 3.8-4.9,"reviewCount":integer 12-180,"vicinity":"suburb near ${location}","phone":"SA mobile starting with 0","emergency":boolean,"openNow":boolean,"serviceType":"${selectedService}","plan":"basic","description":"one sentence about their specialty"}`;
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600, messages: [{ role: "user", content: prompt }] })
@@ -4302,18 +4302,51 @@ function CustomerHome({ user, onLogout }) {
       if (resp.ok) {
         const data = await resp.json();
         const text = data.content?.[0]?.text || "";
-        const cleaned = text.replace(/```json|```/g, "").trim();
-        const aiProviders = JSON.parse(cleaned);
-        if (Array.isArray(aiProviders)) {
-          const merged = [...registeredProviders, ...aiProviders.map(p => ({ ...p, _aiGenerated: true }))];
-          setProviders(merged);
-        }
+        const aiProviders = JSON.parse(text.replace(/```json|```/g, "").trim());
+        if (Array.isArray(aiProviders)) setProviders([...registeredProviders, ...aiProviders.map(p => ({ ...p, _aiGenerated: true }))]);
       }
     } catch {}
     setSearchDone(true); setLoading(false);
   };
 
-  // Sorted/filtered providers
+  // ── Derived data ───────────────────────────────────────────────────────────
+  const activeStatuses   = ["pending","accepted","onroute","inprogress"];
+  const activeJobs       = myJobs.filter(j => activeStatuses.includes(j.status));
+  const completedJobs    = myJobs.filter(j => j.status === "completed");
+  const totalSpend       = completedJobs.filter(j => j.estimatedValue)
+    .reduce((s, j) => s + parseFloat(j.discountedValue || j.estimatedValue || 0), 0);
+
+  // Unique providers used (from completed jobs)
+  const providersUsed = Object.values(
+    completedJobs.reduce((acc, j) => {
+      if (!j.providerId || acc[j.providerId]) return acc;
+      const myReview = myJobs.find(x => x.providerId === j.providerId && x.reviewed);
+      acc[j.providerId] = {
+        providerId:   j.providerId,
+        name:         j.providerName,
+        serviceType:  j.serviceType,
+        serviceName:  j.serviceName,
+        lastUsed:     j.dateLabel || "",
+        lastJobId:    j.id,
+        reviewed:     !!myReview,
+        jobCount:     completedJobs.filter(x => x.providerId === j.providerId).length,
+      };
+      return acc;
+    }, {})
+  );
+
+  // Quotes received (jobs with estimatedValue, any status)
+  const quotedJobs = myJobs.filter(j => j.estimatedValue && parseFloat(j.estimatedValue) > 0);
+
+  // Spending by service type
+  const spendByService = SERVICES.map(svc => ({
+    ...svc,
+    total: completedJobs.filter(j => j.serviceType === svc.id && j.estimatedValue)
+      .reduce((s, j) => s + parseFloat(j.discountedValue || j.estimatedValue || 0), 0),
+    count: completedJobs.filter(j => j.serviceType === svc.id).length,
+  })).filter(s => s.total > 0).sort((a, b) => b.total - a.total);
+
+  // Filtered providers in search
   const filtered = providers
     .filter(p => !emergencyOnly || p.emergency)
     .filter(p => sortBy === "available" ? isAvailableToday(p.avail) : true)
@@ -4321,9 +4354,9 @@ function CustomerHome({ user, onLogout }) {
     .sort((a, b) => {
       if (sortBy !== "available" && a._available !== b._available) return a._available ? -1 : 1;
       if (sortBy === "best" || sortBy === "available") return b._score - a._score;
-      if (sortBy === "rating") { const d = (b.liveRating||b.rating||0) - (a.liveRating||a.rating||0); return d !== 0 ? d : b._score - a._score; }
-      if (sortBy === "speed")  { const d = (a.avgResponseMins??99999) - (b.avgResponseMins??99999); return d !== 0 ? d : b._score - a._score; }
-      if (sortBy === "reviews"){ const d = (b.liveReviewCount||b.reviewCount||0) - (a.liveReviewCount||a.reviewCount||0); return d !== 0 ? d : b._score - a._score; }
+      if (sortBy === "rating")  { const d = (b.liveRating||b.rating||0)-(a.liveRating||a.rating||0); return d||b._score-a._score; }
+      if (sortBy === "speed")   { const d = (a.avgResponseMins??99999)-(b.avgResponseMins??99999); return d||b._score-a._score; }
+      if (sortBy === "reviews") { const d = (b.liveReviewCount||b.reviewCount||0)-(a.liveReviewCount||a.reviewCount||0); return d||b._score-a._score; }
       return b._score - a._score;
     });
 
@@ -4332,62 +4365,152 @@ function CustomerHome({ user, onLogout }) {
     p.joinDate && (Date.now() - new Date(p.joinDate).getTime()) < 90 * 86400000
   );
 
-  // Filtered jobs
-  const activeStatuses   = ["pending","accepted","onroute","inprogress"];
-  const filteredJobs     = jobFilter === "active"    ? myJobs.filter(j => activeStatuses.includes(j.status))
-                         : jobFilter === "completed" ? myJobs.filter(j => j.status === "completed")
-                         : myJobs;
-
-  // Spending summary
-  const totalSpend = myJobs.filter(j => j.status === "completed" && j.estimatedValue)
-    .reduce((s, j) => s + parseFloat(j.discountedValue || j.estimatedValue || 0), 0);
-  const completedCount = myJobs.filter(j => j.status === "completed").length;
-
-  // Profile save
+  // Save profile
   const saveProfile = async () => {
     setSavingProfile(true);
-    const updated = await updateCustomerData(user.email, editForm);
-    if (updated) Object.assign(user, editForm);
-    setSavingProfile(false);
-    setShowEditProfile(false);
+    await updateCustomerData(user.email, editForm);
+    Object.assign(user, editForm);
+    setSavingProfile(false); setShowEditProfile(false);
   };
 
-  // -- BOTTOM NAV ----------------------------------------------------------
-  const BottomNav = () => (
-    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
-      {[["find","search","Find Pros"],["jobs","jobs","My Jobs"],["profile","profile","Profile"]].map(([id, iconName, label]) => (
-        <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
-          {id === "jobs" && jobsBadge > 0 && (
-            <div style={{ position: "relative", display: "inline-block" }}>
-              <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />
-              <div style={{ position: "absolute", top: -4, right: -6, width: 14, height: 14, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
+  // Download quote as text file
+  const downloadQuote = (job) => {
+    const lines = [
+      `QUOTE -- FIXIT NOW`,
+      `${"=".repeat(40)}`,
+      ``,
+      `Quote for:    ${user.name}`,
+      `Provider:     ${job.providerName}`,
+      `Service:      ${job.serviceName}`,
+      `Date:         ${job.dateLabel} ${job.timeLabel || ""}`,
+      `Address:      ${job.address || "Not specified"}`,
+      ``,
+      `DESCRIPTION`,
+      `-`.repeat(40),
+      job.description || "No description provided",
+      ``,
+      `PRICING`,
+      `-`.repeat(40),
+      `Estimate:     R${parseFloat(job.estimatedValue).toLocaleString("en-ZA")}`,
+      job.discountApplied > 0 ? `Discount:     ${job.discountApplied}% loyalty discount` : "",
+      job.discountedValue ? `You pay:      R${parseFloat(job.discountedValue).toLocaleString("en-ZA")}` : "",
+      `Platform fee: R${Math.round(parseFloat(job.estimatedValue) * 0.08)} (8%)`,
+      ``,
+      `STATUS: ${(JOB_STATUS[job.status]?.label || job.status).toUpperCase()}`,
+      ``,
+      `${"=".repeat(40)}`,
+      `Generated by FixIt Now -- fixit-now-five.vercel.app`,
+      `${new Date().toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })}`,
+    ].filter(l => l !== "undefined" && l !== null).join("\n");
+
+    const blob = new Blob([lines], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url;
+    a.download = `FixItNow_Quote_${job.providerName.replace(/\s/g,"_")}_${job.dateLabel || "Quote"}.txt`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  // ── Bottom nav ─────────────────────────────────────────────────────────────
+  const NAV = [
+    ["home",    "home",    "Home"],
+    ["find",    "search",  "Find Pros"],
+    ["history", "jobs",    "History"],
+    ["account", "profile", "Account"],
+  ];
+
+  // ── Shared sub-components ──────────────────────────────────────────────────
+  const SectionTitle = ({ children, action }) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase" }}>{children}</div>
+      {action}
+    </div>
+  );
+
+  const EmptyState = ({ icon, title, sub, cta, onCta }) => (
+    <div style={{ textAlign: "center", padding: "40px 0" }}>
+      <div style={{ marginBottom: 12 }}><Icon name={icon} size={38} color="#334155" strokeWidth={1.4} /></div>
+      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#64748B", marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.7, maxWidth: 220, margin: "0 auto" }}>{sub}</div>
+      {cta && <Btn onClick={onCta} style={{ marginTop: 16 }}>{cta}</Btn>}
+    </div>
+  );
+
+  // A compact job card used in multiple places
+  const CompactJobCard = ({ job, showActions = true }) => {
+    const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
+    const svc = SERVICES.find(s => s.id === job.serviceType);
+    const isActive = activeStatuses.includes(job.status);
+    return (
+      <div style={{ background: isActive ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", border: `1.5px solid ${isActive ? st.color+"40" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 10 }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: `${svc?.color||"#0EA5E9"}18`, border: `1.5px solid ${svc?.color||"#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ServiceIcon serviceId={job.serviceType||"handyman"} size={18} color={svc?.color||"#0EA5E9"} />
             </div>
-          )}
-          {!(id === "jobs" && jobsBadge > 0) && <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />}
-          <span style={{ fontSize: 10, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-
-  // -- SHARED HEADER --------------------------------------------------------
-  const Header = ({ title, showBack }) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {showBack
-          ? <button onClick={() => setTab("find")} style={{ background: "none", border: "none", color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", padding: 0 }}>← Back</button>
-          : <><Logo size={28} /><Wordmark size={15} /></>}
-        {title && <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9" }}>{title}</div>}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
-        <div onClick={() => setTab("profile")} style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", cursor: "pointer" }}>
-          {user.name?.charAt(0).toUpperCase()}
+            <div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{job.providerName}</div>
+              <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{job.serviceName} · {job.dateLabel}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+            </div>
+            {job.estimatedValue && (
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#34D399" }}>R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}</span>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
-  );
 
+        {/* Progress bar for active jobs */}
+        {isActive && (
+          <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+            {JOB_PROGRESS_STEPS.map((s, idx) => {
+              const curIdx = JOB_PROGRESS_STEPS.indexOf(job.status);
+              return <div key={s} style={{ flex: 1, height: 3, borderRadius: 3, background: idx <= curIdx ? JOB_STATUS[s]?.color : "rgba(255,255,255,0.08)" }} />;
+            })}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: st.color, marginBottom: showActions ? 10 : 0, fontWeight: 600 }}>{st.desc}{job.statusNote ? ` -- "${job.statusNote}"` : ""}</div>
+
+        {/* Actions */}
+        {showActions && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {job.providerId && job.status !== "declined" && (
+              <button onClick={() => setChatJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
+              </button>
+            )}
+            {(job.status === "onroute" || job.status === "inprogress") && job.providerId && (
+              <button onClick={() => setGpsJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(139,92,246,0.15)", color: "#C4B5FD", border: "1px solid rgba(139,92,246,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                <Icon name="location" size={12} color="#C4B5FD" strokeWidth={2} />Track
+              </button>
+            )}
+            {job.status === "pending" && (
+              <button onClick={async () => { await updateJobStatus(job.id, "declined", "Cancelled by customer"); loadMyJobs(); }} style={{ flex: 1, minWidth: 60, background: "rgba(239,68,68,0.08)", color: "#FCA5A5", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>
+                Cancel
+              </button>
+            )}
+            {job.status === "completed" && !job.reviewed && (
+              <button onClick={() => setReviewJob(job)} style={{ flex: 1, minWidth: 60, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                <Icon name="star" size={12} color="#F59E0B" strokeWidth={2} />Rate
+              </button>
+            )}
+            {job.status === "completed" && (
+              <button onClick={() => { setSelectedService(job.serviceType); setTab("find"); }} style={{ flex: 1, minWidth: 60, background: "rgba(14,165,233,0.1)", color: "#38BDF8", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", WebkitTapHighlightColor: "transparent" }}>
+                Rebook
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: "100vh", background: "#060A14", maxWidth: 500, margin: "0 auto", fontFamily: "'DM Sans',sans-serif" }}>
       <style>{`
@@ -4395,68 +4518,147 @@ function CustomerHome({ user, onLogout }) {
         *{box-sizing:border-box;margin:0;padding:0}body{background:#060A14}
         input,textarea,select{outline:none}input::placeholder,textarea::placeholder{color:#475569}
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#1E293B;border-radius:4px}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-        .fadeUp{animation:fadeUp 0.35s ease forwards}
-        .shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.03) 25%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0.03) 75%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:14px;height:84px;margin-bottom:10px}
         ::-webkit-scrollbar-track{background:transparent}
-        button{WebkitTapHighlightColor:transparent}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+        .fadeUp{animation:fadeUp 0.3s ease forwards}
+        .shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.03) 25%,rgba(255,255,255,0.07) 50%,rgba(255,255,255,0.03) 75%);background-size:400px 100%;animation:shimmer 1.4s infinite;border-radius:14px;height:84px;margin-bottom:10px}
+        button{-webkit-tap-highlight-color:transparent}
       `}</style>
 
-      {/* -- FIND TAB -- */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* HOME TAB -- Dashboard                                                 */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {tab === "home" && (
+        <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 22, color: "#F1F5F9" }}>Hi {user.name?.split(" ")[0]} 👋</div>
+              <div style={{ fontSize: 12, color: "#475569", marginTop: 3 }}>
+                {activeJobs.length > 0 ? `${activeJobs.length} active job${activeJobs.length !== 1 ? "s" : ""}` : "Your home, managed."}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
+              <div onClick={() => setTab("account")} style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", cursor: "pointer" }}>
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+            </div>
+          </div>
+
+          {/* ACTIVE JOBS -- top priority when something is happening */}
+          {activeJobs.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <SectionTitle action={<button onClick={() => setTab("history")} style={{ background: "none", border: "none", fontSize: 11, color: "#0EA5E9", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>See all</button>}>Active jobs</SectionTitle>
+              {activeJobs.map(job => <CompactJobCard key={job.id} job={job} />)}
+            </div>
+          )}
+
+          {/* FIND A PRO -- primary action, always visible */}
+          <div style={{ background: "linear-gradient(135deg,rgba(14,165,233,0.12),rgba(99,102,241,0.08))", border: "1.5px solid rgba(14,165,233,0.25)", borderRadius: 16, padding: "18px 18px 16px", marginBottom: 16 }}>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16, color: "#F1F5F9", marginBottom: 4 }}>Find a pro</div>
+            <div style={{ fontSize: 12, color: "#64748B", marginBottom: 14 }}>What do you need help with today?</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
+              {SERVICES.map(s => (
+                <div key={s.id} onClick={() => { setSelectedService(s.id); setTab("find"); }}
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "12px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.15s" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}>
+                  <ServiceIcon serviceId={s.id} size={22} color={s.color} />
+                  <div style={{ fontSize: 10, fontWeight: 600, color: "#64748B", marginTop: 6 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            <Btn full onClick={() => setTab("find")}>Browse all providers →</Btn>
+          </div>
+
+          {/* STATS STRIP -- only show if they have history */}
+          {myJobs.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
+              {[
+                { label: "Jobs done",   val: completedJobs.length,                                                          color: "#10B981" },
+                { label: "Total spend", val: totalSpend > 0 ? `R${Math.round(totalSpend/1000 >= 1 ? totalSpend/1000 : totalSpend).toLocaleString()}${totalSpend >= 1000 ? "k" : ""}` : "R0", color: "#0EA5E9" },
+                { label: "Providers",   val: providersUsed.length,                                                          color: "#8B5CF6" },
+              ].map(({ label, val, color }) => (
+                <div key={label} onClick={() => setTab("history")} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 10px", textAlign: "center", cursor: "pointer" }}>
+                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color }}>{val}</div>
+                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* CREDITS & DISCOUNTS -- show if they have any */}
+          <CreditWallet user={user} />
+          <DiscountWallet customerId={user.email} />
+
+          {/* HOME HEALTH SCORE */}
+          <HomeHealthScore customerId={user.email} onBookService={(svcId) => { setSelectedService(svcId); setTab("find"); }} />
+
+          {/* MY TEAM quick access */}
+          <MyTeam customerId={user.email} onBookProvider={(p) => { setSelectedService(p.serviceType); setTab("find"); }} />
+
+          {/* GET IT DONE BOARD */}
+          <button onClick={() => setShowJobBoard(true)}
+            style={{ width: "100%", background: "rgba(16,185,129,0.07)", border: "1.5px solid rgba(16,185,129,0.18)", borderRadius: 13, padding: "13px 16px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Icon name="jobs" size={17} color="#10B981" strokeWidth={1.8} />
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>Get It Done Board</div>
+              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post your job -- providers compete -- save 10-25%</div>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* FIND TAB -- Search & Discovery                                        */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
       {tab === "find" && (
         <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
-          <Header />
-
-          {/* Personalised greeting */}
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 22, fontFamily: "'Syne',sans-serif", fontWeight: 800, color: "#F1F5F9", lineHeight: 1.2 }}>
-              Hi {user.name?.split(" ")[0]} 👋
-            </div>
-            <div style={{ color: "#475569", fontSize: 13, marginTop: 4 }}>What do you need help with today?</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Logo size={28} /><Wordmark size={15} /></div>
+            <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
           </div>
 
           {/* Service grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
             {SERVICES.map(s => (
               <div key={s.id} onClick={() => setSelectedService(s.id === selectedService ? null : s.id)}
-                style={{ background: selectedService === s.id ? `${s.color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${selectedService === s.id ? s.color+"55" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, padding: "14px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.15s", WebkitTapHighlightColor: "transparent" }}
-                onMouseEnter={e => { if (selectedService !== s.id) e.currentTarget.style.background = "rgba(255,255,255,0.07)"; }}
-                onMouseLeave={e => { if (selectedService !== s.id) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}>
-                <ServiceIcon serviceId={s.id} size={26} color={selectedService === s.id ? s.color : "#475569"} />
-                <div style={{ fontSize: 11, fontWeight: 600, color: selectedService === s.id ? "#F1F5F9" : "#64748B", marginTop: 7, lineHeight: 1.3 }}>{s.label}</div>
+                style={{ background: selectedService === s.id ? `${s.color}18` : "rgba(255,255,255,0.04)", border: `1.5px solid ${selectedService === s.id ? s.color+"55" : "rgba(255,255,255,0.08)"}`, borderRadius: 14, padding: "14px 6px", cursor: "pointer", textAlign: "center", transition: "all 0.15s", WebkitTapHighlightColor: "transparent" }}>
+                <ServiceIcon serviceId={s.id} size={24} color={selectedService === s.id ? s.color : "#475569"} />
+                <div style={{ fontSize: 11, fontWeight: 600, color: selectedService === s.id ? "#F1F5F9" : "#64748B", marginTop: 6 }}>{s.label}</div>
               </div>
             ))}
           </div>
 
-          {/* Location + search */}
+          {/* Location input */}
           <div style={{ position: "relative", marginBottom: 10 }}>
-            <div style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)" }}>
+            <div style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
               <Icon name="pin" size={15} color="#475569" strokeWidth={1.6} />
             </div>
             <input value={location} onChange={e => setLocation(e.target.value)} placeholder="Suburb, City (e.g. Hillcrest, Durban)"
-              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px 12px 40px", color: "#E2E8F0", fontSize: 14, fontFamily: "'DM Sans',sans-serif", outline: "none" }}
+              style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "12px 14px 12px 40px", color: "#E2E8F0", fontSize: 14, fontFamily: "'DM Sans',sans-serif" }}
               onFocus={e => e.target.style.borderColor = "rgba(14,165,233,0.5)"}
-              onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
-            />
+              onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"} />
           </div>
 
-          {/* Emergency toggle + search */}
+          {/* Emergency + search */}
           <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-            <button onClick={() => setEmergencyOnly(v => !v)}
-              style={{ background: emergencyOnly ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)", border: `1.5px solid ${emergencyOnly ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 12, padding: "11px 14px", fontSize: 12, fontWeight: 700, color: emergencyOnly ? "#FCA5A5" : "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0, WebkitTapHighlightColor: "transparent" }}>
-              ⚡ Emergency only
+            <button onClick={() => setEmergencyOnly(v => !v)} style={{ background: emergencyOnly ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)", border: `1.5px solid ${emergencyOnly ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 12, padding: "11px 14px", fontSize: 12, fontWeight: 700, color: emergencyOnly ? "#FCA5A5" : "#64748B", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0, WebkitTapHighlightColor: "transparent" }}>
+              ⚡ Emergency
             </button>
             <Btn full onClick={handleSearch} disabled={!selectedService || !location.trim() || loading} style={{ flex: 1 }}>
               {loading ? "Searching..." : "Find Pros →"}
             </Btn>
           </div>
 
-          {/* Search history chips */}
+          {/* Recent searches */}
           {searchHistory.length > 0 && !searchDone && (
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Recent searches</div>
+            <div style={{ marginBottom: 16 }}>
+              <SectionTitle>Recent searches</SectionTitle>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {searchHistory.slice(0, 6).map((h, i) => {
                   const s = SERVICES.find(sv => sv.id === h.serviceId);
@@ -4471,12 +4673,8 @@ function CustomerHome({ user, onLogout }) {
             </div>
           )}
 
-          {/* My Team quick access */}
-          <MyTeam customerId={user.email} onBookProvider={(p) => { setSelectedService(p.serviceType); setLocation(user.suburb ? `${user.suburb}, ${user.city}` : ""); }} />
-
-          {/* Get quote request */}
-          <button onClick={() => setShowQuoteModal(true)}
-            style={{ width: "100%", background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.22)", borderRadius: 13, padding: "13px 16px", marginBottom: 10, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+          {/* Quote request */}
+          <button onClick={() => setShowQuoteModal(true)} style={{ width: "100%", background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.22)", borderRadius: 13, padding: "13px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Icon name="send" size={17} color="#818CF8" strokeWidth={1.8} />
             </div>
@@ -4486,19 +4684,7 @@ function CustomerHome({ user, onLogout }) {
             </div>
           </button>
 
-          {/* Get It Done Board */}
-          <button onClick={() => setShowJobBoard(true)}
-            style={{ width: "100%", background: "rgba(16,185,129,0.07)", border: "1.5px solid rgba(16,185,129,0.18)", borderRadius: 13, padding: "13px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Icon name="jobs" size={17} color="#10B981" strokeWidth={1.8} />
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: "#34D399" }}>Get It Done Board</div>
-              <div style={{ fontSize: 11, color: "#065F46", marginTop: 2 }}>Post your job · providers compete · save 10-25%</div>
-            </div>
-          </button>
-
-          {/* Search results */}
+          {/* Results */}
           {(searchDone || loading) && (
             <div ref={resultsRef}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -4507,28 +4693,17 @@ function CustomerHome({ user, onLogout }) {
                 </div>
                 {searchDone && <button onClick={() => { setSearchDone(false); setProviders([]); }} style={{ background: "none", border: "none", color: "#475569", fontSize: 12, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Clear</button>}
               </div>
-
-              {/* Loading shimmer */}
               {loading && [1,2,3].map(i => <div key={i} className="shimmer" style={{ animationDelay: `${i*0.15}s` }} />)}
-
               {searchDone && (
                 <>
-                  {/* Sort chips */}
                   <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 14, scrollbarWidth: "none" }}>
-                    {[
-                      { id: "best",      label: "Best match" },
-                      { id: "available", label: "🟢 Available today" },
-                      { id: "rating",    label: "⭐ Top rated" },
-                      { id: "speed",     label: "⚡ Fastest" },
-                      { id: "reviews",   label: "Most reviewed" },
-                    ].map(({ id, label }) => (
-                      <button key={id} onClick={() => setSortBy(id)} style={{ flexShrink: 0, padding: "6px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", transition: "all 0.15s", background: sortBy === id ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.05)", border: sortBy === id ? "1.5px solid #0EA5E9" : "1px solid rgba(255,255,255,0.1)", color: sortBy === id ? "#38BDF8" : "#64748B", WebkitTapHighlightColor: "transparent" }}>
+                    {[{ id: "best", label: "Best match" },{ id: "available", label: "🟢 Available today" },{ id: "rating", label: "⭐ Top rated" },{ id: "speed", label: "⚡ Fastest" },{ id: "reviews", label: "Most reviewed" }].map(({ id, label }) => (
+                      <button key={id} onClick={() => setSortBy(id)} style={{ flexShrink: 0, padding: "6px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", WebkitTapHighlightColor: "transparent", background: sortBy === id ? "rgba(14,165,233,0.2)" : "rgba(255,255,255,0.05)", border: sortBy === id ? "1.5px solid #0EA5E9" : "1px solid rgba(255,255,255,0.1)", color: sortBy === id ? "#38BDF8" : "#64748B" }}>
                         {label}
                       </button>
                     ))}
                   </div>
 
-                  {/* Deals board */}
                   {deals.length > 0 && (
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -4550,7 +4725,6 @@ function CustomerHome({ user, onLogout }) {
                     </div>
                   )}
 
-                  {/* Fresh Picks */}
                   {freshPicks.length > 0 && (
                     <div style={{ marginBottom: 20 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -4569,15 +4743,12 @@ function CustomerHome({ user, onLogout }) {
                     </div>
                   )}
 
-                  {/* Main results */}
                   {filtered.filter(p => !freshPicks.find(fp => fp.providerId === p.providerId)).map((p, i) => (
                     <div key={i} className="fadeUp" style={{ animationDelay: `${i*0.05}s` }}>
                       {!p._available && (
                         <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", borderRadius: "12px 12px 0 0", padding: "5px 14px", marginBottom: -1, display: "flex", alignItems: "center", gap: 6 }}>
                           <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#EF4444" }} />
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#FCA5A5" }}>
-                            {p.avail?.slotsLeft === 0 ? "Fully booked this week -- enquire anyway" : "Limited availability this week"}
-                          </span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#FCA5A5" }}>{p.avail?.slotsLeft === 0 ? "Fully booked this week" : "Limited availability"}</span>
                         </div>
                       )}
                       <ProviderCard provider={p} searchArea={location} searchQuery={`${SERVICES.find(s=>s.id===selectedService)?.label||""} near ${location}`} user={user} onBooked={() => { loadMyJobs(); setJobsBadge(b => b+1); }} />
@@ -4585,14 +4756,9 @@ function CustomerHome({ user, onLogout }) {
                   ))}
 
                   {searchDone && filtered.length === 0 && (
-                    <div style={{ textAlign: "center", marginTop: 32, color: "#475569" }}>
-                      <div style={{ marginBottom: 10 }}><Icon name="search" size={36} color="#475569" strokeWidth={1.4} /></div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, color: "#64748B", fontSize: 14 }}>No providers found nearby</div>
-                      <div style={{ fontSize: 12, marginTop: 8, lineHeight: 1.7, color: "#334155", maxWidth: 260, margin: "8px auto 0" }}>
-                        No {SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase()||"service"} providers in {location} yet. Try a quote request to reach providers directly.
-                      </div>
-                      <Btn onClick={() => setShowQuoteModal(true)} style={{ marginTop: 16 }}>Request Quotes →</Btn>
-                    </div>
+                    <EmptyState icon="search" title="No providers found nearby"
+                      sub={`No ${SERVICES.find(s=>s.id===selectedService)?.label?.toLowerCase()||"service"} providers in ${location} yet.`}
+                      cta="Request Quotes →" onCta={() => setShowQuoteModal(true)} />
                   )}
                 </>
               )}
@@ -4601,199 +4767,283 @@ function CustomerHome({ user, onLogout }) {
         </div>
       )}
 
-      {/* -- MY JOBS TAB -- */}
-      {tab === "jobs" && (
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* HISTORY TAB -- Jobs, Providers, Quotes, Spending                      */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {tab === "history" && (
         <div style={{ padding: "44px 18px 100px" }} className="fadeUp">
-          <Header title="My Jobs" />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: "#F1F5F9" }}>History</div>
+            <NotificationBell userId={user.email} onOpen={() => setShowNotifs(true)} />
+          </div>
 
-          {/* Spending summary -- only show if they have completed jobs */}
-          {completedCount > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
-              {[
-                { label: "Jobs done",    val: completedCount,                                               color: "#10B981" },
-                { label: "Total spent",  val: totalSpend > 0 ? `R${Math.round(totalSpend).toLocaleString()}` : "--", color: "#0EA5E9" },
-                { label: "Active now",   val: myJobs.filter(j => activeStatuses.includes(j.status)).length, color: "#F59E0B" },
-              ].map(({ label, val, color }) => (
-                <div key={label} style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${color}22`, borderRadius: 12, padding: "12px 10px", textAlign: "center" }}>
-                  <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color }}>{val}</div>
-                  <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Loyalty discount wallet */}
-          <DiscountWallet customerId={user.email} />
-
-          {/* Credit wallet -- if they have credit */}
-          <CreditWallet user={user} />
-
-          {/* Filter chips */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+          {/* Sub-nav tabs */}
+          <div style={{ display: "flex", background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: 4, gap: 3, marginBottom: 20 }}>
             {[
-              ["active",    `Active (${myJobs.filter(j=>activeStatuses.includes(j.status)).length})`],
-              ["completed", `Completed (${myJobs.filter(j=>j.status==="completed").length})`],
-              ["all",       `All (${myJobs.length})`],
-            ].map(([val, label]) => (
-              <button key={val} onClick={() => setJobFilter(val)}
-                style={{ flex: 1, padding: "8px 6px", borderRadius: 20, fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer", WebkitTapHighlightColor: "transparent", background: jobFilter === val ? "rgba(14,165,233,0.18)" : "rgba(255,255,255,0.04)", border: `1.5px solid ${jobFilter === val ? "#0EA5E9" : "rgba(255,255,255,0.08)"}`, color: jobFilter === val ? "#38BDF8" : "#475569" }}>
+              ["jobs",      `Jobs (${myJobs.length})`],
+              ["providers", `Providers (${providersUsed.length})`],
+              ["quotes",    `Quotes (${quotedJobs.length})`],
+              ["spending",  "Spending"],
+            ].map(([id, label]) => (
+              <button key={id} onClick={() => setHistoryFilter(id)}
+                style={{ flex: 1, padding: "9px 4px", borderRadius: 9, border: "none", background: historyFilter === id ? "rgba(255,255,255,0.1)" : "transparent", color: historyFilter === id ? "#F1F5F9" : "#475569", fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all 0.15s", whiteSpace: "nowrap", WebkitTapHighlightColor: "transparent" }}>
                 {label}
               </button>
             ))}
           </div>
 
-          {filteredJobs.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0" }}>
-              <div style={{ marginBottom: 16 }}><Icon name="jobs" size={44} color="#334155" strokeWidth={1.4} /></div>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#64748B", marginBottom: 8 }}>
-                {jobFilter === "active" ? "No active jobs" : "No jobs yet"}
-              </div>
-              <div style={{ fontSize: 12, color: "#334155", maxWidth: 240, margin: "0 auto", lineHeight: 1.7 }}>
-                {jobFilter === "active" ? "All your jobs are completed. Find your next pro below." : "Browse providers and request your first job."}
-              </div>
-              <Btn onClick={() => setTab("find")} style={{ marginTop: 20 }}>Find Providers →</Btn>
-            </div>
-          ) : filteredJobs.map((job, i) => {
-            const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
-            const svc = SERVICES.find(s => s.id === job.serviceType);
-            const isActive = activeStatuses.includes(job.status);
-            return (
-              <div key={job.id} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: isActive ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.03)", border: `1.5px solid ${isActive ? st.color+"40" : "rgba(255,255,255,0.07)"}`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
-
-                {/* Header */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, background: `${svc?.color||"#0EA5E9"}18`, border: `1.5px solid ${svc?.color||"#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <ServiceIcon serviceId={job.serviceType||"handyman"} size={18} color={svc?.color||"#0EA5E9"} />
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{job.providerName}</div>
-                      <div style={{ fontSize: 11, color: "#475569", marginTop: 1 }}>{job.serviceName} · {job.dateLabel} {job.timeLabel}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: st.color }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
-                  </div>
+          {/* ── JOBS sub-tab ── */}
+          {historyFilter === "jobs" && (
+            <div className="fadeUp">
+              {/* Search bar */}
+              <div style={{ position: "relative", marginBottom: 14 }}>
+                <div style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                  <Icon name="search" size={14} color="#475569" strokeWidth={1.8} />
                 </div>
+                <input value={jobSearch} onChange={e => setJobSearch(e.target.value)} placeholder="Search jobs by provider or service..."
+                  style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "10px 14px 10px 36px", color: "#E2E8F0", fontSize: 13, fontFamily: "'DM Sans',sans-serif" }} />
+              </div>
 
-                {/* Progress bar -- only for active jobs */}
-                {isActive && (
-                  <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
-                    {JOB_PROGRESS_STEPS.map((s, idx) => {
-                      const currentIdx = JOB_PROGRESS_STEPS.indexOf(job.status);
-                      const filled = job.status !== "declined" && idx <= currentIdx;
-                      return <div key={s} style={{ flex: 1, height: 3, borderRadius: 3, background: filled ? JOB_STATUS[s]?.color : "rgba(255,255,255,0.08)", transition: "background 0.3s" }} />;
+              {myJobs.length === 0
+                ? <EmptyState icon="jobs" title="No jobs yet" sub="Your job requests will appear here." cta="Find a provider" onCta={() => setTab("find")} />
+                : myJobs
+                    .filter(j => !jobSearch || j.providerName?.toLowerCase().includes(jobSearch.toLowerCase()) || j.serviceName?.toLowerCase().includes(jobSearch.toLowerCase()))
+                    .map(job => <CompactJobCard key={job.id} job={job} />)
+              }
+            </div>
+          )}
+
+          {/* ── PROVIDERS sub-tab ── */}
+          {historyFilter === "providers" && (
+            <div className="fadeUp">
+              {providersUsed.length === 0
+                ? <EmptyState icon="profile" title="No providers yet" sub="Providers you've used appear here for easy rebooking." cta="Find a provider" onCta={() => setTab("find")} />
+                : (
+                  <div>
+                    <div style={{ fontSize: 11, color: "#475569", marginBottom: 14, lineHeight: 1.6 }}>
+                      Providers you've used -- tap to contact or rebook.
+                    </div>
+                    {providersUsed.map((p, i) => {
+                      const svc = SERVICES.find(s => s.id === p.serviceType);
+                      return (
+                        <div key={p.providerId} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 10 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 11, background: `${svc?.color||"#0EA5E9"}18`, border: `1.5px solid ${svc?.color||"#0EA5E9"}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <ServiceIcon serviceId={p.serviceType} size={20} color={svc?.color||"#0EA5E9"} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 15, color: "#F1F5F9" }}>{p.name}</div>
+                              <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{p.serviceName}</div>
+                              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                                <div style={{ fontSize: 10, color: "#475569" }}>
+                                  {p.jobCount} job{p.jobCount !== 1 ? "s" : ""} completed
+                                </div>
+                                <div style={{ fontSize: 10, color: "#334155" }}>·</div>
+                                <div style={{ fontSize: 10, color: "#475569" }}>Last: {p.lastUsed}</div>
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              {p.reviewed
+                                ? <div style={{ fontSize: 10, color: "#10B981", fontWeight: 600 }}>✓ Reviewed</div>
+                                : <button onClick={() => { const j = myJobs.find(x => x.id === p.lastJobId); if (j) setReviewJob(j); }}
+                                    style={{ fontSize: 10, fontWeight: 700, background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", color: "#F59E0B", borderRadius: 7, padding: "3px 8px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Rate</button>
+                              }
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => { setSelectedService(p.serviceType); setTab("find"); }}
+                              style={{ flex: 2, background: "linear-gradient(135deg,#0EA5E9,#6366F1)", border: "none", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 700, color: "white", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
+                              Book again
+                            </button>
+                            <button onClick={() => { const j = myJobs.find(x => x.providerId === p.providerId); if (j) setChatJob(j); }}
+                              style={{ flex: 1, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 700, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
+                              <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
+                            </button>
+                          </div>
+                        </div>
+                      );
                     })}
                   </div>
-                )}
+                )
+              }
+            </div>
+          )}
 
-                <div style={{ fontSize: 11, color: st.color, marginBottom: 10, fontWeight: 600 }}>{st.desc}{job.statusNote ? ` -- "${job.statusNote}"` : ""}</div>
+          {/* ── QUOTES sub-tab ── */}
+          {historyFilter === "quotes" && (
+            <div className="fadeUp">
+              {quotedJobs.length === 0
+                ? <EmptyState icon="send" title="No quotes yet" sub="When providers give you a price estimate it appears here. You can download each quote." cta="Request a quote" onCta={() => setShowQuoteModal(true)} />
+                : (
+                  <div>
+                    <div style={{ fontSize: 11, color: "#475569", marginBottom: 14, lineHeight: 1.6 }}>
+                      All price estimates received -- tap Download to save any quote.
+                    </div>
+                    {quotedJobs.map((job, i) => {
+                      const svc = SERVICES.find(s => s.id === job.serviceType);
+                      const st  = JOB_STATUS[job.status] || JOB_STATUS.pending;
+                      return (
+                        <div key={job.id} className="fadeUp" style={{ animationDelay: `${i*0.04}s`, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 10 }}>
+                          {/* Quote header */}
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                              <div style={{ width: 38, height: 38, borderRadius: 10, background: `${svc?.color||"#0EA5E9"}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <ServiceIcon serviceId={job.serviceType} size={18} color={svc?.color||"#0EA5E9"} />
+                              </div>
+                              <div>
+                                <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>{job.providerName}</div>
+                                <div style={{ fontSize: 11, color: "#64748B", marginTop: 1 }}>{job.serviceName} · {job.dateLabel}</div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
+                              <span style={{ fontSize: 10, fontWeight: 700, color: st.color }}>{st.label}</span>
+                            </div>
+                          </div>
 
-                {/* Job details */}
-                <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, padding: "10px 12px", marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.6 }}>{job.description}</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>
-                    <Icon name="pin" size={10} color="#475569" strokeWidth={1.8} /> {job.address}
+                          {/* Price breakdown */}
+                          <div style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: job.discountApplied > 0 ? 6 : 0 }}>
+                              <span style={{ fontSize: 12, color: "#64748B" }}>Estimate</span>
+                              <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 18, color: "#34D399" }}>R{parseFloat(job.estimatedValue).toLocaleString("en-ZA")}</span>
+                            </div>
+                            {job.discountApplied > 0 && (
+                              <>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748B", marginBottom: 4 }}>
+                                  <span>{job.discountApplied}% loyalty discount</span>
+                                  <span style={{ color: "#10B981" }}>-R{Math.round(parseFloat(job.estimatedValue) * job.discountApplied / 100).toLocaleString()}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700, color: "#F1F5F9", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 6 }}>
+                                  <span>You pay</span>
+                                  <span style={{ color: "#34D399" }}>R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString("en-ZA")}</span>
+                                </div>
+                              </>
+                            )}
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#334155", marginTop: 4 }}>
+                              <span>Platform fee (8%)</span>
+                              <span>R{Math.round(parseFloat(job.estimatedValue) * 0.08)}</span>
+                            </div>
+                          </div>
+
+                          {/* Job description */}
+                          {job.description && (
+                            <div style={{ fontSize: 12, color: "#64748B", lineHeight: 1.5, marginBottom: 12 }}>{job.description}</div>
+                          )}
+
+                          {/* Download quote */}
+                          <button onClick={() => downloadQuote(job)}
+                            style={{ width: "100%", background: "rgba(99,102,241,0.1)", border: "1.5px solid rgba(99,102,241,0.25)", borderRadius: 10, padding: "10px 0", fontSize: 12, fontWeight: 600, color: "#A5B4FC", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, WebkitTapHighlightColor: "transparent" }}>
+                            <Icon name="jobs" size={13} color="#A5B4FC" strokeWidth={1.8} />
+                            Download quote
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {(job.discountApplied > 0 && job.estimatedValue) ? (
-                    <div style={{ fontSize: 11, color: "#34D399", marginTop: 6, fontWeight: 600 }}>
-                      {job.discountApplied}% discount applied · R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString()}
-                      <span style={{ color: "#475569", fontWeight: 400 }}> (was R{parseFloat(job.estimatedValue).toLocaleString()})</span>
+                )
+              }
+            </div>
+          )}
+
+          {/* ── SPENDING sub-tab ── */}
+          {historyFilter === "spending" && (
+            <div className="fadeUp">
+              {completedJobs.length === 0
+                ? <EmptyState icon="chart" title="No spending data yet" sub="Your spending summary appears here once you complete your first job." cta="Find a provider" onCta={() => setTab("find")} />
+                : (
+                  <div>
+                    {/* Total spend hero */}
+                    <div style={{ background: "linear-gradient(135deg,rgba(16,185,129,0.12),rgba(16,185,129,0.06))", border: "1.5px solid rgba(16,185,129,0.25)", borderRadius: 16, padding: "20px 20px 16px", marginBottom: 20, textAlign: "center" }}>
+                      <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>Total home maintenance spend</div>
+                      <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 36, color: "#34D399" }}>
+                        R{Math.round(totalSpend).toLocaleString("en-ZA")}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#065F46", marginTop: 4 }}>
+                        {completedJobs.length} job{completedJobs.length !== 1 ? "s" : ""} completed · {providersUsed.length} provider{providersUsed.length !== 1 ? "s" : ""} used
+                      </div>
                     </div>
-                  ) : job.estimatedValue ? (
-                    <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>Est. R{parseFloat(job.estimatedValue).toLocaleString()}</div>
-                  ) : null}
-                </div>
 
-                {/* Actions -- context-aware */}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {/* Chat -- always available for non-declined jobs */}
-                  {job.providerId && job.status !== "declined" && (
-                    <button onClick={() => setChatJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: "rgba(99,102,241,0.15)", color: "#A5B4FC", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
-                      <Icon name="message" size={12} color="#A5B4FC" strokeWidth={2} />Chat
-                    </button>
-                  )}
+                    {/* Spend by service */}
+                    <SectionTitle>By service type</SectionTitle>
+                    {spendByService.map((svc, i) => {
+                      const pct = totalSpend > 0 ? Math.round((svc.total / totalSpend) * 100) : 0;
+                      return (
+                        <div key={svc.id} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, padding: "13px 16px", marginBottom: 8 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 9, background: `${svc.color}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <ServiceIcon serviceId={svc.id} size={16} color={svc.color} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: "#E2E8F0" }}>{svc.label}</span>
+                                <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9" }}>R{Math.round(svc.total).toLocaleString("en-ZA")}</span>
+                              </div>
+                              <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>{svc.count} job{svc.count !== 1 ? "s" : ""} · {pct}% of total</div>
+                            </div>
+                          </div>
+                          <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${pct}%`, background: svc.color, borderRadius: 2, transition: "width 0.6s ease" }} />
+                          </div>
+                        </div>
+                      );
+                    })}
 
-                  {/* Track -- on route or in progress */}
-                  {(job.status === "onroute" || job.status === "inprogress") && job.providerId && (
-                    <button onClick={() => setGpsJob(job)}
-                      style={{ flex: 1, minWidth: 70, background: job.status === "onroute" ? "rgba(139,92,246,0.15)" : "rgba(16,185,129,0.15)", color: job.status === "onroute" ? "#C4B5FD" : "#34D399", border: `1px solid ${job.status === "onroute" ? "rgba(139,92,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
-                      <Icon name="location" size={12} color={job.status === "onroute" ? "#C4B5FD" : "#34D399"} strokeWidth={2} />{job.status === "onroute" ? "Track" : "In progress"}
-                    </button>
-                  )}
-
-                  {/* Cancel -- only pending */}
-                  {job.status === "pending" && (
-                    <button onClick={async () => {
-                      await updateJobStatus(job.id, "declined", "Cancelled by customer");
-                      loadMyJobs();
-                    }}
-                      style={{ flex: 1, minWidth: 70, background: "rgba(239,68,68,0.08)", color: "#FCA5A5", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
-                      Cancel request
-                    </button>
-                  )}
-
-                  {/* Rebook -- completed */}
-                  {job.status === "completed" && job.providerId && (
-                    <button onClick={() => { setSelectedService(job.serviceType); setTab("find"); }}
-                      style={{ flex: 1, minWidth: 80, background: "rgba(14,165,233,0.1)", color: "#38BDF8", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
-                      Book again
-                    </button>
-                  )}
-
-                  {/* Rate -- completed, not yet reviewed */}
-                  {job.status === "completed" && !job.reviewed && (
-                    <button onClick={() => setReviewJob(job)}
-                      style={{ flex: 1, minWidth: 60, background: "rgba(245,158,11,0.12)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "9px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, WebkitTapHighlightColor: "transparent" }}>
-                      <Icon name="star" size={12} color="#F59E0B" strokeWidth={2} />Rate
-                    </button>
-                  )}
-
-                  {job.status === "completed" && job.reviewed && (
-                    <div style={{ fontSize: 11, color: "#10B981", padding: "8px 10px", display: "flex", alignItems: "center", gap: 4 }}>
-                      <Icon name="check" size={11} color="#10B981" strokeWidth={2.5} />Reviewed
+                    {/* Per-job breakdown */}
+                    <div style={{ marginTop: 20 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <SectionTitle>Job breakdown</SectionTitle>
+                        <ServiceRecordExport customerId={user.email} userName={user.name} />
+                      </div>
+                      {completedJobs.filter(j => j.estimatedValue).map((job, i) => {
+                        const svc = SERVICES.find(s => s.id === job.serviceType);
+                        return (
+                          <div key={job.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                            <ServiceIcon serviceId={job.serviceType} size={14} color={svc?.color||"#64748B"} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#E2E8F0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{job.providerName}</div>
+                              <div style={{ fontSize: 10, color: "#475569", marginTop: 1 }}>{job.serviceName} · {job.dateLabel}</div>
+                            </div>
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#34D399" }}>R{parseFloat(job.discountedValue||job.estimatedValue).toLocaleString("en-ZA",{maximumFractionDigits:0})}</div>
+                              {job.discountApplied > 0 && <div style={{ fontSize: 9, color: "#10B981" }}>-{job.discountApplied}% discount</div>}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                  </div>
+                )
+              }
+            </div>
+          )}
         </div>
       )}
 
-      {/* -- PROFILE TAB -- */}
-      {tab === "profile" && (
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* ACCOUNT TAB                                                           */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {tab === "account" && (
         <div style={{ padding: "44px 20px 100px" }} className="fadeUp">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}><Logo size={28} /><Wordmark size={15} /></div>
-              </div>
-
-          {/* Avatar + name + edit */}
+          {/* Avatar */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
             <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 700, color: "white", fontFamily: "'Syne',sans-serif", marginBottom: 12 }}>
               {user.name?.charAt(0).toUpperCase()}
             </div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#F1F5F9" }}>{user.name}</div>
-            <div style={{ color: "#475569", fontSize: 13, marginTop: 2 }}>{user.email}</div>
-            {user.refCode && (
-              <div style={{ marginTop: 6, fontSize: 11, color: "#64748B" }}>
-                Ref code: <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "#A5B4FC", letterSpacing: "0.1em" }}>{user.refCode}</span>
-              </div>
-            )}
+            <div style={{ color: "#475569", fontSize: 12, marginTop: 2 }}>{user.email}</div>
+            {user.refCode && <div style={{ fontSize: 11, color: "#64748B", marginTop: 4 }}>Ref: <span style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "#A5B4FC", letterSpacing: "0.1em" }}>{user.refCode}</span></div>}
           </div>
 
-          {/* Edit profile section */}
+          {/* Edit profile */}
           {showEditProfile ? (
-            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(14,165,233,0.25)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
               <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#F1F5F9", marginBottom: 14 }}>Edit profile</div>
-              <Input label="Full name" value={editForm.name} onChange={v => setEditForm(f=>({...f,name:v}))} />
-              <Input label="Phone number" value={editForm.phone} onChange={v => setEditForm(f=>({...f,phone:v}))} type="tel" />
+              <Input label="Full name"      value={editForm.name}    onChange={v => setEditForm(f=>({...f,name:v}))} />
+              <Input label="Phone number"   value={editForm.phone}   onChange={v => setEditForm(f=>({...f,phone:v}))} type="tel" />
               <Input label="Street address" value={editForm.address} onChange={v => setEditForm(f=>({...f,address:v}))} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <Input label="Suburb" value={editForm.suburb} onChange={v => setEditForm(f=>({...f,suburb:v}))} />
-                <Input label="City" value={editForm.city} onChange={v => setEditForm(f=>({...f,city:v}))} />
+                <Input label="City"   value={editForm.city}   onChange={v => setEditForm(f=>({...f,city:v}))} />
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ fontSize: 11, fontWeight: 600, color: "#64748B", letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Notification preference</label>
@@ -4812,68 +5062,68 @@ function CustomerHome({ user, onLogout }) {
               </div>
             </div>
           ) : (
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#94A3B8" }}>Account details</div>
                 <Btn small variant="ghost" onClick={() => setShowEditProfile(true)}>Edit</Btn>
               </div>
-              {[["Phone", user.phone||editForm.phone],["Address", user.suburb ? `${user.suburb}, ${user.city}` : "--"],["Notifications", (user.notifPref||editForm.notifPref||"SMS").toUpperCase()]].map(([k,v]) => (
+              {[["Phone", user.phone||editForm.phone], ["Location", user.suburb ? `${user.suburb}, ${user.city}` : "--"], ["Notifications", (user.notifPref||"SMS").toUpperCase()]].map(([k,v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.05)", fontSize: 13 }}>
                   <span style={{ color: "#475569" }}>{k}</span>
-                  <span style={{ color: "#94A3B8", textAlign: "right" }}>{v||"--"}</span>
+                  <span style={{ color: "#94A3B8" }}>{v||"--"}</span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Referral & Credits */}
-          <CreditWallet user={user} />
-
-          {/* Referral share */}
+          {/* Referral */}
           {user.refCode && (
-            <div style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#A5B4FC", marginBottom: 6 }}>Refer a friend · earn R{REFERRAL_CREDIT_AMOUNT}</div>
+            <div style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)", borderRadius: 14, padding: 16, marginBottom: 14 }}>
+              <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 14, color: "#A5B4FC", marginBottom: 6 }}>Refer a friend -- earn R{REFERRAL_CREDIT_AMOUNT}</div>
               <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.6, marginBottom: 12 }}>
-                Share your link. When they complete their first job, you both earn R{REFERRAL_CREDIT_AMOUNT} platform credit -- used as a fee reduction on your next booking.
+                Share your link. When they complete their first job, you both earn R{REFERRAL_CREDIT_AMOUNT} platform credit.
               </div>
               <button onClick={() => {
                 const url = `${window.location.origin}?ref=${user.refCode}`;
-                if (navigator.share) { navigator.share({ title: "FixIt Now", text: "Find trusted home service pros in KZN", url }); }
-                else { navigator.clipboard?.writeText(url); }
-              }}
-                style={{ width: "100%", background: "rgba(99,102,241,0.15)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700, color: "#818CF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
+                if (navigator.share) navigator.share({ title: "FixIt Now", text: "Find trusted home service pros in KZN", url });
+                else navigator.clipboard?.writeText(url);
+              }} style={{ width: "100%", background: "rgba(99,102,241,0.15)", border: "1.5px solid rgba(99,102,241,0.3)", borderRadius: 10, padding: "11px 0", fontSize: 13, fontWeight: 700, color: "#818CF8", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", WebkitTapHighlightColor: "transparent" }}>
                 Share your link →
               </button>
             </div>
           )}
 
-          {/* Home Health Score */}
-          <HomeHealthScore customerId={user.email} onBookService={(svcId) => { setSelectedService(svcId); setTab("find"); }} />
-
-          {/* My Team */}
-          <MyTeam customerId={user.email} onBookProvider={(p) => { setSelectedService(p.serviceType); setTab("find"); }} />
-
-          {/* Service Record */}
-          <ServiceRecordExport customerId={user.email} userName={user.name} />
-
-          <Btn full variant="ghost" onClick={onLogout} style={{ marginTop: 12 }}>Sign Out</Btn>
+          <Btn full variant="ghost" onClick={onLogout} style={{ marginTop: 4 }}>Sign Out</Btn>
         </div>
       )}
 
-      {/* -- BOTTOM NAV -- */}
-      <BottomNav />
+      {/* ── BOTTOM NAV ── */}
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 500, background: "rgba(6,10,20,0.97)", borderTop: "1px solid rgba(255,255,255,0.07)", backdropFilter: "blur(20px)", display: "flex", zIndex: 50, paddingBottom: "env(safe-area-inset-bottom)" }}>
+        {NAV.map(([id, iconName, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, padding: "12px 0 10px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
+            <div style={{ position: "relative" }}>
+              <Icon name={iconName} size={22} color={tab === id ? "#0EA5E9" : "#334155"} strokeWidth={1.8} />
+              {id === "home" && jobsBadge > 0 && (
+                <div style={{ position: "absolute", top: -4, right: -6, width: 14, height: 14, borderRadius: "50%", background: "#EF4444", fontSize: 8, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>{jobsBadge}</div>
+              )}
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 600, color: tab === id ? "#0EA5E9" : "#334155", fontFamily: "'DM Sans',sans-serif" }}>{label}</span>
+          </button>
+        ))}
+      </div>
 
-      {/* -- MODALS -- */}
-      {showNotifs   && <NotificationsPanel userId={user.email} onClose={() => setShowNotifs(false)} />}
-      {chatJob      && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
-      {gpsJob       && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
-      {showQuoteModal && <QuoteRequestModal user={user} onClose={() => setShowQuoteModal(false)} onDone={() => { setShowQuoteModal(false); loadMyJobs(); setTab("jobs"); }} />}
-      {showJobBoard && <JobBoardPost user={user} onClose={() => setShowJobBoard(false)} onPosted={() => { loadMyJobs(); }} />}
-      {reviewJob    && <ReviewModal job={reviewJob} user={user} onClose={() => setReviewJob(null)} onDone={() => { setReviewJob(null); loadMyJobs(); }} />}
+      {/* ── MODALS ── */}
+      {showNotifs    && <NotificationsPanel userId={user.email} onClose={() => setShowNotifs(false)} />}
+      {chatJob       && <ChatModal job={chatJob} user={user} userRole="customer" onClose={() => setChatJob(null)} />}
+      {gpsJob        && <GPSTrackerModal job={gpsJob} onClose={() => setGpsJob(null)} />}
+      {showQuoteModal && <QuoteRequestModal user={user} onClose={() => setShowQuoteModal(false)} onDone={() => { setShowQuoteModal(false); loadMyJobs(); setTab("history"); }} />}
+      {showJobBoard  && <JobBoardPost user={user} onClose={() => setShowJobBoard(false)} onPosted={() => loadMyJobs()} />}
+      {reviewJob     && <ReviewModal job={reviewJob} user={user} onClose={() => setReviewJob(null)} onDone={() => { setReviewJob(null); loadMyJobs(); }} />}
       {completionNotif && <CompletionPopup notification={completionNotif} user={user} onClose={() => { setCompletionNotif(null); loadMyJobs(); }} />}
     </div>
   );
 }
+
 
 
 // --- ADMIN DASHBOARD -------------------------------------------------------------
